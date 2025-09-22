@@ -1,0 +1,172 @@
+{% extends "base.html" %} 
+{% block content %}
+
+<!-- ✅ Main Content Wrapper -->
+<div class="content container-fluid">
+
+  <!-- ✅ Page Header Section -->
+  <div class="page-header">
+    <div class="row">
+      <div class="col-sm-12">
+        {% comment %} 
+        <!-- Greeting Message (Currently Commented Out) -->
+        <h3 class="page-title">
+          Welcome {{ request.session.user_name|default:"User" }}!
+        </h3> 
+        {% endcomment %}
+        
+        <!-- ✅ Breadcrumb Navigation -->
+        <ul class="breadcrumb">
+          <li class="breadcrumb-item active">Dashboard</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ✅ Include message alerts (success, error, etc.) -->
+  {% include "includes/message.html" %}
+
+  <!-- ✅ Dashboard Stats Section -->
+  <div class="row">
+
+    <!-- Total Jeweller -->
+    <div class="col-xl-3 col-sm-6 col-12 d-flex">
+      <div class="card bg-one w-100">
+        <div class="card-body">
+          <div class="db-widgets d-flex justify-content-between align-items-center">
+            <div class="db-icon">
+              <i class="fa-solid fa-gem"></i>
+            </div>
+            <div class="db-info">
+              <h3>{{routesCounts}}</h3>
+              <h6>Total Jeweller</h6>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- This Month Registration -->
+    <div class="col-xl-3 col-sm-6 col-12 d-flex">
+      <div class="card bg-two w-100">
+        <div class="card-body">
+          <div class="db-widgets d-flex justify-content-between align-items-center">
+            <div class="db-icon">
+              <i class="fa-solid fa-calendar-plus"></i>
+            </div>
+            <div class="db-info">
+              <h3>{{routesCounts}}</h3>
+              <h6>This Month Registration</h6>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Total User -->
+    <div class="col-xl-3 col-sm-6 col-12 d-flex">
+      <div class="card bg-three w-100">
+        <div class="card-body">
+          <div class="db-widgets d-flex justify-content-between align-items-center">
+            <div class="db-icon">
+              <i class="fa-solid fa-users"></i>
+            </div>
+            <div class="db-info">
+              <h3>{{routesCounts}}</h3>
+              <h6>Total User</h6>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- This Month User -->
+    <div class="col-xl-3 col-sm-6 col-12 d-flex">
+      <div class="card bg-four w-100">
+        <div class="card-body">
+          <div class="db-widgets d-flex justify-content-between align-items-center">
+            <div class="db-icon">
+              <i class="fa-solid fa-users"></i>
+            </div>
+            <div class="db-info">
+              <h3>{{routesCounts}}</h3>
+              <h6>This Month User</h6>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Total Booking -->
+    <div class="col-xl-3 col-sm-6 col-12 d-flex">
+      <div class="card bg-five w-100">
+        <div class="card-body">
+          <div class="db-widgets d-flex justify-content-between align-items-center">
+            <div class="db-icon">
+              <i class="fa-solid fa-book"></i>
+            </div>
+            <div class="db-info">
+              <h3>{{routesCounts}}</h3>
+              <h6>Total Booking</h6>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Total Withdraw -->
+    <div class="col-xl-3 col-sm-6 col-12 d-flex">
+      <div class="card bg-six w-100">
+        <div class="card-body">
+          <div class="db-widgets d-flex justify-content-between align-items-center">
+            <div class="db-icon">
+              <i class="fa-solid fa-money-bill-transfer"></i>
+            </div>
+            <div class="db-info">
+              <h3>{{routesCounts}}</h3>
+              <h6>Total Withdraw</h6>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Total Wallet -->
+    <div class="col-xl-3 col-sm-6 col-12 d-flex">
+      <div class="card bg-one w-100">
+        <div class="card-body">
+          <div class="db-widgets d-flex justify-content-between align-items-center">
+            <div class="db-icon">
+              <i class="fa-solid fa-wallet"></i>
+            </div>
+            <div class="db-info">
+              <h3>{{routesCounts}}</h3>
+              <h6>Total Wallet</h6>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div> <!-- ✅ End of Row -->
+</div> <!-- ✅ End of Content -->
+
+<!-- ✅ JavaScript for storing session values in localStorage -->
+<script>
+  const user_id = "{{ user_id|escapejs }}";   // User ID (escaped for safety)
+  const token = "{{ token|escapejs }}";       // Auth token (escaped for safety)
+  const user_name = "{{ user_name|escapejs }}"; // User name (escaped for safety)
+
+  // ✅ Store values in localStorage
+  localStorage.setItem("user_id", user_id);
+  localStorage.setItem("token", token);
+  localStorage.setItem("user_name", user_name);
+
+  // ✅ Debugging - log values to console
+  console.log(user_id, token, user_name);
+</script>
+
+<!-- ✅ Include chart section -->
+{% include "includes/chart.html" %} 
+
+{% endblock content %}
