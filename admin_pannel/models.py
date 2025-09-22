@@ -231,5 +231,88 @@ class TicketsNew(models.Model):
 
     class Meta:
         db_table = 'tickets_new'  
+
+
+class Feedback(models.Model):
+    feedbackId = models.AutoField(primary_key=True)
+    firstName = models.CharField(max_length=100, null=True, blank=True)
+    lastName = models.CharField(max_length=100, null=True, blank=True)
+    mobileNo = models.IntegerField(max_length=100, null=True, blank=True)
+    areaId = models.ForeignKey(Areas, on_delete=models.SET_NULL, null=True, related_name='Feedback_Area')
+    feedbackCategory = models.IntegerField(default=1, null=True, blank=True)
+    feedbackText = models.TextField(null=True, blank=True)
+    feedbackPhotoURL = models.CharField(max_length=400, null=True, blank=True)
+    feedbackDateTime = models.DateTimeField(null=True, blank=True)
+    userId = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Feedback_PaymentUserid')
+
+    created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Feedback_created_by')
+    last_modified_on = models.DateTimeField(auto_now=True)
+    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Feedback_modified_by')
+    is_deleted = models.BooleanField(default=False)
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Feedback_deleted_by')
+
+    class Meta:
+        db_table = "tblFeedbacks"    
+        
+        
+class SMSMaster(models.Model):
+    templateId = models.AutoField(primary_key=True)
+    templateTitle = models.CharField(max_length=50, null=True, blank=True)
+    templateMessageBody = models.TextField(null=True, blank=True)
+
+    created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='SMSMaster_created_by')
+    last_modified_on = models.DateTimeField(auto_now=True)
+    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='SMSMaster_modified_by')
+    is_deleted = models.BooleanField(default=False)
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='SMSMaster_deleted_by')
+
+    class Meta:
+        db_table = "tblSMSMaster"            
+        
+        
+class SMSTransaction(models.Model):
+    smsTransId = models.AutoField(primary_key=True)
+    smsTemplateId = models.ForeignKey(SMSMaster, on_delete=models.SET_NULL, null=True, related_name='SMSTransaction_smsTemplateId')
+    smsBody = models.TextField(null=True, blank=True)
+    registrationId = models.ForeignKey(Registrations, on_delete=models.SET_NULL, null=True, related_name='SMSTransaction_registrationId')
+    smsTo = models.CharField(max_length=10, null=True, blank=True)
+    smsFrom = models.CharField(max_length=10, null=True, blank=True)
+    smsCategory = models.IntegerField(null=True, blank=True)
+    smsStatus = models.IntegerField(null=True, blank=True)
+    smsSendOn = models.IntegerField(null=True, blank=True)
+    smsDeliveredOn = models.IntegerField(null=True, blank=True)
+    smsMethod = models.IntegerField(null=True, blank=True)
+    smsRequestByUserId = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='SMSTransaction_smsRequestByUserId')
+
+    created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='SMSTransaction_created_by')
+    last_modified_on = models.DateTimeField(auto_now=True)
+    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='SMSTransaction_modified_by')
+    is_deleted = models.BooleanField(default=False)
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='SMSTransaction_deleted_by')
+
+    class Meta:
+        db_table = "tblSMSTransactions"
+
+
+class TourExpenses(models.Model):
+    expenseId = models.AutoField(primary_key=True)
+    expenseDateTime = models.DateTimeField(null=True, blank=True)
+    expenseTime = models.TimeField(null=True, blank=True)
+    expenseAmount = models.DecimalField(max_digits=12, decimal_places=2,null=True, blank=True)
+    expenseRemark = models.TextField(null=True, blank=True)
+    expenseUserId = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='TourExpenses_expenseUserId')
+
+    created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='TourExpenses_created_by')
+    last_modified_on = models.DateTimeField(auto_now=True)
+    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='TourExpenses_modified_by')
+    is_deleted = models.BooleanField(default=False)
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='TourExpenses_deleted_by')
+
+    class Meta:
+        db_table = "TourExpenses"        
         
 
