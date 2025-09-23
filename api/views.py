@@ -1,287 +1,145 @@
-# import os
-# from django.http import HttpResponse
-# from django.shortcuts import render, redirect
-# from django.contrib.auth import authenticate, login, logout
-# from django.contrib import messages
-# import requests
-# from datetime import datetime
-# import calendar
-# from rest_framework.decorators import api_view
-# from rest_framework.response import Response
-# from rest_framework import status
-# from django.contrib.auth import authenticate
-# from django.views.decorators.csrf import csrf_exempt
-
-
-# # def login(request):
-# #     return HttpResponse("<h1>Login Page Working!</h1>")
-
-
-# @api_view(['POST'])
-# def AgentLogin(request):
-#     """
-#     Authenticate agent using mobile number (username) and pin (password).
-
-#     Expects:
-#     - user_mobile_number (str): username (mobile number)
-#     - user_pin (str): password/pin
-
-#     Returns:
-#     - Success (200): user details with message_code 1000
-#     - Failure (401): error with message_code 999
-#     """
-
-#     if request.method == 'POST':
-#         user_mobile_number = request.data.get('user_mobile_number')
-#         user_pin = request.data.get('user_pin')
-
-#         # Input validation
-#         if not user_mobile_number or not user_pin:
-#             return Response({
-#                 "message": "Invalid input. User mobile number and pin are required."
-#             }, status=status.HTTP_400_BAD_REQUEST)
-
-#         try:
-#             # Django handles password hashing internally
-#             user = authenticate(username=user_mobile_number, password=user_pin)
-
-#             if user is not None:
-#                 if not user.is_active:
-#                     return Response({
-#                         "message_text": "Your login is not active.",
-#                         "message_code": 999,
-#                         "message_data": {}
-#                     }, status=status.HTTP_401_UNAUTHORIZED)
-
-#                 response_data = {
-#                     "message_text": "Success",
-#                     "message_code": 1000,
-#                     "message_data": {
-#                         "user_id": user.id,
-#                         "user_mobile_number": user.username,
-#                         "first_name": user.first_name,
-#                         "last_name": user.last_name
-#                     }
-#                 }
-#                 return Response(response_data, status=status.HTTP_200_OK)
-
-#             else:
-#                 return Response({
-#                     "message_text": "Failure",
-#                     "message_code": 999,
-#                     "message_data": {}
-#                 }, status=status.HTTP_401_UNAUTHORIZED)
-
-#         except Exception:
-#             return Response({
-#                 "message_text": "Failure",
-#                 "message_code": 999,
-#                 "message_data": {}
-#             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
-
-# # def logout(request):
-# #     request.session.flush()  # clears all session data
-# #     messages.success(request, "You have successfully signed out")
-# #     return redirect('login')
-
-# # def dashboard(request):
-# #     return render(request, 'dashboard.html')
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-# Assuming you have a models.py file with your Django models
-from admin_pannel.models import * # Import your Areas model
-
+from admin_pannel.models import *
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.response import Response
 from rest_framework import status
 from admin_pannel.models import Areas
+import os
+from django.conf import settings
+from PIL import Image, ImageDraw, ImageFont
+from django.contrib.auth import authenticate
+from django.db.models import Q
+from django.contrib.auth.models import User
 
-# The old @csrf_exempt decorator is no longer needed.
-# We will explicitly tell DRF not to use any authentication for this view.
-# An empty list [] means no authentication is performed, which also bypasses the CSRF check.
+
+
 @api_view(['POST'])
-@authentication_classes([])
-@permission_classes([]) # It's also good practice to be explicit about permissions
-def fi_insert_area(request):
+def insertarea(request):
     """
     Insert a new area into the database.
-    ...
     """
-    # Let's add a print statement to be 100% sure the view is being reached
-    print("Request reached the fi_insert_area view!")
-    print("Request data:", request.data)
-    
+
+    debug = []
+    response_data = {
+        'message_code': 999,
+        'message_text': 'Failure',
+        'message_data': [],
+        'message_debug': debug
+    }
+
     try:
         body = request.data
         AreaName = body.get('AreaName', '').strip()
         AreaStatus = str(body.get('AreaStatus', 1))
 
         if not AreaName:
-            return Response({
-                'message_code': 400,
-                'message_text': 'Area name must be specified to create the area.'
-            }, status=status.HTTP_400_BAD_REQUEST)
+            response_data['message_code'] = 400
+            response_data['message_text'] = 'Area name must be specified to create the area.'
+            return Response(response_data, status=status.HTTP_200_OK)
 
         area = Areas.objects.create(AreaName=AreaName, AreaStatus=AreaStatus)
 
         if area.AreaId:
-            return Response({
-                'message_code': 201,
-                'message_text': 'Area created successfully.'
-            }, status=status.HTTP_201_CREATED)
+            response_data['message_code'] = 1000
+            response_data['message_text'] = 'Area created successfully.'
+            response_data['message_data'] = {
+                'AreaId': area.AreaId,
+                'AreaName': area.AreaName,
+                'AreaStatus': area.AreaStatus,
+            }
         else:
-            return Response({
-                'message_code': 500,
-                'message_text': 'Unable to create area.'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            response_data['message_text'] = 'Unable to create area.'
 
     except Exception as e:
-        print(f"Error in fi_insert_area: {e}")
-        return Response({
-            'message_code': 500,
-            'message_text': str(e)
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
+        response_data['message_text'] = 'An error occurred while creating area.'
+        debug.append(str(e))
 
+    return Response(response_data, status=status.HTTP_200_OK)
 
-
-# Add these two new functions to your api/views.py file
 
 @api_view(['GET'])
-@authentication_classes([])
-@permission_classes([])
-def fi_list_area(request):
+def listarea(request):
     """
     Retrieve a list of active areas (AreaStatus = 1).
-
-    This view handles GET requests to retrieve areas with an 'AreaStatus' of 1.
-    If no active areas are found, it returns a 404 response.
-
-    Returns:
-    - Response: A JSON response with the list of active areas.
-
-    Success Response (200 OK):
-    - message_code: 200
-    - message_text: "Success"
-    - message_data: A list of area objects.
-
-    Failure Response (404 Not Found):
-    - message_code: 404
-    - message_text: "No Areas."
-    - message_data: []
     """
+
+    debug = []
+    response_data = {
+        'message_code': 999,
+        'message_text': 'Failure',
+        'message_data': [],
+        'message_debug': debug
+    }
+
     try:
-        # Use Django's ORM to filter for active areas.
-        # .values() converts the queryset into a list of dictionaries.
-        active_areas = Areas.objects.filter(AreaStatus='1').values('AreaId', 'AreaName', 'AreaStatus')
+        active_areas = Areas.objects.filter(AreaStatus='1').values(
+            'AreaId', 'AreaName', 'AreaStatus'
+        )
 
         if not active_areas:
-            return Response({
-                'message_code': 404,
-                'message_text': 'No Areas.',
-                'message_data': []
-            }, status=status.HTTP_404_NOT_FOUND)
+            response_data['message_text'] = 'No Areas found.'
+            return Response(response_data, status=status.HTTP_200_OK)
 
-        return Response({
-            'message_code': 200,
-            'message_text': 'Success',
-            'message_data': list(active_areas)
-        }, status=status.HTTP_200_OK)
+        response_data['message_code'] = 1000
+        response_data['message_text'] = 'Success'
+        response_data['message_data'] = list(active_areas)
 
     except Exception as e:
-        return Response({
-            'message_code': 500,
-            'message_text': str(e),
-            'message_data': {}
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        response_data['message_text'] = 'An error occurred while fetching areas.'
+        debug.append(str(e))
+
+    return Response(response_data, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
-@authentication_classes([])
-@permission_classes([])
-def fi_list_areaAll(request):
+def listareaall(request):
     """
     Retrieve a list of all areas, regardless of status.
-
-    This view handles GET requests to retrieve all areas from the database.
-    If no areas are found at all, it returns a 404 response.
-
-    Returns:
-    - Response: A JSON response with the list of all areas.
     """
+
+    debug = []
+    response_data = {
+        'message_code': 999,
+        'message_text': 'Failure',
+        'message_data': [],
+        'message_debug': debug
+    }
+
     try:
-        # Use .all() to get all records from the Areas table.
         all_areas = Areas.objects.all().values('AreaId', 'AreaName', 'AreaStatus')
 
         if not all_areas:
-            return Response({
-                'message_code': 404,
-                'message_text': 'No Areas.',
-                'message_data': []
-            }, status=status.HTTP_404_NOT_FOUND)
+            response_data['message_text'] = 'No Areas found.'
+            return Response(response_data, status=status.HTTP_200_OK)
 
-        return Response({
-            'message_code': 200,
-            'message_text': 'Success',
-            'message_data': list(all_areas)
-        }, status=status.HTTP_200_OK)
+        response_data['message_code'] = 1000
+        response_data['message_text'] = 'Success'
+        response_data['message_data'] = list(all_areas)
 
     except Exception as e:
-        return Response({
-            'message_code': 500,
-            'message_text': str(e),
-            'message_data': {}
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)    
+        response_data['message_text'] = 'An error occurred while fetching areas.'
+        debug.append(str(e))
+
+    return Response(response_data, status=status.HTTP_200_OK)
+   
     
 
-
-
-
-    # Add these two new functions to api/views.py
-
 @api_view(['PUT'])
-@authentication_classes([])
-@permission_classes([])
-def fi_modify_area(request):
+def modifyarea(request):
     """
     Modify an existing area's details.
-
-    This view handles PUT requests to update an area's name and status.
-    It requires 'AreaId' and 'AreaName' in the request body.
-
-    Request Body:
-    - AreaId (int): The ID of the area to modify.
-    - AreaName (str): The new name for the area.
-    - AreaStatus (str, optional): The new status ('1' for Active, '0' for Inactive). Defaults to '1'.
     """
+
+    debug = []
+    response_data = {
+        'message_code': 999,
+        'message_text': 'Failure',
+        'message_data': [],
+        'message_debug': debug
+    }
+
     try:
         body = request.data
         area_id = body.get('AreaId')
@@ -290,179 +148,124 @@ def fi_modify_area(request):
 
         # --- Validation ---
         if not area_id:
-            return Response({
-                'message_code': 400,
-                'message_text': 'Area Id must be specified to modify area details.'
-            }, status=status.HTTP_400_BAD_REQUEST)
+            response_data['message_text'] = 'Area Id must be specified to modify area details.'
+            return Response(response_data, status=status.HTTP_200_OK)
 
         if not area_name:
-            return Response({
-                'message_code': 400,
-                'message_text': 'Area name must be specified to modify area.'
-            }, status=status.HTTP_400_BAD_REQUEST)
+            response_data['message_text'] = 'Area name must be specified to modify area.'
+            return Response(response_data, status=status.HTTP_200_OK)
 
-        # --- Database Operation ---
         try:
-            # Find the existing area object
             area_to_update = Areas.objects.get(AreaId=area_id)
         except Areas.DoesNotExist:
-            return Response({
-                'message_code': 404,
-                'message_text': 'Area does not exist.'
-            }, status=status.HTTP_404_NOT_FOUND)
+            response_data['message_text'] = 'Area does not exist.'
+            return Response(response_data, status=status.HTTP_200_OK)
 
-        # Update the fields and save the object
+        # Update fields
         area_to_update.AreaName = area_name
         area_to_update.AreaStatus = area_status
         area_to_update.save()
 
-        return Response({
-            'message_code': 200,
-            'message_text': 'Area information modified successfully.'
-        }, status=status.HTTP_200_OK)
+        response_data['message_code'] = 1000
+        response_data['message_text'] = 'Area information modified successfully.'
+        response_data['message_data'] = {
+            'AreaId': area_to_update.AreaId,
+            'AreaName': area_to_update.AreaName,
+            'AreaStatus': area_to_update.AreaStatus,
+        }
 
     except Exception as e:
-        return Response({
-            'message_code': 500,
-            'message_text': str(e),
-            'message_data': {}
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        response_data['message_text'] = 'An error occurred while modifying area.'
+        debug.append(str(e))
 
+    return Response(response_data, status=status.HTTP_200_OK)
 
-@api_view(['DELETE'])
-@authentication_classes([])
-@permission_classes([])
-def fi_delete_area(request):
-    """
-    Deactivate an area (soft delete).
-
-    This view handles DELETE requests to deactivate an area by setting its status to '0'.
-    It requires 'AreaId' in the request body.
-
-    Request Body:
-    - AreaId (int): The ID of the area to deactivate.
-    """
-    try:
-        body = request.data
-        area_id = body.get('AreaId')
-
-        if not area_id:
-            return Response({
-                'message_code': 400,
-                'message_text': 'Area Id must be specified to delete the area.'
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            area_to_delete = Areas.objects.get(AreaId=area_id)
-        except Areas.DoesNotExist:
-            return Response({
-                'message_code': 404,
-                'message_text': 'Area does not exist.'
-            }, status=status.HTTP_404_NOT_FOUND)
-
-        # Perform a soft delete by changing the status
-        area_to_delete.AreaStatus = '0' # Set to Inactive
-        area_to_delete.save()
-
-        return Response({
-            'message_code': 200,
-            'message_text': 'Area deleted (deactivated) successfully.'
-        }, status=status.HTTP_200_OK)
-
-    except Exception as e:
-        return Response({
-            'message_code': 500,
-            'message_text': str(e),
-            'message_data': {}
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
-
-
-    # Add these two new functions to api/views.py
 
 @api_view(['GET'])
-@authentication_classes([])
-@permission_classes([])
-def fi_list_gender(request):
+def listgender(request):
     """
     Retrieve a list of all genders, ordered by GenderOrder.
     """
+
+    debug = []
+    response_data = {
+        'message_code': 999,
+        'message_text': 'Failure',
+        'message_data': [],
+        'message_debug': debug
+    }
+
     try:
-        # Query the Gender model and order by GenderOrder
-        genders = Gender.objects.order_by('GenderOrder').values('GenderId', 'GenderName', 'GenderOrder')
+        genders = Gender.objects.order_by('GenderOrder').values(
+            'GenderId', 'GenderName', 'GenderOrder'
+        )
 
         if not genders.exists():
-            return Response({
-                'message_code': 404,
-                'message_text': 'No Genders.',
-                'message_data': []
-            }, status=status.HTTP_404_NOT_FOUND)
+            response_data['message_text'] = 'No Genders found.'
+            return Response(response_data, status=status.HTTP_200_OK)
 
-        return Response({
-            'message_code': 200,
-            'message_text': 'Success',
-            'message_data': list(genders)
-        }, status=status.HTTP_200_OK)
+        response_data['message_code'] = 1000
+        response_data['message_text'] = 'Success'
+        response_data['message_data'] = list(genders)
 
     except Exception as e:
-        return Response({
-            'message_code': 500,
-            'message_text': str(e),
-            'message_data': {}
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        response_data['message_text'] = 'An error occurred while fetching genders.'
+        debug.append(str(e))
+
+    return Response(response_data, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
-@authentication_classes([])
-@permission_classes([])
-def fi_list_bloodgroup(request):
+def listbloodgroup(request):
     """
     Retrieve a list of all blood groups, ordered by BloodGroupOrder.
     """
+
+    debug = []
+    response_data = {
+        'message_code': 999,
+        'message_text': 'Failure',
+        'message_data': [],
+        'message_debug': debug
+    }
+
     try:
-        # Query the BloodGroup model and order by bloodGroupOrder
-        blood_groups = BloodGroup.objects.order_by('bloodGroupOrder').values('bloodGroupId', 'bloodGroupName', 'bloodGroupOrder')
+        blood_groups = BloodGroup.objects.order_by('bloodGroupOrder').values(
+            'bloodGroupId', 'bloodGroupName', 'bloodGroupOrder'
+        )
 
         if not blood_groups.exists():
-            return Response({
-                'message_code': 404,
-                'message_text': 'No Blood Groups.',
-                'message_data': []
-            }, status=status.HTTP_404_NOT_FOUND)
+            response_data['message_text'] = 'No Blood Groups found.'
+            return Response(response_data, status=status.HTTP_200_OK)
 
-        return Response({
-            'message_code': 200,
-            'message_text': 'Success',
-            'message_data': list(blood_groups)
-        }, status=status.HTTP_200_OK)
+        response_data['message_code'] = 1000
+        response_data['message_text'] = 'Success'
+        response_data['message_data'] = list(blood_groups)
 
     except Exception as e:
-        return Response({
-            'message_code': 500,
-            'message_text': str(e),
-            'message_data': {}
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        response_data['message_text'] = 'An error occurred while fetching blood groups.'
+        debug.append(str(e))
+
+    return Response(response_data, status=status.HTTP_200_OK)
+
     
 
-
-
-    # Add this import at the top of your api/views.py file
-from django.contrib.auth.models import User
-
-# ... your other view functions ...
-
-# Add the four new user management functions below
-# REPLACE your old fi_insert_user function with this one
-
 @api_view(['POST'])
-@authentication_classes([])
-@permission_classes([])
-def fi_insert_user(request):
+def insertuser(request):
     """
     Insert a new user into the database.
 
     Maps UserMobileNo to username and UserLoginPin to password.
     """
+
+    debug = []
+    response_data = {
+        'message_code': 999,
+        'message_text': 'Failure',
+        'message_data': [],
+        'message_debug': debug
+    }
+
     try:
         body = request.data
         first_name = body.get('UserFirstname', '').strip()
@@ -473,46 +276,64 @@ def fi_insert_user(request):
 
         # --- Validation ---
         if not first_name:
-            return Response({'message_code': 400, 'message_text': 'User firstname must be specified.'}, status=status.HTTP_400_BAD_REQUEST)
+            response_data['message_text'] = 'User firstname must be specified.'
+            return Response(response_data, status=status.HTTP_200_OK)
         if not last_name:
-            return Response({'message_code': 400, 'message_text': 'User lastname must be specified.'}, status=status.HTTP_400_BAD_REQUEST)
+            response_data['message_text'] = 'User lastname must be specified.'
+            return Response(response_data, status=status.HTTP_200_OK)
         if not mobile_no:
-            return Response({'message_code': 400, 'message_text': 'User mobile no must be specified.'}, status=status.HTTP_400_BAD_REQUEST)
+            response_data['message_text'] = 'User mobile no must be specified.'
+            return Response(response_data, status=status.HTTP_200_OK)
         if not login_pin:
-            return Response({'message_code': 400, 'message_text': 'User login pin must be specified.'}, status=status.HTTP_400_BAD_REQUEST)
+            response_data['message_text'] = 'User login pin must be specified.'
+            return Response(response_data, status=status.HTTP_200_OK)
 
         # --- Check for existing user ---
         if User.objects.filter(username=mobile_no).exists():
-            return Response({'message_code': 409, 'message_text': 'User with this mobile no. already exists.'}, status=status.HTTP_409_CONFLICT)
+            response_data['message_text'] = 'User with this mobile no. already exists.'
+            return Response(response_data, status=status.HTTP_200_OK)
 
-        # --- Create User (Corrected Method) ---
-        # Create an instance of the user first
+        # --- Create User ---
         user = User(
             username=mobile_no,
             first_name=first_name,
             last_name=last_name,
             is_active=(status_val == 1)
         )
-        # Set and hash the password
         user.set_password(login_pin)
-        # Save the user object to the database
         user.save()
 
-        return Response({'message_code': 201, 'message_text': 'User created successfully.'}, status=status.HTTP_201_CREATED)
+        response_data['message_code'] = 1000
+        response_data['message_text'] = 'User created successfully.'
+        response_data['message_data'] = {
+            'UserId': user.id,
+            'UserFirstname': user.first_name,
+            'UserLastname': user.last_name,
+            'UserMobileNo': user.username,
+            'UserStatus': 1 if user.is_active else 0
+        }
 
     except Exception as e:
-        # This will now print the specific error to your console for better debugging
-        print(f"ERROR in fi_insert_user: {e}")
-        return Response({'message_code': 500, 'message_text': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        response_data['message_text'] = 'An error occurred while creating user.'
+        debug.append(str(e))
+
+    return Response(response_data, status=status.HTTP_200_OK)
 
 
 @api_view(['PUT'])
-@authentication_classes([])
-@permission_classes([])
-def fi_modify_user(request):
+def modifyuser(request):
     """
     Modify an existing user's details.
     """
+
+    debug = []
+    response_data = {
+        'message_code': 999,
+        'message_text': 'Failure',
+        'message_data': [],
+        'message_debug': debug
+    }
+
     try:
         body = request.data
         user_id = body.get('UserId')
@@ -524,105 +345,160 @@ def fi_modify_user(request):
 
         # --- Validation ---
         if not user_id:
-            return Response({'message_code': 400, 'message_text': 'UserId must be specified.'}, status=status.HTTP_400_BAD_REQUEST)
-        # Add other field validations as needed...
+            response_data['message_text'] = 'UserId must be specified.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        if not first_name:
+            response_data['message_text'] = 'User firstname must be specified.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        if not last_name:
+            response_data['message_text'] = 'User lastname must be specified.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        if not mobile_no:
+            response_data['message_text'] = 'User mobile no must be specified.'
+            return Response(response_data, status=status.HTTP_200_OK)
 
         # --- Get User ---
         try:
             user = User.objects.get(id=user_id)
         except User.DoesNotExist:
-            return Response({'message_code': 404, 'message_text': 'User does not exist.'}, status=status.HTTP_404_NOT_FOUND)
+            response_data['message_text'] = 'User does not exist.'
+            return Response(response_data, status=status.HTTP_200_OK)
 
         # --- Check for Mobile No. conflict ---
         if User.objects.filter(username=mobile_no).exclude(id=user_id).exists():
-            return Response({'message_code': 409, 'message_text': 'Another user with this mobile no. already exists.'}, status=status.HTTP_409_CONFLICT)
-        
+            response_data['message_text'] = 'Another user with this mobile no. already exists.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
         # --- Update fields ---
         user.username = mobile_no
         user.first_name = first_name
         user.last_name = last_name
         user.is_active = (status_val == 1)
-        
-        # Only update password if a new pin is provided
+
         if login_pin:
             user.set_password(login_pin)
-        
+
         user.save()
 
-        return Response({'message_code': 200, 'message_text': 'User information modified successfully.'}, status=status.HTTP_200_OK)
+        response_data['message_code'] = 1000
+        response_data['message_text'] = 'User information modified successfully.'
+        response_data['message_data'] = {
+            'UserId': user.id,
+            'UserFirstname': user.first_name,
+            'UserLastname': user.last_name,
+            'UserMobileNo': user.username,
+            'UserStatus': 1 if user.is_active else 0
+        }
 
     except Exception as e:
-        return Response({'message_code': 500, 'message_text': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        response_data['message_text'] = 'An error occurred while modifying user.'
+        debug.append(str(e))
+
+    return Response(response_data, status=status.HTTP_200_OK)
 
 
 @api_view(['DELETE'])
-@authentication_classes([])
-@permission_classes([])
-def fi_delete_user(request):
+def deleteuser(request):
     """
     Deactivate a user (soft delete) by setting is_active to False.
     """
+
+    debug = []
+    response_data = {
+        'message_code': 999,
+        'message_text': 'Failure',
+        'message_data': [],
+        'message_debug': debug
+    }
+
     try:
         body = request.data
         user_id = body.get('UserId')
 
+        # --- Validation ---
         if not user_id:
-            return Response({'message_code': 400, 'message_text': 'UserId must be specified.'}, status=status.HTTP_400_BAD_REQUEST)
+            response_data['message_text'] = 'UserId must be specified.'
+            return Response(response_data, status=status.HTTP_200_OK)
 
+        # --- Get User ---
         try:
             user = User.objects.get(id=user_id)
         except User.DoesNotExist:
-            return Response({'message_code': 404, 'message_text': 'User does not exist.'}, status=status.HTTP_404_NOT_FOUND)
-        
+            response_data['message_text'] = 'User does not exist.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
         # --- Perform soft delete ---
         user.is_active = False
         user.save()
 
-        return Response({'message_code': 200, 'message_text': 'User deactivated successfully.'}, status=status.HTTP_200_OK)
+        response_data['message_code'] = 1000
+        response_data['message_text'] = 'User deactivated successfully.'
+        response_data['message_data'] = {
+            'UserId': user.id,
+            'UserFirstname': user.first_name,
+            'UserLastname': user.last_name,
+            'UserMobileNo': user.username,
+            'UserStatus': 0
+        }
 
     except Exception as e:
-        return Response({'message_code': 500, 'message_text': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        response_data['message_text'] = 'An error occurred while deactivating user.'
+        debug.append(str(e))
+
+    return Response(response_data, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
-@authentication_classes([])
-@permission_classes([])
-def fi_list_userAll(request):
+def listuserall(request):
     """
     Retrieve a list of all users.
     """
-    try:
-        # We use .values() to select specific fields and not expose sensitive data like password hashes.
-        users = User.objects.all().values('id', 'username', 'first_name', 'last_name', 'email', 'is_active', 'is_staff')
 
-        return Response({
-            'message_code': 200,
-            'message_text': 'Success',
-            'message_data': list(users)
-        }, status=status.HTTP_200_OK)
+    debug = []
+    response_data = {
+        'message_code': 999,
+        'message_text': 'Failure',
+        'message_data': [],
+        'message_debug': debug
+    }
+
+    try:
+        users = User.objects.all().values(
+            'id', 'username', 'first_name', 'last_name', 'email', 'is_active', 'is_staff'
+        )
+
+        if not users.exists():
+            response_data['message_text'] = 'No Users found.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        response_data['message_code'] = 1000
+        response_data['message_text'] = 'Success'
+        response_data['message_data'] = list(users)
 
     except Exception as e:
-        return Response({'message_code': 500, 'message_text': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        response_data['message_text'] = 'An error occurred while fetching users.'
+        debug.append(str(e))
 
+    return Response(response_data, status=status.HTTP_200_OK)
 
-
-
-
-        # Add these imports at the top of your api/views.py file
-from django.contrib.auth import authenticate
-from django.db.models import Q
-
-# ... your other view functions ...
-
-# Add the three new functions below
 
 @api_view(['POST'])
-@authentication_classes([])
-@permission_classes([])
-def fi_agent_login(request):
+def agentlogin(request):
     """
     Authenticates an agent using their mobile number and password/pin.
     """
+
+    debug = []
+    response_data = {
+        'message_code': 999,
+        'message_text': 'Failure',
+        'message_data': [],
+        'message_debug': debug
+    }
+
     try:
         body = request.data
         mobile_no = body.get('userMobileNo', '').strip()
@@ -630,78 +506,74 @@ def fi_agent_login(request):
 
         # --- Validation ---
         if not mobile_no:
-            return Response({'message_code': 999, 'message_text': 'Please provide your mobile no. for login.'}, status=status.HTTP_400_BAD_REQUEST)
+            response_data['message_text'] = 'Please provide your mobile no. for login.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
         if not password:
-            return Response({'message_code': 999, 'message_text': 'Please provide your password/pin for login.'}, status=status.HTTP_400_BAD_REQUEST)
+            response_data['message_text'] = 'Please provide your password/pin for login.'
+            return Response(response_data, status=status.HTTP_200_OK)
 
         # --- Authentication ---
-        # `authenticate` securely checks the password against the hashed version in the database.
-        # We use mobile_no as the username field.
         user = authenticate(username=mobile_no, password=password)
 
         if user is not None:
-            # Authentication successful, now check if the user is active.
             if not user.is_active:
-                return Response({
-                    'message_code': 999,
-                    'message_text': 'Your login is not active.'
-                }, status=status.HTTP_403_FORBIDDEN)
+                response_data['message_text'] = 'Your login is not active.'
+                return Response(response_data, status=status.HTTP_200_OK)
             else:
                 # Login successful
-                user_data = {
+                response_data['message_code'] = 1000
+                response_data['message_text'] = 'Success'
+                response_data['message_data'] = {
                     "UserId": user.id,
                     "UserFirstname": user.first_name,
                     "UserLastname": user.last_name,
-                    "UserMobileNo": user.username,
-                    # We do not return the password/pin
+                    "UserMobileNo": user.username
                 }
-                # Note: The original PHP returned data in 'message_text'. 
-                # We follow that here, but returning it in 'message_data' is more standard.
-                return Response({
-                    'message_code': 1000,
-                    'message_text': user_data
-                }, status=status.HTTP_200_OK)
         else:
             # Authentication failed
-            return Response({
-                'message_code': 999,
-                'message_text': 'Mobile no and Password/pin not valid.'
-            }, status=status.HTTP_401_UNAUTHORIZED)
+            response_data['message_text'] = 'Mobile no and Password/pin not valid.'
 
     except Exception as e:
-        return Response({'message_code': 500, 'message_text': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        response_data['message_text'] = 'An error occurred while logging in.'
+        debug.append(str(e))
 
-# You no longer need to import F or Q for this function.
+    return Response(response_data, status=status.HTTP_200_OK)
 
-# REPLACE your old search function with this corrected version
+
 @api_view(['POST'])
-def fi_search_registration(request):
+def searchregistrations(request):
     """
     Searches registrations based on a search term across multiple fields.
-    This version does NOT use F() or Q() imports.
     """
+
+    debug = []
+    response_data = {
+        'message_code': 999,
+        'message_text': 'Failure',
+        'message_data': [],
+        'message_debug': debug
+    }
+
     try:
         body = request.data
         search_term = body.get('search', '').strip()
 
-        # --- Step 1: Fetch ALL registrations ---
-        # We get all registrations and their related area names.
-        # The .values() method can fetch related fields using the double-underscore syntax.
+        # --- Fetch all registrations with related area names ---
         all_registrations = Registrations.objects.values(
             'registrationId', 'firstname', 'middlename', 'lastname', 'mobileNo',
             'alternateMobileNo', 'dateOfBirth', 'gender', 'aadharNumber',
             'address', 'photoFileName', 'idProofFileName', 'voterIdProof',
             'dateOfRegistration', 'permanentId',
-            'areaId__AreaName'  # Get the AreaName from the related Area model
+            'areaId__AreaName'
         )
 
-        # --- Step 2: Filter the results in Python if a search term is provided ---
+        # --- Filter results if search term is provided ---
         if search_term:
-            search_term_lower = search_term.lower() # Use lowercase for case-insensitive search
-            
+            search_term_lower = search_term.lower()
             filtered_results = []
+
             for reg in all_registrations:
-                # Check if the search term exists in any of the specified fields
                 if (
                     (reg['firstname'] and search_term_lower in str(reg['firstname']).lower()) or
                     (reg['lastname'] and search_term_lower in str(reg['lastname']).lower()) or
@@ -710,78 +582,46 @@ def fi_search_registration(request):
                     (reg['areaId__AreaName'] and search_term_lower in str(reg['areaId__AreaName']).lower())
                 ):
                     filtered_results.append(reg)
-            
+
             results = filtered_results
         else:
-            # If no search term, use all the registrations
             results = all_registrations
 
-        # --- Step 3: Format the final output ---
-        # Rename the key 'areaId__AreaName' to 'AreaName' for the final JSON response.
+        # --- Rename 'areaId__AreaName' to 'AreaName' ---
         final_output = []
         for res in results:
-            res['AreaName'] = res.pop('areaId__AreaName') # Rename the key
+            res['AreaName'] = res.pop('areaId__AreaName')
             final_output.append(res)
 
         if not final_output:
-            return Response({
-                'message_code': 999,
-                'message_text': 'No Registrations found.'
-                }, status=status.HTTP_404_NOT_FOUND)
+            response_data['message_text'] = 'No Registrations found.'
+            return Response(response_data, status=status.HTTP_200_OK)
 
-        return Response({
-            'message_code': 1000,
-            'message_text': 'Success',
-            'message_data': final_output
-        }, status=status.HTTP_200_OK)
+        response_data['message_code'] = 1000
+        response_data['message_text'] = 'Success'
+        response_data['message_data'] = final_output
 
     except Exception as e:
-        return Response({
-            'message_code': 500,
-            'message_text': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        response_data['message_text'] = 'An error occurred while searching registrations.'
+        debug.append(str(e))
 
-# Updated function without the decorators
-@api_view(['GET'])
-def fi_list_yatra_status(request):
-    """
-    Retrieve a list of all Yatra statuses.
-    """
-    try:
-        # Fetch the desired fields from the YatraStatus model
-        statuses = YatraStatus.objects.all().values('statusId', 'statusName')
+    return Response(response_data, status=status.HTTP_200_OK)
 
-        # Check if any statuses were found in the database
-        if not statuses.exists():
-            return Response({
-                'message_code': 999,
-                'message_text': 'No Status.'
-                }, status=status.HTTP_404_NOT_FOUND)
-
-        # If statuses are found, return them in a success response
-        return Response({
-            'message_code': 1000,
-            'message_text': 'Success',
-            'message_data': list(statuses)
-        }, status=status.HTTP_200_OK)
-
-    except Exception as e:
-        return Response({
-            'message_code': 500,
-            'message_text': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
-
-
-# REPLACE your old fi_pilgrims_registration function with this one
 
 @api_view(['POST'])
-def fi_pilgrims_registration(request):
+def pilgrimregistration(request):
     """
     Creates a new pilgrim registration or updates an existing one.
-    - If 'RegistrationId' is not provided, it creates a new record.
-    - If 'RegistrationId' is provided, it updates that record.
     """
+
+    debug = []
+    response_data = {
+        'message_code': 999,
+        'message_text': 'Failure',
+        'message_data': [],
+        'message_debug': debug
+    }
+
     try:
         body = request.data
         registration_id = body.get('RegistrationId')
@@ -792,17 +632,16 @@ def fi_pilgrims_registration(request):
         last_name = body.get('userLastname', '').strip()
 
         if len(mobile_no) != 10:
-            return Response({'message_code': 999, 'message_text': 'Please provide a valid 10-digit mobile no.'}, status=status.HTTP_400_BAD_REQUEST)
+            response_data['message_text'] = 'Please provide a valid 10-digit mobile no.'
+            return Response(response_data, status=status.HTTP_200_OK)
         if not first_name or not last_name:
-            return Response({'message_code': 999, 'message_text': 'Please provide first and last names to register.'}, status=status.HTTP_400_BAD_REQUEST)
+            response_data['message_text'] = 'Please provide first and last names to register.'
+            return Response(response_data, status=status.HTTP_200_OK)
 
-        # --- THIS IS THE CORRECTED PART ---
-        # Get the optional number fields from the request.
-        # If the field is missing or empty, set the variable to None.
+        # --- Optional fields ---
         alt_mobile_no = body.get('userAlternateMobileNo') or None
         aadhar_no = body.get('userAadharNumber') or None
-        
-        # --- Prepare data dictionary ---
+
         data_to_save = {
             'firstname': first_name,
             'lastname': last_name,
@@ -815,46 +654,48 @@ def fi_pilgrims_registration(request):
             'idProofFileName': body.get('IdProofFileName', ''),
             'voterIdProof': body.get('VoterId', ''),
             'zonePreference': body.get('ZonePreference', 0),
-            
-            # Use the corrected variables here
             'alternateMobileNo': alt_mobile_no,
             'aadharNumber': aadhar_no,
         }
 
-        # --- Handle Foreign Keys ---
+        # --- Foreign Keys ---
         if body.get('AreaId'):
             try:
                 data_to_save['areaId'] = Areas.objects.get(AreaId=body.get('AreaId'))
             except Areas.DoesNotExist:
-                return Response({'message_code': 404, 'message_text': 'Area not found.'}, status=status.HTTP_404_NOT_FOUND)
+                response_data['message_text'] = 'Area not found.'
+                return Response(response_data, status=status.HTTP_200_OK)
 
         if body.get('BloodGroupId'):
             try:
                 data_to_save['bloodGroup'] = BloodGroup.objects.get(bloodGroupId=body.get('BloodGroupId'))
             except BloodGroup.DoesNotExist:
-                return Response({'message_code': 404, 'message_text': 'Blood Group not found.'}, status=status.HTTP_404_NOT_FOUND)
-        
+                response_data['message_text'] = 'Blood Group not found.'
+                return Response(response_data, status=status.HTTP_200_OK)
+
         if body.get('UserId'):
             try:
                 data_to_save['userId'] = User.objects.get(id=body.get('UserId'))
             except User.DoesNotExist:
-                return Response({'message_code': 404, 'message_text': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+                response_data['message_text'] = 'User not found.'
+                return Response(response_data, status=status.HTTP_200_OK)
 
-        # --- Logic for Create vs. Update ---
+        # --- Create or Update ---
         if not registration_id:
-            # CREATE NEW REGISTRATION
             registration = Registrations.objects.create(**data_to_save)
-            response_data = {
+            response_data['message_code'] = 1000
+            response_data['message_text'] = 'Registration done successfully.'
+            response_data['message_data'] = {
                 'RegistrationId': registration.registrationId,
                 'Tickets': []
             }
-            return Response({'message_code': 1000, 'message_text': 'Registration done successfully.', 'message_data': response_data}, status=status.HTTP_201_CREATED)
+            return Response(response_data, status=status.HTTP_201_CREATED)
         else:
-            # UPDATE EXISTING REGISTRATION
             try:
                 registration_to_update = Registrations.objects.get(registrationId=registration_id)
             except Registrations.DoesNotExist:
-                return Response({'message_code': 404, 'message_text': 'Registration to update not found.'}, status=status.HTTP_404_NOT_FOUND)
+                response_data['message_text'] = 'Registration to update not found.'
+                return Response(response_data, status=status.HTTP_200_OK)
 
             for key, value in data_to_save.items():
                 setattr(registration_to_update, key, value)
@@ -862,25 +703,23 @@ def fi_pilgrims_registration(request):
 
             tickets = TicketsNew.objects.filter(registration_id=registration_id).values()
             
-            response_data = {
+            response_data['message_code'] = 1000
+            response_data['message_text'] = 'Registration Updated Successfully.'
+            response_data['message_data'] = {
                 'RegistrationId': registration_to_update.registrationId,
                 'Tickets': list(tickets)
             }
-            return Response({'message_code': 1000, 'message_text': 'Registration Updated Successfully.', 'message_data': response_data}, status=status.HTTP_200_OK)
 
     except Exception as e:
-        return Response({'message_code': 500, 'message_text': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
+        response_data['message_text'] = 'An error occurred while saving registration.'
+        debug.append(str(e))
+
+    return Response(response_data, status=status.HTTP_200_OK)
 
 
-# Add these imports at the top of your api/views.py file
-import os
-from django.conf import settings
-from PIL import Image, ImageDraw, ImageFont
 
-# Add this new function to your file
 @api_view(['POST'])
-def fi_pilgrim_card(request):
+def getpilgrimcard(request):
     """
     Generates a pilgrim ID card image based on a RegistrationId.
     """
@@ -1017,7 +856,7 @@ def fi_pilgrim_card(request):
 # --- Paste this entire block at the end of your api/views.py file ---
 
 @api_view(['POST'])
-def fi_insert_ticket(request):
+def inserttickets(request):
     """
     Creates a single new ticket record with basic details.
     """
@@ -1059,73 +898,8 @@ def fi_insert_ticket(request):
         return Response({'message_code': 500, 'message_text': f'Unable to add the ticket: {e}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@api_view(['POST'])
-def fi_cancel_ticket(request):
-    """
-    Cancels a ticket by updating its status to 4.
-    """
-    try:
-        body = request.data
-        ticket_id = body.get('TicketId')
-        user_id = body.get('UserId')
-
-        if not ticket_id: return Response({'message_code': 999, 'message_text': 'Please provide Ticket to cancel.'}, status=status.HTTP_400_BAD_REQUEST)
-        if not user_id: return Response({'message_code': 999, 'message_text': 'Please provide User who is cancelling.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            ticket_to_cancel = TicketsNew.objects.get(ticket_id=ticket_id)
-        except TicketsNew.DoesNotExist:
-            return Response({'message_code': 404, 'message_text': 'Ticket not found.'}, status=status.HTTP_404_NOT_FOUND)
-        
-        ticket_to_cancel.ticket_status_id = 4 # 4 = Cancelled
-        ticket_to_cancel.cancel_reason = body.get('CancelReason', '')
-        ticket_to_cancel.save()
-        
-        return Response({'message_code': 1000, 'message_text': 'Ticket cancelled successfully.'}, status=status.HTTP_200_OK)
-
-    except Exception as e:
-        return Response({'message_code': 500, 'message_text': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-@api_view(['POST'])
-def fi_remove_ticket(request):
-    """
-    Removes a booking from a seat, making it available again.
-    Resets the ticket status and type to 0.
-    """
-    try:
-        body = request.data
-        ticket_id = body.get('TicketId')
-        user_id = body.get('UserId')
-
-        if not ticket_id: return Response({'message_code': 999, 'message_text': 'Please provide Ticket to remove.'}, status=status.HTTP_400_BAD_REQUEST)
-        if not user_id: return Response({'message_code': 999, 'message_text': 'Please provide User who is removing.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        updated_count = TicketsNew.objects.filter(ticket_id=ticket_id).update(
-            seat_ticket_type=0,
-            ticket_status_id=0,
-            registration_id=None # Also clear the pilgrim
-        )
-
-        if updated_count == 0:
-             return Response({'message_code': 404, 'message_text': 'Ticket not found.'}, status=status.HTTP_404_NOT_FOUND)
-        
-        return Response({'message_code': 1000, 'message_text': 'Ticket removed successfully.'}, status=status.HTTP_200_OK)
-
-    except Exception as e:
-        return Response({'message_code': 500, 'message_text': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-
-# Add this import at the top of your api/views.py file
-from django.db.models import Count
-
-# ... (rest of your imports and other view functions) ...
-
-# Add these two new functions to your file
-
 @api_view(['GET'])
-def fi_totals(request):
+def totals(request):
     """
     Provides total counts for registrations and booked tickets for the year 2025.
     """
@@ -1152,7 +926,7 @@ def fi_totals(request):
 
 
 @api_view(['GET'])
-def fi_total_routeyatrabus(request):
+def totalrouteyatrabus(request):
     """
     Provides a report of total bookings grouped by Yatra Route, Yatra, and Bus.
     """
@@ -1191,15 +965,8 @@ def fi_total_routeyatrabus(request):
         return Response({'message_code': 500, 'message_text': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)     
 
 
-
-
-
-# Add these two new functions to your api/views.py file
-
-# REPLACE your old fi_routeyatrabus_tickets function with this one
-
 @api_view(['POST'])
-def fi_routeyatrabus_tickets(request):
+def routeyatrabustickets(request):
     """
     Lists all booked tickets for a specific Yatra Route, Yatra, and Bus.
     """
@@ -1253,7 +1020,7 @@ def fi_routeyatrabus_tickets(request):
 
 
 @api_view(['POST'])
-def fi_agent_bookings(request):
+def agentbookings(request):
     """
     Lists all tickets booked by a specific agent on a given date.
     """
@@ -1302,3 +1069,14 @@ def fi_agent_bookings(request):
 
     except Exception as e:
         return Response({'message_code': 500, 'message_text': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
+
+
+# def logout(request):
+#     request.session.flush()  # clears all session data
+#     messages.success(request, "You have successfully signed out")
+#     return redirect('login')
+
+# def dashboard(request):
+#     return render(request, 'dashboard.html')
