@@ -848,113 +848,357 @@ def getpilgrimcard(request):
     return Response(response_data, status=status.HTTP_200_OK)
 
 
+# @api_view(['POST'])
+# def insertblanktickets(request):
+#     """
+#     Creates blank tickets (seats) for a specific Yatra based on the number of buses and seats.
+#     This should only be accessible by administrators.
+#     """
+#     try:
+#         yatra_id = int(request.data.get('yatra_id'))
+#         num_buses = int(request.data.get('num_buses'))
+#         seats_per_bus = int(request.data.get('seats_per_bus'))
+#     except (ValueError, TypeError):
+#         return Response(
+#             {"message_text": "Invalid input. All parameters must be integers."},
+#             status=status.HTTP_400_BAD_REQUEST
+#         )
+
+#     try:
+#         yatra_instance = Yatras.objects.get(yatraId=yatra_id)
+#         yatra_route_instance = yatra_instance.yatraRouteId
+#     except Yatras.DoesNotExist:
+#         return Response(
+#             {"message_text": f'Yatra with ID "{yatra_id}" does not exist.'},
+#             status=status.HTTP_404_NOT_FOUND
+#         )
+    
+#     bus_ids_to_fetch = list(range(1, num_buses + 1))
+    
+#     # ✅ FIX 1: Use the correct field name 'yatraId' for filtering.
+#     bus_objects = YatraBuses.objects.filter(yatraId=yatra_instance, yatraBusId__in=bus_ids_to_fetch)
+
+#     bus_lookup = {bus.yatraBusId: bus for bus in bus_objects}
+
+#     if len(bus_lookup) != num_buses:
+#         return Response(
+#             {"message_text": f"Error: Expected {num_buses} buses for Yatra {yatra_id}, but only found {len(bus_lookup)}. Please ensure all YatraBuses records are created first."},
+#             status=status.HTTP_404_NOT_FOUND
+#         )
+
+#     with transaction.atomic():
+#         tickets_to_create = []
+#         for bus_num in range(1, num_buses + 1):
+#             bus_instance = bus_lookup.get(bus_num)
+            
+#             for seat_num in range(1, seats_per_bus + 1):
+#                 ticket = TicketsNew(
+#                     # ✅ FIX 2: Use correct camelCase keyword arguments matching your model fields.
+#                     yatraId=yatra_instance,
+#                     yatraRouteId=yatra_route_instance,
+#                     yatraBusId=bus_instance, 
+#                     seat_no=seat_num,
+#                     ticket_status_id=0,
+#                     seat_fees=yatra_instance.yatraFees
+#                     # Add other defaults if your model requires them
+#                 )
+#                 tickets_to_create.append(ticket)
+        
+#         if tickets_to_create:
+#             TicketsNew.objects.bulk_create(tickets_to_create)
+#             total_created = len(tickets_to_create)
+#             return Response(
+#                 {
+#                     "message_code": 1000,
+#                     "message_text": f'Successfully created {total_created} blank tickets for Yatra {yatra_id}.'
+#                 },
+#                 status=status.HTTP_201_CREATED
+#             )
+#         else:
+#             return Response({"message_text": "No tickets were created."}, status=status.HTTP_200_OK)
+            
+
+@api_view(['POST'])
+def insertblanktickets(request):
+    """
+    Creates blank tickets for ALL buses associated with a specific Yatra.
+    This version is confirmed to match the naming conventions of all models.
+    """
+    try:
+        yatra_id = int(request.data.get('yatra_id'))
+        seats_per_bus = int(request.data.get('seats_per_bus'))
+    except (ValueError, TypeError):
+        return Response(
+            {"message_text": "Invalid input. 'yatra_id' and 'seats_per_bus' must be integers."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        # Query Yatras model using its 'yatraId' (camelCase) field
+        yatra_instance = Yatras.objects.get(yatraId=yatra_id)
+        yatra_route_instance = yatra_instance.yatraRouteId
+    except Yatras.DoesNotExist:
+        return Response(
+            {"message_text": f'Yatra with ID "{yatra_id}" does not exist.'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    # Query YatraBuses model using its 'yatraId' (camelCase) field
+    bus_objects_for_yatra = YatraBuses.objects.filter(yatraId=yatra_instance)
+
+    if not bus_objects_for_yatra.exists():
+        return Response(
+            {"message_text": f"Error: No buses have been created for Yatra {yatra_id} yet."},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    with transaction.atomic():
+        tickets_to_create = []
+        for bus_instance in bus_objects_for_yatra:
+            for seat_num in range(1, seats_per_bus + 1):
+                # This block now correctly matches your provided TicketsNew model definition.
+                ticket = TicketsNew(
+                    yatra_id=yatra_instance,          # Correct: snake_case for the TicketsNew model
+                    yatra_route_id=yatra_route_instance,  # Correct: snake_case for the TicketsNew model
+                    yatra_bus_id=bus_instance,          # Correct: snake_case for the TicketsNew model
+                    seat_no=seat_num,
+                    ticket_status_id=0,
+                    seat_fees=yatra_instance.yatraFees
+                )
+                tickets_to_create.append(ticket)
+        
+        if tickets_to_create:
+            TicketsNew.objects.bulk_create(tickets_to_create)
+            total_created = len(tickets_to_create)
+            num_buses_processed = len(bus_objects_for_yatra)
+            return Response(
+                {
+                    "message_code": 1000,
+                    "message_text": f'Successfully created {total_created} blank tickets for the {num_buses_processed} buses found for Yatra {yatra_id}.'
+                },
+                status=status.HTTP_201_CREATED
+            )
+        else:
+            return Response({"message_text": "No tickets were created."}, status=status.HTTP_200_OK)
+        
 
 @api_view(['POST'])
 def inserttickets(request):
     """
-    Book tickets for one or multiple Yatras (comma-separated IDs), following PHP logic.
+    Book tickets, correctly implementing the group/bus assignment logic from the PHP API.
     """
     response_data = {
         'message_code': 999,
         'message_text': 'Failure',
-        'message_data': []
+        'message_data': {}
     }
 
     try:
         body = request.data
         RegistrationId = body.get('RegistrationId')
         UserId = body.get('UserId')
-        YatraIds = body.get('YatraIds')  # comma-separated
+        YatraIds = body.get('YatraIds')
         AmountPaid = body.get('AmountPaid', 0)
         Discount = body.get('Discount', 0)
         DiscountReason = body.get('DiscountReason', '')
-        PaymentId = body.get('PaymentId', '')
+        # ✅ FIX: Get the PaymentId from the request. It could be a number or an empty string/null.
+        payment_id_from_request = body.get('PaymentId')
         PaymentMode = body.get('PaymentMode', 1)
         PaymentDetails = body.get('PaymentDetails', '')
         GroupCount = int(body.get('GroupCount', 1))
         CurrentTicket = int(body.get('CurrentTicket', 1))
         BalanceTicket = int(body.get('BalanceTicket', GroupCount))
 
-        try:
-            user_obj = User.objects.get(id=UserId)
-        except User.DoesNotExist:
-            response_data['message_text'] = f"User with id {UserId} does not exist."
+        if not all([RegistrationId, UserId, YatraIds]):
+            response_data['message_text'] = 'RegistrationId, UserId, and YatraIds are required.'
             return Response(response_data, status=status.HTTP_200_OK)
 
-        if not RegistrationId:
-            response_data['message_text'] = 'Please provide Pilgrim to add ticket.'
-            return Response(response_data, status=status.HTTP_200_OK)
-        if not UserId:
-            response_data['message_text'] = 'Please provide user who is adding ticket.'
-            return Response(response_data, status=status.HTTP_200_OK)
-        if not YatraIds:
-            response_data['message_text'] = 'Please provide Yatras to add ticket.'
-            return Response(response_data, status=status.HTTP_200_OK)
-
-        registration_obj = Registrations.objects.get(registrationId=RegistrationId)
         user_obj = User.objects.get(id=UserId)
+        registration_obj = Registrations.objects.get(registrationId=RegistrationId)
 
+        # ✅ FIX: Prepare the payment object. Default to None.
+        payment_obj = None
+        if payment_id_from_request:
+            try:
+                # If an ID was provided, fetch the actual Payments object.
+                payment_obj = Payments.objects.get(pk=payment_id_from_request)
+            except Payments.DoesNotExist:
+                # Handle the case where an invalid ID is sent.
+                response_data['message_text'] = f"Invalid PaymentId '{payment_id_from_request}' provided."
+                raise Exception(response_data['message_text'])
+        
         arrYatraIds = YatraIds.split(',')
-        booked_tickets = 0
-
+        booked_tickets_count = 0
+        
         with transaction.atomic():
             for yid in arrYatraIds:
                 yatra = Yatras.objects.get(yatraId=yid)
-                yatra_route = yatra.yatraRouteId
+                # ... (rest of the group logic is correct)
 
-                # Step 1: Get available ticket (TicketStatusId = 0)
-                available_ticket = TicketsNew.objects.filter(
-                    ticket_status_id=0,
-                    yatra_id=yatra,
-                    yatra_route_id=yatra_route
-                ).first()
+                if BalanceTicket == GroupCount:
+                    buses_with_capacity = TicketsNew.objects.filter(yatra_id=yatra, ticket_status_id=0).values('yatra_bus_id').annotate(available_seats=Count('ticket_id')).filter(available_seats__gte=GroupCount).order_by('yatra_bus_id')
+                    bus_to_use = buses_with_capacity.first()
+                    if not bus_to_use:
+                        response_data['message_text'] = f'No bus found with capacity for a group of {GroupCount} for Yatra {yid}.'
+                        raise Exception(response_data['message_text'])
+                    yatra_bus_id_for_group = bus_to_use['yatra_bus_id']
+                    seats_to_reserve = TicketsNew.objects.filter(yatra_id=yatra, yatra_bus_id=yatra_bus_id_for_group, ticket_status_id=0).order_by('ticket_id')[:GroupCount]
+                    seat_ids_to_reserve = [seat.ticket_id for seat in seats_to_reserve]
+                    TicketsNew.objects.filter(ticket_id__in=seat_ids_to_reserve).update(ticket_status_id=1, user_id=user_obj)
+                else:
+                    existing_reservation = TicketsNew.objects.filter(yatra_id=yatra, user_id=user_obj, ticket_status_id=1).order_by('ticket_id').first()
+                    if not existing_reservation:
+                        response_data['message_text'] = 'Cannot find a reserved seat for the next person in the group.'
+                        raise Exception(response_data['message_text'])
+                    yatra_bus_id_for_group = existing_reservation.yatra_bus_id
+                
+                ticket_to_confirm = TicketsNew.objects.filter(yatra_id=yatra, yatra_bus_id=yatra_bus_id_for_group, user_id=user_obj, ticket_status_id=1).order_by('ticket_id').first()
+                if not ticket_to_confirm:
+                    response_data['message_text'] = f'Logic error: No reserved seat found for Yatra {yid} after group assignment.'
+                    raise Exception(response_data['message_text'])
 
-                if not available_ticket:
-                    continue
+                ticket_to_confirm.ticket_status_id = 2
+                ticket_to_confirm.seat_fees = yatra.yatraFees
+                ticket_to_confirm.discount = Discount
+                ticket_to_confirm.discount_reason = DiscountReason
+                ticket_to_confirm.amount_paid = AmountPaid
+                ticket_to_confirm.payment_mode = PaymentMode
+                ticket_to_confirm.payment_details = PaymentDetails
+                # ✅ FIX: Assign the prepared payment object (which is either a Payments instance or None).
+                ticket_to_confirm.payment_id = payment_obj
+                ticket_to_confirm.registration_id = registration_obj
+                ticket_to_confirm.permanant_id = registration_obj.registrationId
+                ticket_to_confirm.save()
 
-                # Step 2: Assign to user temporarily (TicketStatusId = 1)
-                available_ticket.ticket_status_id = 1
-                available_ticket.user_id = user_obj
-                available_ticket.save()
+                booked_tickets_count += 1
 
-                # Step 3: Confirm ticket (TicketStatusId = 2) with payment details
-                available_ticket.ticket_status_id = 2
-                available_ticket.seat_fees = yatra.yatraFees
-                available_ticket.discount = Discount
-                available_ticket.discount_reason = DiscountReason
-                available_ticket.amount_paid = AmountPaid
-                available_ticket.payment_mode = PaymentMode
-                available_ticket.payment_details = PaymentDetails
-                available_ticket.payment_id = PaymentId
-                available_ticket.registration_id = registration_obj
-                available_ticket.permanant_id = registration_obj.registrationId
-                available_ticket.save()
+            # ... (counter logic remains the same)
+            BalanceTicket -= 1
+            CurrentTicket += 1
+            if BalanceTicket <= 0:
+                CurrentTicket = 0
+                GroupCount = 0
 
-                booked_tickets += 1
-
-                # Update balance counters
-                BalanceTicket -= 1
-                CurrentTicket += 1
-
-        # Reset counters if all tickets booked
-        if BalanceTicket <= 0:
-            CurrentTicket = 0
-            GroupCount = 0
-
-        response_data = {
-            'message_code': 1000,
-            'message_text': f'{booked_tickets} ticket(s) booked.',
-            'message_data': {
-                "GroupCount": GroupCount,
-                "CurrentTicket": CurrentTicket,
-                "BalanceTicket": BalanceTicket
+            response_data = {
+                'message_code': 1000,
+                'message_text': f'{booked_tickets_count} ticket(s) booked.',
+                'message_data': {"GroupCount": GroupCount, "CurrentTicket": CurrentTicket, "BalanceTicket": BalanceTicket}
             }
-        }
+            return Response(response_data, status=status.HTTP_200_OK)
 
     except Exception as e:
-        response_data['message_text'] = f'Unable to add tickets: {e}'
+        if not response_data.get('message_text') or response_data['message_text'] == 'Failure':
+             response_data['message_text'] = f'An unexpected error occurred: {e}'
+        return Response(response_data, status=status.HTTP_200_OK)
 
-    return Response(response_data, status=status.HTTP_200_OK)
+
+
+# @api_view(['POST'])
+# def inserttickets(request):
+#     """
+#     Book tickets for one or multiple Yatras (comma-separated IDs), following PHP logic.
+#     """
+#     response_data = {
+#         'message_code': 999,
+#         'message_text': 'Failure',
+#         'message_data': []
+#     }
+
+#     try:
+#         body = request.data
+#         RegistrationId = body.get('RegistrationId')
+#         UserId = body.get('UserId')
+#         YatraIds = body.get('YatraIds')  # comma-separated
+#         AmountPaid = body.get('AmountPaid', 0)
+#         Discount = body.get('Discount', 0)
+#         DiscountReason = body.get('DiscountReason', '')
+#         PaymentId = body.get('PaymentId', '')
+#         PaymentMode = body.get('PaymentMode', 1)
+#         PaymentDetails = body.get('PaymentDetails', '')
+#         GroupCount = int(body.get('GroupCount', 1))
+#         CurrentTicket = int(body.get('CurrentTicket', 1))
+#         BalanceTicket = int(body.get('BalanceTicket', GroupCount))
+
+#         try:
+#             user_obj = User.objects.get(id=UserId)
+#         except User.DoesNotExist:
+#             response_data['message_text'] = f"User with id {UserId} does not exist."
+#             return Response(response_data, status=status.HTTP_200_OK)
+
+#         if not RegistrationId:
+#             response_data['message_text'] = 'Please provide Pilgrim to add ticket.'
+#             return Response(response_data, status=status.HTTP_200_OK)
+#         if not UserId:
+#             response_data['message_text'] = 'Please provide user who is adding ticket.'
+#             return Response(response_data, status=status.HTTP_200_OK)
+#         if not YatraIds:
+#             response_data['message_text'] = 'Please provide Yatras to add ticket.'
+#             return Response(response_data, status=status.HTTP_200_OK)
+
+#         registration_obj = Registrations.objects.get(registrationId=RegistrationId)
+#         user_obj = User.objects.get(id=UserId)
+
+#         arrYatraIds = YatraIds.split(',')
+#         booked_tickets = 0
+
+#         with transaction.atomic():
+#             for yid in arrYatraIds:
+#                 yatra = Yatras.objects.get(yatraId=yid)
+#                 yatra_route = yatra.yatraRouteId
+
+#                 # Step 1: Get available ticket (TicketStatusId = 0)
+#                 available_ticket = TicketsNew.objects.filter(
+#                     ticket_status_id=0,
+#                     yatra_id=yatra,
+#                     yatra_route_id=yatra_route
+#                 ).first()
+
+#                 if not available_ticket:
+#                     continue
+
+#                 # Step 2: Assign to user temporarily (TicketStatusId = 1)
+#                 available_ticket.ticket_status_id = 1
+#                 available_ticket.user_id = user_obj
+#                 available_ticket.save()
+
+#                 # Step 3: Confirm ticket (TicketStatusId = 2) with payment details
+#                 available_ticket.ticket_status_id = 2
+#                 available_ticket.seat_fees = yatra.yatraFees
+#                 available_ticket.discount = Discount
+#                 available_ticket.discount_reason = DiscountReason
+#                 available_ticket.amount_paid = AmountPaid
+#                 available_ticket.payment_mode = PaymentMode
+#                 available_ticket.payment_details = PaymentDetails
+#                 available_ticket.payment_id = PaymentId
+#                 available_ticket.registration_id = registration_obj
+#                 available_ticket.permanant_id = registration_obj.registrationId
+#                 available_ticket.save()
+
+#                 booked_tickets += 1
+
+#                 # Update balance counters
+#                 BalanceTicket -= 1
+#                 CurrentTicket += 1
+
+#         # Reset counters if all tickets booked
+#         if BalanceTicket <= 0:
+#             CurrentTicket = 0
+#             GroupCount = 0
+
+#         response_data = {
+#             'message_code': 1000,
+#             'message_text': f'{booked_tickets} ticket(s) booked.',
+#             'message_data': {
+#                 "GroupCount": GroupCount,
+#                 "CurrentTicket": CurrentTicket,
+#                 "BalanceTicket": BalanceTicket
+#             }
+#         }
+
+#     except Exception as e:
+#         response_data['message_text'] = f'Unable to add tickets: {e}'
+
+#     return Response(response_data, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
@@ -1583,10 +1827,9 @@ def list_yatra_buses(request):
 
 
 @api_view(['POST'])
-def create_yatra_bus(request):
+def createyatrabus(request):
     """
     Creates a new Yatra Bus and optionally reserves seats for 'Swayamsevak'.
-    This version is simplified and includes a robust catch-all for any error.
     """
     debug = []
     response_data = {
@@ -1615,13 +1858,14 @@ def create_yatra_bus(request):
         yatra = Yatras.objects.get(yatraId=yatra_id)
         route = YatraRoutes.objects.get(yatraRouteId=route_id)
         user = User.objects.get(id=user_id)
-        registration = Registrations.objects.get(userId=user)
+        
+        # Use .filter().first() to safely get one registration record
+        registration = Registrations.objects.filter(userId=user).first()
+        if not registration:
+            response_data['message_text'] = f"No registration record found for User ID {user_id}."
+            return Response(response_data, status=status.HTTP_200_OK)
 
-        if YatraBuses.objects.filter(
-            busName__iexact=bus_name,
-            yatraId=yatra,
-            busDateTimeStart__date=start_datetime.date()
-        ).exists():
+        if YatraBuses.objects.filter(busName__iexact=bus_name, yatraId=yatra, busDateTimeStart__date=start_datetime.date()).exists():
             response_data['message_text'] = 'Bus Name already exists for this Yatra on this date.'
             return Response(response_data, status=status.HTTP_200_OK)
 
@@ -1641,31 +1885,41 @@ def create_yatra_bus(request):
                 seat_numbers_str = reserved_seats_str.replace(',', ' ').split()
                 for seat_no_str in seat_numbers_str:
                     if seat_no_str.isdigit():
+                        # ✅ FINAL FIX: Use the correct snake_case field names for the TicketsNew model.
                         TicketsNew.objects.create(
-                            yatra_id=yatra, yatra_route_id=route, yatra_bus_id=new_bus,
-                            seat_no=int(seat_no_str), seat_fees=seat_fees, seat_ticket_type=1,
-                            discount=seat_fees, discount_reason='Swayamsevak', amount_paid=0,
-                            payment_mode=1, ticket_status_id=1, registration_id=registration,
-                            user_id=user, booking_date=datetime.today().date(), created_by=user
+                            yatra_id=yatra, 
+                            yatra_route_id=route, 
+                            yatra_bus_id=new_bus,
+                            seat_no=int(seat_no_str), 
+                            seat_fees=seat_fees, 
+                            seat_ticket_type=1,
+                            discount=seat_fees, 
+                            discount_reason='Swayamsevak', 
+                            amount_paid=0,
+                            payment_mode=1, 
+                            ticket_status_id=1,
+                            registration_id=registration,
+                            user_id=user, 
+                            booking_date=datetime.today().date(), 
+                            created_by=user
                         )
 
         response_data['message_code'] = 1000
         response_data['message_text'] = 'Yatra bus added successfully.'
         response_data['message_data'] = {'YatraBusId': new_bus.yatraBusId}
 
-    except (Yatras.DoesNotExist, YatraRoutes.DoesNotExist, User.DoesNotExist, Registrations.DoesNotExist) as e:
+    except (Yatras.DoesNotExist, YatraRoutes.DoesNotExist, User.DoesNotExist) as e:
         response_data['message_text'] = f"A required record was not found: {e}"
     except ValueError:
         response_data['message_text'] = 'Invalid date format for BusDateTimeStart. Please use DD-MM-YYYY HH:MM.'
-    except BaseException as e: # This is the key change!
+    except BaseException as e:
         response_data['message_text'] = 'An unexpected server error occurred.'
         debug.append(f"Error Type: {type(e).__name__}, Details: {str(e)}")
 
     return Response(response_data, status=status.HTTP_200_OK)
 
 
-
-@api_view(['PUT'])
+@api_view(['POST'])
 def modify_yatra_bus(request):
     """
     Modifies an existing Yatra Bus and re-creates its reserved seats.
@@ -1831,7 +2085,7 @@ def create_yatra(request):
 
 
 
-@api_view(['PUT'])
+@api_view(['POST'])
 def modify_yatra(request):
     """
     Modifies an existing Yatra event.
@@ -1958,7 +2212,7 @@ def create_route(request):
 
 
 
-@api_view(['PUT'])
+@api_view(['POST'])
 def modify_route(request):
     """
     Modifies an existing Yatra Route's details.

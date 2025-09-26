@@ -1,201 +1,96 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0">
     <title>Gold Vault - Login</title>
     <link rel="shortcut icon" href="{% static 'assets/img/favicon.png' %}">
     <link rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,500;0,600;0,700;1,400&amp;display=swap">
+          href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap">
     <link rel="stylesheet" href="{% static 'assets/plugins/bootstrap/css/bootstrap.min.css' %}">
-    <link rel="stylesheet" href="{% static 'assets/plugins/fontawesome/css/fontawesome.min.css' %}">
     <link rel="stylesheet" href="{% static 'assets/plugins/fontawesome/css/all.min.css' %}">
     <link rel="stylesheet" href="{% static 'assets/css/style.css' %}">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"
-        integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
+    <style>
+        .btn-primary {
+            background-color: rgb(255, 188, 83) !important;
+            border-color: rgb(255, 188, 83) !important;
+            color: #000 !important;
+            font-weight: 600;
+        }
+        .btn-primary:hover {
+            background-color: rgb(230, 170, 70) !important;
+            border-color: rgb(230, 170, 70) !important;
+            color: #000 !important;
+        }
+        .nlx-subtitle {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            color: #d4af37;
+            text-align: center;
+            margin-top: 12px;
+            font-size: clamp(22px, 2.5vw, 36px);
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+            text-transform: uppercase;
+        }
+        .login-left img {
+            max-width: 70% !important;
+            margin: 0 auto;
+            display: block;
+        }
+    </style>
 </head>
-
-<style>
-
-    /* Custom Login Button */
-.btn-primary {
-  background-color: rgb(255, 188, 83) !important;
-  border-color: rgb(255, 188, 83) !important;
-  color: #000 !important;   /* black text for contrast */
-  font-weight: 600;
-}
-
-.btn-primary:hover {
-  background-color: rgb(230, 170, 70) !important; /* slightly darker gold on hover */
-  border-color: rgb(230, 170, 70) !important;
-  color: #000 !important;
-}
-
-/* Premium subtitle under logo */
-.nlx-subtitle {
-  font-family: 'Poppins', sans-serif;
-  font-weight: 700;
-  color: #d4af37;                 /* elegant gold shade */
-  text-align: center;
-  margin: 12px 16px 0;
-  line-height: 1.3;
-
-  /* Bigger font size */
-  font-size: clamp(22px, 2.5vw, 36px);
-
-  /* Subtle shadow for a luxury effect */
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
-
-  /* spacing control */
-  max-width: 95%;
-  margin-left: auto;
-  margin-right: auto;
-  letter-spacing: 1px;            /* spacing for premium look */
-  text-transform: uppercase;      /* brand feel */
-}
-
-/* Bigger logo */
-.login-left img {
-  display: block;
-  max-width: 70% !important;   /* was 50%, now 70% */
-  width: 100%;
-  height: auto;
-  margin: 0 auto;
-}
-
-.btn-block:hover {
-  background-color: #d09b2b !important;
-  border: 1px solid #d09b2b !important;
-}
-
-/* ================================
-   Responsive stack for tablet/mobile
-   Keeps desktop behavior untouched
-   ================================ */
-@media (max-width: 991.98px) {
-  /* Stack children and center them */
-  .loginbox {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    text-align: center;
-    overflow: visible;
-  }
-
-  /* Make both sections full-width */
-  .login-left,
-  .login-right {
-    width: 100% !important;
-    max-width: 560px;
-    float: none !important;
-    position: static !important;
-  }
-
-  /* Spacing between stacked blocks */
-  .login-left {
-    margin: 16px auto 8px;
-    padding: 0 16px;
-  }
-
-  .login-right {
-    margin: 8px auto 24px;
-    padding: 0 16px;
-  }
-
-  /* Logo larger on smaller screens */
-  .login-left img {
-    max-width: 80% !important;
-  }
-
-  /* Subtitle larger on mobile */
-  .nlx-subtitle {
-    font-size: 40px;
-    font-weight: 700;
-  }
-}
-
-/* Tablet behavior */
-@media (min-width: 768px) and (max-width: 991.98px) {
-  .login-left img {
-    max-width: 60% !important;
-  }
-}
-</style>
-
 <body>
-    {{user_data}}
-    <div class="main-wrapper login-body">
-        <div class="login-wrapper">
-            <div class="container ">
-                <div class="loginbox shadow-lg mb-5 bg-body-tertiary rounded">
-                    <div class="login-left">
-                        <img class="img-fluid" src="{% static 'assets/img/logo1.png' %}" style="background-color: transparent;" alt="Logo">
-                        <div class="nlx-subtitle">Gold Vault</div>
-                    </div>
-                    <div class="login-right">
-                        <div class="login-right-wrap">
-                            <h1 style="font-size: 32px; text-align: center; margin-bottom: 30px;">Admin-Login</h1>
-                            {% comment %} <h1>Admin-Login</h1> {% endcomment %}
-                            {% include "includes/message.html" %}
-                            <form action="" method="POST">
-                                {% csrf_token %}
-                                <div class="form-group">
-                                    <input class="form-control" type="text" placeholder="Username" name="username">
-                                </div>
-                                <div class="form-group position-relative">
-                                    <input class="form-control" type="password" placeholder="Password" name="pass1" id="passwordInput">
-                                    <span class="position-absolute top-50 end-0 translate-middle-y me-3" style="cursor: pointer;" onclick="togglePassword()">
-                                        <i class="fa fa-eye" id="toggleIcon"></i>
-                                    </span>
-                                </div>
-                                <div class="form-group">
-                                    <button class="btn btn-primary btn-block" type="submit">Login</button>
-                                </div>
-                            </form>
-                        </div>       
-                    </div>
+<div class="main-wrapper login-body">
+    <div class="login-wrapper">
+        <div class="container">
+            <div class="loginbox shadow-lg rounded">
+                <div class="login-left">
+                    <img class="img-fluid" src="{% static 'assets/img/logo1.png' %}" alt="Logo">
+                    <div class="nlx-subtitle">Gold Vault</div>
+                </div>
+                <div class="login-right">
+                    <div class="login-right-wrap">
+                        <h1 class="text-center mb-4">Admin Login</h1>
+
+                        {% include "includes/message.html" %}
+
+                        <form action="" method="POST">
+                            {% csrf_token %}
+                            <div class="form-group mb-3">
+                                <input class="form-control" type="text" placeholder="Username" name="username" required>
+                            </div>
+                            <div class="form-group mb-3 position-relative">
+                                <input class="form-control" type="password" placeholder="Password" name="pass1" id="passwordInput" required>
+                                <span class="position-absolute top-50 end-0 translate-middle-y me-3" style="cursor: pointer;" onclick="togglePassword()">
+                                    <i class="fa fa-eye" id="toggleIcon"></i>
+                                </span>
+                            </div>
+                            <div class="form-group">
+                                <button class="btn btn-primary w-100" type="submit">Login</button>
+                            </div>
+                        </form>
+                    </div>       
                 </div>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Scripts -->
-    <script src="{% static 'assets/js/jquery-3.6.0.min.js' %}"></script>
-    <script src="{% static 'assets/js/popper.min.js' %}"></script>
-    <script src="{% static 'assets/plugins/bootstrap/js/bootstrap.min.js' %}"></script>
-    <script src="{% static 'assets/js/script.js' %}"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"
-        integrity="sha384-w76AqPfDkMBDXo30jS1Sgez6pr3x5MlQ1ZAGC+nuZB+EYdgRZgiwxhTBTkF7CXvN"
-        crossorigin="anonymous"></script>
-
-    <script>
-        // Auto close alert messages
-        $(".alert-dismissible").fadeTo(3000, 500).slideUp(500, function () {
-            $(".alert-dismissible").alert('close');
-        });
-
-        // Show/Hide password toggle
-        function togglePassword() {
-            const passwordInput = document.getElementById("passwordInput");
-            const toggleIcon = document.getElementById("toggleIcon");
-
-            if (passwordInput.type === "password") {
-                passwordInput.type = "text";
-                toggleIcon.classList.remove("fa-eye");
-                toggleIcon.classList.add("fa-eye-slash");
-            } else {
-                passwordInput.type = "password";
-                toggleIcon.classList.remove("fa-eye-slash");
-                toggleIcon.classList.add("fa-eye");
-            }
+<script src="{% static 'assets/js/jquery-3.6.0.min.js' %}"></script>
+<script src="{% static 'assets/plugins/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+<script>
+    function togglePassword() {
+        const passwordInput = document.getElementById("passwordInput");
+        const toggleIcon = document.getElementById("toggleIcon");
+        if (passwordInput.type === "password") {
+            passwordInput.type = "text";
+            toggleIcon.classList.replace("fa-eye", "fa-eye-slash");
+        } else {
+            passwordInput.type = "password";
+            toggleIcon.classList.replace("fa-eye-slash", "fa-eye");
         }
-
-        // Clear specific localStorage items
-        localStorage.removeItem("user_id");
-        localStorage.removeItem("token");
-        localStorage.removeItem("user_name");
-    </script>
+    }
+</script>
 </body>
 </html>

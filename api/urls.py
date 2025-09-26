@@ -4,10 +4,7 @@ from . import views
 urlpatterns = [
 
     path("agentlogin/", views.agentlogin, name="agentlogin"),
-    # path('logout/', views.logout, name='logout'),
-    # path('dashboard/' , views.dashboard, name='dashboard'),/
-
-
+    
     path("insertarea/",views.insertarea, name="insertarea"),
     path("listarea/", views.listarea, name="listarea"),
     path("listareaall/", views.listareaall, name="listareaall"),
@@ -26,6 +23,7 @@ urlpatterns = [
     path("pilgrimregistration/", views.pilgrimregistration, name="pilgrimregistration"),
     path("getpilgrimcard/", views.getpilgrimcard, name="getpilgrimcard"),
 
+    path("insertblanktickets/", views.insertblanktickets, name="insertblanktickets"),
     path("inserttickets/", views.inserttickets, name="inserttickets"),
    
 
@@ -44,7 +42,7 @@ urlpatterns = [
     path('listyatra/', views.list_yatras, name='list_yatras'),
     path('listyatraall/', views.list_yatras_all, name='list_yatras_all'), 
     path('listyatrabuses/', views.list_yatra_buses, name='list_yatra_buses'), 
-    path('createyatrabus/', views.create_yatra_bus, name='create_yatra_bus'), 
+    path('createyatrabus/', views.createyatrabus, name='createyatrabus'), 
 
     path('modifyyatrabus/', views.modify_yatra_bus, name='modify_yatra_bus'), 
     path('insertyatra/', views.create_yatra, name='create_yatra'),
