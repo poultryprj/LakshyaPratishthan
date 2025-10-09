@@ -159,7 +159,7 @@ class Yatras(models.Model):
 
 class YatraBuses(models.Model):
     yatraBusId = models.AutoField(primary_key=True)
-    busName = models.CharField(max_length=50, null=True, blank=True)
+    busName = models.ForeignKey(BusNames, on_delete=models.SET_NULL, null=True, related_name='Yatrabuses_busName')
     busDateTimeStart = models.DateTimeField(null=True, blank=True)
     seatFees = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     yatraId = models.ForeignKey(Yatras, on_delete=models.SET_NULL, null=True, related_name='Yatrabuses_yatraId')

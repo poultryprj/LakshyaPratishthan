@@ -721,6 +721,200 @@ def pilgrimregistration(request):
     return Response(response_data, status=status.HTTP_200_OK)
 
 
+
+# @api_view(['POST'])
+# def pilgrimregistration(request):
+#     """
+#     Creates a new pilgrim registration.
+#     """
+#     response_data = {
+#         'message_code': 999,
+#         'message_text': 'Failure',
+#         'message_data': []
+#     }
+
+#     try:
+#         body = request.data
+
+#         # --- Validation ---
+#         mobile_no = body.get('userMobileNo', '').strip()
+#         first_name = body.get('userFirstname', '').strip()
+#         last_name = body.get('userLastname', '').strip()
+
+#         if len(mobile_no) != 10:
+#             response_data['message_text'] = 'Please provide a valid 10-digit mobile no.'
+#             return Response(response_data, status=status.HTTP_200_OK)
+#         if not first_name or not last_name:
+#             response_data['message_text'] = 'Please provide first and last names to register.'
+#             return Response(response_data, status=status.HTTP_200_OK)
+
+#         # --- Prepare data for saving ---
+#         data_to_save = {
+#             'firstname': first_name,
+#             'lastname': last_name,
+#             'mobileNo': mobile_no,
+#             'middlename': body.get('userMiddlename', '').strip(),
+#             'address': body.get('Address', ''),
+#             'dateOfBirth': body.get('DateofBirth'),
+#             'photoFileName': body.get('PhotoFileName', ''),
+#             'idProofFileName': body.get('IdProofFileName', ''),
+#             'voterIdProof': body.get('VoterId', ''),
+#             'zonePreference': body.get('ZonePreference', 0),
+#             'alternateMobileNo': body.get('userAlternateMobileNo') or None,
+#             'aadharNumber': body.get('userAadharNumber') or None,
+#         }
+
+#         # --- Handle Foreign Keys ---
+#         if body.get('AreaId'):
+#             try:
+#                 data_to_save['areaId'] = Areas.objects.get(AreaId=body.get('AreaId'))
+#             except Areas.DoesNotExist:
+#                 response_data['message_text'] = 'Area not found.'
+#                 return Response(response_data, status=status.HTTP_200_OK)
+
+#         if body.get('BloodGroupId'):
+#             try:
+#                 data_to_save['bloodGroup'] = BloodGroup.objects.get(bloodGroupId=body.get('BloodGroupId'))
+#             except BloodGroup.DoesNotExist:
+#                 response_data['message_text'] = 'Blood Group not found.'
+#                 return Response(response_data, status=status.HTTP_200_OK)
+
+#         # ***** THE FIX IS HERE *****
+#         # Add this block to correctly handle the Gender ForeignKey
+#         if body.get('GenderId'):
+#             try:
+#                 # Replace 'Gender' with your actual Gender model name
+#                 # Replace 'GenderId' with the primary key field name in your Gender model
+#                 data_to_save['gender'] = Gender.objects.get(GenderId=body.get('GenderId'))
+#             except Gender.DoesNotExist:
+#                 response_data['message_text'] = 'Gender not found.'
+#                 return Response(response_data, status=status.HTTP_200_OK)
+
+#         if body.get('UserId'):
+#             try:
+#                 data_to_save['userId'] = User.objects.get(id=body.get('UserId'))
+#             except User.DoesNotExist:
+#                 response_data['message_text'] = 'User not found.'
+#                 return Response(response_data, status=status.HTTP_200_OK)
+
+#         # --- Create new registration ---
+#         registration = Registrations.objects.create(**data_to_save)
+#         response_data['message_code'] = 1000
+#         response_data['message_text'] = 'Registration done successfully.'
+#         response_data['message_data'] = {
+#             'RegistrationId': registration.registrationId,
+#             'Tickets': []
+#         }
+#         return Response(response_data, status=status.HTTP_201_CREATED)
+
+#     except Exception as e:
+#         # This catch block is important for debugging!
+#         response_data['message_text'] = f'An error occurred while saving registration: {e}'
+
+#     return Response(response_data, status=status.HTTP_200_OK)
+
+
+# @api_view(['POST'])
+# def update_pilgrimregistration(request):
+#     """
+#     Updates an existing pilgrim registration.
+#     """
+#     response_data = {
+#         'message_code': 999,
+#         'message_text': 'Failure',
+#         'message_data': []
+#     }
+
+#     try:
+#         body = request.data
+#         registration_id = body.get('RegistrationId')
+
+#         # --- RegistrationId is mandatory for an update ---
+#         if not registration_id:
+#             response_data['message_text'] = 'RegistrationId is required for an update.'
+#             return Response(response_data, status=status.HTTP_200_OK)
+
+#         # --- Validation ---
+#         mobile_no = body.get('userMobileNo', '').strip()
+#         first_name = body.get('userFirstname', '').strip()
+#         last_name = body.get('userLastname', '').strip()
+
+#         if len(mobile_no) != 10:
+#             response_data['message_text'] = 'Please provide a valid 10-digit mobile no.'
+#             return Response(response_data, status=status.HTTP_200_OK)
+#         if not first_name or not last_name:
+#             response_data['message_text'] = 'Please provide first and last names to update.'
+#             return Response(response_data, status=status.HTTP_200_OK)
+
+#         # --- Prepare data for saving ---
+#         alt_mobile_no = body.get('userAlternateMobileNo') or None
+#         aadhar_no = body.get('userAadharNumber') or None
+
+#         data_to_update = {
+#             'firstname': first_name,
+#             'lastname': last_name,
+#             'mobileNo': mobile_no,
+#             'middlename': body.get('userMiddlename', '').strip(),
+#             'address': body.get('Address', ''),
+#             'gender': body.get('GenderId'),
+#             'dateOfBirth': body.get('DateofBirth'),
+#             'photoFileName': body.get('PhotoFileName', ''),
+#             'idProofFileName': body.get('IdProofFileName', ''),
+#             'voterIdProof': body.get('VoterId', ''),
+#             'zonePreference': body.get('ZonePreference', 0),
+#             'alternateMobileNo': alt_mobile_no,
+#             'aadharNumber': aadhar_no,
+#         }
+
+#         # --- Handle Foreign Keys ---
+#         if body.get('AreaId'):
+#             try:
+#                 data_to_update['areaId'] = Areas.objects.get(AreaId=body.get('AreaId'))
+#             except Areas.DoesNotExist:
+#                 response_data['message_text'] = 'Area not found.'
+#                 return Response(response_data, status=status.HTTP_200_OK)
+
+#         if body.get('BloodGroupId'):
+#             try:
+#                 data_to_update['bloodGroup'] = BloodGroup.objects.get(bloodGroupId=body.get('BloodGroupId'))
+#             except BloodGroup.DoesNotExist:
+#                 response_data['message_text'] = 'Blood Group not found.'
+#                 return Response(response_data, status=status.HTTP_200_OK)
+
+#         if body.get('UserId'):
+#             try:
+#                 data_to_update['userId'] = User.objects.get(id=body.get('UserId'))
+#             except User.DoesNotExist:
+#                 response_data['message_text'] = 'User not found.'
+#                 return Response(response_data, status=status.HTTP_200_OK)
+
+#         # --- Find and update the registration ---
+#         try:
+#             registration_to_update = Registrations.objects.get(registrationId=registration_id)
+#         except Registrations.DoesNotExist:
+#             response_data['message_text'] = 'Registration to update not found.'
+#             return Response(response_data, status=status.HTTP_200_OK)
+
+#         for key, value in data_to_update.items():
+#             setattr(registration_to_update, key, value)
+#         registration_to_update.save()
+
+#         # --- Fetch associated tickets ---
+#         tickets = TicketsNew.objects.filter(registration_id=registration_id).values()
+
+#         response_data['message_code'] = 1000
+#         response_data['message_text'] = 'Registration Updated Successfully.'
+#         response_data['message_data'] = {
+#             'RegistrationId': registration_to_update.registrationId,
+#             'Tickets': list(tickets)
+#         }
+
+#     except Exception as e:
+#         response_data['message_text'] = f'An error occurred while updating registration: {e}'
+
+#     return Response(response_data, status=status.HTTP_200_OK)    
+
+
 @api_view(['POST'])
 def getpilgrimcard(request):
     """
@@ -1232,18 +1426,95 @@ def totals(request):
         }, status=status.HTTP_200_OK)
 
 
+# @api_view(['GET'])
+# def totalrouteyatrabus(request):
+#     """
+#     Provides a report of total bookings grouped by Yatra Route, Yatra, and Bus for 2025,
+#     replicating the PHP API response exactly.
+#     """
+#     try:
+#         # Fetch tickets for 2025 with status booked
+#         tickets = TicketsNew.objects.filter(
+#             ticket_year=2025,
+#             ticket_status_id=2
+#         ).select_related('yatra_route_id', 'yatra_id', 'yatra_bus_id')
+
+#         if not tickets.exists():
+#             return Response({
+#                 'message_code': 999,
+#                 'message_text': 'No bookings',
+#                 'message_data': []
+#             }, status=status.HTTP_200_OK)
+
+#         # Aggregate by Route, Yatra, Bus
+#         result_list = []
+#         group_dict = {}
+#         for t in tickets:
+#             key = (t.yatra_route_id.yatraRouteId, t.yatra_id.yatraId, t.yatra_bus_id.yatraBusId)
+#             if key not in group_dict:
+#                 group_dict[key] = {
+#                     'YatraRouteId': str(t.yatra_route_id.yatraRouteId),
+#                     'YatraRouteName': t.yatra_route_id.yatraRoutename,
+#                     'YatraId': str(t.yatra_id.yatraId),
+#                     'YatraDateTime': t.yatra_id.yatraDateTime.strftime('%d-%m-%Y') if t.yatra_id.yatraDateTime else '',
+#                     'YatraStartDateTime': t.yatra_id.yatraStartDateTime.strftime('%d-%m-%Y %H-%M') if t.yatra_id.yatraStartDateTime else '',
+#                     'YatraFees': str(t.yatra_id.yatraFees),
+#                     'YatraBusId': str(t.yatra_bus_id.yatraBusId),
+#                     'BusName': t.yatra_bus_id.busName,
+#                     'Bookings': 0,
+#                     'YatraCount': 0,
+#                     'RouteCount': 0
+#                 }
+#             group_dict[key]['Bookings'] += 1
+#             group_dict[key]['YatraCount'] += 1
+#             group_dict[key]['RouteCount'] += 1
+
+#         result_list = list(group_dict.values())
+
+#         return Response({
+#             'message_code': 1000,
+#             'message_text': 'Route, Yatra, Bus wise Booking counters',
+#             'message_data': result_list
+#         }, status=status.HTTP_200_OK)
+
+#     except Exception as e:
+#         return Response({
+#             'message_code': 999,
+#             'message_text': f'Unable to fetch booking report: {e}',
+#             'message_data': []
+#         }, status=status.HTTP_200_OK)
+
 @api_view(['GET'])
 def totalrouteyatrabus(request):
     """
-    Provides a report of total bookings grouped by Yatra Route, Yatra, and Bus for 2025,
-    replicating the PHP API response exactly.
+    Provides a report of total bookings grouped by Yatra Route, Yatra, and Bus for 2025.
+    Replicates the PHP API fi_routeyatrabus_tickets but returns aggregated counts.
     """
     try:
-        # Fetch tickets for 2025 with status booked
+        # Fetch and group tickets by Route, Yatra, and Bus
         tickets = TicketsNew.objects.filter(
             ticket_year=2025,
             ticket_status_id=2
-        ).select_related('yatra_route_id', 'yatra_id', 'yatra_bus_id')
+        ).select_related(
+            'yatra_route_id',
+            'yatra_id',
+            'yatra_bus_id'
+        ).values(
+            'yatra_route_id__yatraRouteId',
+            'yatra_route_id__yatraRoutename',
+            'yatra_id__yatraId',
+            'yatra_id__yatraDateTime',
+            'yatra_id__yatraStartDateTime',
+            'yatra_id__yatraFees',
+            'yatra_bus_id__yatraBusId',
+            'yatra_bus_id__busName'
+        ).annotate(
+            bookings=Count('ticket_id')
+        ).order_by(
+            'yatra_route_id__yatraRouteId',
+            'yatra_id__yatraId',
+            'yatra_bus_id__yatraBusId'
+        )
 
         if not tickets.exists():
             return Response({
@@ -1252,30 +1523,23 @@ def totalrouteyatrabus(request):
                 'message_data': []
             }, status=status.HTTP_200_OK)
 
-        # Aggregate by Route, Yatra, Bus
+        # Format the response data
         result_list = []
-        group_dict = {}
         for t in tickets:
-            key = (t.yatra_route_id.yatraRouteId, t.yatra_id.yatraId, t.yatra_bus_id.yatraBusId)
-            if key not in group_dict:
-                group_dict[key] = {
-                    'YatraRouteId': str(t.yatra_route_id.yatraRouteId),
-                    'YatraRouteName': t.yatra_route_id.yatraRoutename,
-                    'YatraId': str(t.yatra_id.yatraId),
-                    'YatraDateTime': t.yatra_id.yatraDateTime.strftime('%d-%m-%Y') if t.yatra_id.yatraDateTime else '',
-                    'YatraStartDateTime': t.yatra_id.yatraStartDateTime.strftime('%d-%m-%Y %H-%M') if t.yatra_id.yatraStartDateTime else '',
-                    'YatraFees': str(t.yatra_id.yatraFees),
-                    'YatraBusId': str(t.yatra_bus_id.yatraBusId),
-                    'BusName': t.yatra_bus_id.busName,
-                    'Bookings': 0,
-                    'YatraCount': 0,
-                    'RouteCount': 0
-                }
-            group_dict[key]['Bookings'] += 1
-            group_dict[key]['YatraCount'] += 1
-            group_dict[key]['RouteCount'] += 1
-
-        result_list = list(group_dict.values())
+            ticket_data = {
+                'YatraRouteId': str(t['yatra_route_id__yatraRouteId']) if t['yatra_route_id__yatraRouteId'] else '',
+                'YatraRouteName': t['yatra_route_id__yatraRoutename'] if t['yatra_route_id__yatraRoutename'] else '',
+                'YatraId': str(t['yatra_id__yatraId']) if t['yatra_id__yatraId'] else '',
+                'YatraDateTime': t['yatra_id__yatraDateTime'].strftime('%d-%m-%Y') if t['yatra_id__yatraDateTime'] else '',
+                'YatraStartDateTime': t['yatra_id__yatraStartDateTime'].strftime('%d-%m-%Y %H-%M') if t['yatra_id__yatraStartDateTime'] else '',
+                'YatraFees': str(t['yatra_id__yatraFees']) if t['yatra_id__yatraFees'] else '0.00',
+                'YatraBusId': str(t['yatra_bus_id__yatraBusId']) if t['yatra_bus_id__yatraBusId'] else '',
+                'BusName': t['yatra_bus_id__busName'] if t['yatra_bus_id__busName'] else '',
+                'Bookings': str(t['bookings']),
+                'YatraCount': str(t['bookings']),
+                'RouteCount': str(t['bookings'])
+            }
+            result_list.append(ticket_data)
 
         return Response({
             'message_code': 1000,
@@ -1286,75 +1550,172 @@ def totalrouteyatrabus(request):
     except Exception as e:
         return Response({
             'message_code': 999,
-            'message_text': f'Unable to fetch booking report: {e}',
+            'message_text': f'Unable to fetch booking report: {str(e)}',
             'message_data': []
         }, status=status.HTTP_200_OK)
 
 
+# @api_view(['POST'])
+# def routeyatrabustickets(request):
+#     """
+#     Lists all booked tickets for a specific Yatra Route, Yatra, and Bus for 2025,
+#     replicating the PHP API response exactly.
+#     """
+#     try:
+#         body = request.data
+#         YatraRouteId = body.get('YatraRouteId')
+#         YatraId = body.get('YatraId')
+#         YatraBusId = body.get('YatraBusId')
+
+#         # --- Validation ---
+#         if not YatraRouteId:
+#             return Response({'message_code': 999, 'message_text': 'Please provide yatra route for tickets.', 'message_data': []}, status=status.HTTP_200_OK)
+#         if not YatraId:
+#             return Response({'message_code': 999, 'message_text': 'Please provide Yatra for ticket.', 'message_data': []}, status=status.HTTP_200_OK)
+#         if not YatraBusId:
+#             return Response({'message_code': 999, 'message_text': 'Please provide yatra bus for tickets.', 'message_data': []}, status=status.HTTP_200_OK)
+
+#         # --- Query Tickets ---
+#         tickets = TicketsNew.objects.filter(
+#             yatra_route_id=YatraRouteId,
+#             yatra_id=YatraId,
+#             yatra_bus_id=YatraBusId,
+#             ticket_year=2025,
+#             ticket_status_id=2
+#         ).select_related(
+#             'yatra_route_id', 'yatra_id', 'yatra_bus_id', 'registration_id'
+#         ).order_by('seat_no')
+
+#         result_list = []
+#         for t in tickets:
+#             result_list.append({
+#                 'YatraRouteId': str(t.yatra_route_id.yatraRouteId),
+#                 'YatraId': str(t.yatra_id.yatraId),
+#                 'YatraDateTime': t.yatra_id.yatraDateTime.strftime('%d-%m-%Y') if t.yatra_id.yatraDateTime else '',
+#                 'YatraStartDateTime': t.yatra_id.yatraStartDateTime.strftime('%d-%m-%Y %H-%M') if t.yatra_id.yatraStartDateTime else '',
+#                 'YatraFees': str(t.yatra_id.yatraFees),
+#                 'YatraBusId': str(t.yatra_bus_id.yatraBusId),
+#                 'BusName': t.yatra_bus_id.busName,
+#                 'SeatNo': str(t.seat_no),
+#                 'RegistrationId': str(t.registration_id.registrationId),
+#                 'DiscountReason': t.discount_reason or '',
+#                 'Firstname': t.registration_id.firstname,
+#                 'Middlename': t.registration_id.middlename,
+#                 'Lastname': t.registration_id.lastname or '',
+#                 'MobileNo': t.registration_id.mobileNo,
+#                 'AlternateMobileNo': t.registration_id.alternateMobileNo,
+#                 'BloodGroup': t.registration_id.bloodGroup.bloodGroupName if t.registration_id.bloodGroup else '',
+#                 'Gender': str(t.registration_id.gender),
+#                 'PhotoFileName': t.registration_id.photoFileName or '',
+#                 'IdProofFileName': t.registration_id.idProofFileName or '',
+#                 'VoterIdProof': t.registration_id.voterIdProof or ''
+#             })
+
+#         if not result_list:
+#             return Response({'message_code': 999, 'message_text': 'No Tickets', 'message_data': []}, status=status.HTTP_200_OK)
+
+#         return Response({'message_code': 1000, 'message_text': 'Route, Yatra, Bus wise Tickets', 'message_data': result_list}, status=status.HTTP_200_OK)
+
+#     except Exception as e:
+#         return Response({'message_code': 999, 'message_text': f'Unable to fetch tickets: {e}', 'message_data': []}, status=status.HTTP_200_OK)
+
 @api_view(['POST'])
 def routeyatrabustickets(request):
     """
-    Lists all booked tickets for a specific Yatra Route, Yatra, and Bus for 2025,
-    replicating the PHP API response exactly.
+    Fetches ticket details for a specific Yatra Route, Yatra, and Bus combination.
+    Provides complete passenger and booking information.
     """
     try:
-        body = request.data
-        YatraRouteId = body.get('YatraRouteId')
-        YatraId = body.get('YatraId')
-        YatraBusId = body.get('YatraBusId')
+        # Extract request parameters
+        yatra_route_id = request.data.get('YatraRouteId', 0)
+        yatra_id = request.data.get('YatraId', 0)
+        yatra_bus_id = request.data.get('YatraBusId', 0)
 
-        # --- Validation ---
-        if not YatraRouteId:
-            return Response({'message_code': 999, 'message_text': 'Please provide yatra route for tickets.', 'message_data': []}, status=status.HTTP_200_OK)
-        if not YatraId:
-            return Response({'message_code': 999, 'message_text': 'Please provide Yatra for ticket.', 'message_data': []}, status=status.HTTP_200_OK)
-        if not YatraBusId:
-            return Response({'message_code': 999, 'message_text': 'Please provide yatra bus for tickets.', 'message_data': []}, status=status.HTTP_200_OK)
+        # Validate required parameters
+        if not yatra_route_id or yatra_route_id == 0:
+            return Response({
+                'message_code': 999,
+                'message_text': 'Please provide yatra route for tickets.',
+                'message_data': []
+            }, status=status.HTTP_200_OK)
 
-        # --- Query Tickets ---
+        if not yatra_id or yatra_id == 0:
+            return Response({
+                'message_code': 999,
+                'message_text': 'Please provide Yatra for ticket.',
+                'message_data': []
+            }, status=status.HTTP_200_OK)
+
+        if not yatra_bus_id or yatra_bus_id == 0:
+            return Response({
+                'message_code': 999,
+                'message_text': 'Please provide yatra bus for tickets.',
+                'message_data': []
+            }, status=status.HTTP_200_OK)
+
+        # Fetch tickets with all related data
         tickets = TicketsNew.objects.filter(
-            yatra_route_id=YatraRouteId,
-            yatra_id=YatraId,
-            yatra_bus_id=YatraBusId,
             ticket_year=2025,
-            ticket_status_id=2
+            ticket_status_id=2,
+            yatra_route_id=yatra_route_id,
+            yatra_id=yatra_id,
+            yatra_bus_id=yatra_bus_id
         ).select_related(
-            'yatra_route_id', 'yatra_id', 'yatra_bus_id', 'registration_id'
-        ).order_by('seat_no')
+            'yatra_route_id',
+            'yatra_id',
+            'yatra_bus_id',
+            'yatra_bus_id__busName',  # YatraBuses has a busName FK to BusNames
+            'registration_id',
+            'registration_id__bloodGroup'
+        )
 
+        if not tickets.exists():
+            return Response({
+                'message_code': 999,
+                'message_text': 'No Tickets',
+                'message_data': []
+            }, status=status.HTTP_200_OK)
+
+        # Build response data
         result_list = []
         for t in tickets:
-            result_list.append({
-                'YatraRouteId': str(t.yatra_route_id.yatraRouteId),
-                'YatraId': str(t.yatra_id.yatraId),
-                'YatraDateTime': t.yatra_id.yatraDateTime.strftime('%d-%m-%Y') if t.yatra_id.yatraDateTime else '',
-                'YatraStartDateTime': t.yatra_id.yatraStartDateTime.strftime('%d-%m-%Y %H-%M') if t.yatra_id.yatraStartDateTime else '',
-                'YatraFees': str(t.yatra_id.yatraFees),
-                'YatraBusId': str(t.yatra_bus_id.yatraBusId),
-                'BusName': t.yatra_bus_id.busName,
-                'SeatNo': str(t.seat_no),
-                'RegistrationId': str(t.registration_id.registrationId),
-                'DiscountReason': t.discount_reason or '',
-                'Firstname': t.registration_id.firstname,
-                'Middlename': t.registration_id.middlename,
-                'Lastname': t.registration_id.lastname or '',
-                'MobileNo': t.registration_id.mobileNo,
-                'AlternateMobileNo': t.registration_id.alternateMobileNo,
-                'BloodGroup': t.registration_id.bloodGroup.bloodGroupName if t.registration_id.bloodGroup else '',
-                'Gender': str(t.registration_id.gender),
-                'PhotoFileName': t.registration_id.photoFileName or '',
-                'IdProofFileName': t.registration_id.idProofFileName or '',
-                'VoterIdProof': t.registration_id.voterIdProof or ''
-            })
+            ticket_data = {
+                'YatraRouteId': str(t.yatra_route_id.yatraRouteId) if t.yatra_route_id else '',
+                'YatraId': str(t.yatra_id.yatraId) if t.yatra_id else '',
+                'YatraDateTime': t.yatra_id.yatraDateTime.strftime('%d-%m-%Y') if t.yatra_id and t.yatra_id.yatraDateTime else '',
+                'YatraStartDateTime': t.yatra_id.yatraStartDateTime.strftime('%d-%m-%Y %H-%M') if t.yatra_id and t.yatra_id.yatraStartDateTime else '',
+                'YatraFees': str(t.yatra_id.yatraFees) if t.yatra_id and t.yatra_id.yatraFees else '0.00',
+                'YatraBusId': str(t.yatra_bus_id.yatraBusId) if t.yatra_bus_id else '',
+                'BusName': t.yatra_bus_id.busName.busName if t.yatra_bus_id and t.yatra_bus_id.busName else '',
+                'SeatNo': str(t.seat_no) if t.seat_no else '',
+                'RegistrationId': str(t.registration_id.registrationId) if t.registration_id else '',
+                'DiscountReason': t.discount_reason if t.discount_reason else '',
+                'Firstname': t.registration_id.firstname if t.registration_id and t.registration_id.firstname else '',
+                'Middlename': t.registration_id.middlename if t.registration_id and t.registration_id.middlename else '',
+                'Lastname': t.registration_id.lastname if t.registration_id and t.registration_id.lastname else '',
+                'MobileNo': t.registration_id.mobileNo if t.registration_id and t.registration_id.mobileNo else '',
+                'AlternateMobileNo': t.registration_id.alternateMobileNo if t.registration_id and t.registration_id.alternateMobileNo else '',
+                'BloodGroup': t.registration_id.bloodGroup.bloodGroupName if t.registration_id and t.registration_id.bloodGroup else '',
+                'Gender': str(t.registration_id.gender) if t.registration_id and t.registration_id.gender else '',
+                'PhotoFileName': t.registration_id.photoFileName if t.registration_id and t.registration_id.photoFileName else '',
+                'IdProofFileName': t.registration_id.idProofFileName if t.registration_id and t.registration_id.idProofFileName else '',
+                'VoterIdProof': t.registration_id.voterIdProof if t.registration_id and t.registration_id.voterIdProof else '',
+            }
+            result_list.append(ticket_data)
 
-        if not result_list:
-            return Response({'message_code': 999, 'message_text': 'No Tickets', 'message_data': []}, status=status.HTTP_200_OK)
-
-        return Response({'message_code': 1000, 'message_text': 'Route, Yatra, Bus wise Tickets', 'message_data': result_list}, status=status.HTTP_200_OK)
+        return Response({
+            'message_code': 1000,
+            'message_text': 'Route, Yatra, Bus wise Tickets',
+            'message_data': result_list
+        }, status=status.HTTP_200_OK)
 
     except Exception as e:
-        return Response({'message_code': 999, 'message_text': f'Unable to fetch tickets: {e}', 'message_data': []}, status=status.HTTP_200_OK)
-
+        return Response({
+            'message_code': 999,
+            'message_text': f'Unable to fetch tickets: {str(e)}',
+            'message_data': []
+        }, status=status.HTTP_200_OK)
+    
 
 @api_view(['POST'])
 def agentbookings(request):
@@ -1366,27 +1727,42 @@ def agentbookings(request):
         from datetime import datetime
 
         body = request.data
-        UserId = body.get('UserId')
-        BookingDate = body.get('BookingDate')
-
-        if not UserId:
-            return Response({
-                'message_code': 999,
-                'message_text': 'Please provide agent for tickets.',
-                'message_data': []
-            }, status=status.HTTP_200_OK)
-
-        # --- Default date if missing ---
-        if not BookingDate or not isinstance(BookingDate, str):
+        
+        # Extract and validate UserId
+        UserId = body.get('UserId', 0)
+        if UserId == "" or UserId is None:
+            UserId = 0
+        else:
+            try:
+                UserId = int(UserId)
+            except (ValueError, TypeError):
+                UserId = 0
+        
+        # Extract BookingDate with default
+        BookingDate = body.get('BookingDate', '')
+        if not BookingDate or BookingDate == "":
             BookingDate = datetime.today().strftime('%d/%m/%Y')
 
-        # --- Parse BookingDate safely ---
+        # Validation: UserId is required
+        if UserId == 0:
+            return Response({
+                'message_code': 999,
+                'message_text': 'Please provide agent for tickets.'
+            }, status=status.HTTP_200_OK)
+
+        # Double-check BookingDate (replicate PHP's second check)
+        if BookingDate == "":
+            BookingDate = datetime.today().strftime('%d/%m/%Y')
+
+        # Parse BookingDate safely
         try:
             target_date = datetime.strptime(BookingDate, '%d/%m/%Y')
         except ValueError:
+            # If parsing fails, use today's date
+            BookingDate = datetime.today().strftime('%d/%m/%Y')
             target_date = datetime.today()
 
-        # --- Filter tickets by day, month, year ---
+        # Filter tickets matching PHP query conditions
         tickets = TicketsNew.objects.filter(
             ticket_year=2025,
             ticket_status_id=2,
@@ -1395,30 +1771,67 @@ def agentbookings(request):
             booking_date__month=target_date.month,
             booking_date__year=target_date.year
         ).select_related(
-            'yatra_route_id', 'yatra_id', 'yatra_bus_id', 'registration_id'
+            'yatra_route_id',
+            'yatra_id',
+            'yatra_bus_id',
+            'yatra_bus_id__busName',  # Added to get BusNames data
+            'registration_id',
+            'registration_id__bloodGroup'
         ).order_by('yatra_route_id', 'yatra_id', 'yatra_bus_id')
 
         result_list = []
         for t in tickets:
+            # Handle None values safely for all fields
+            yatra_route_id = t.yatra_route_id.yatraRouteId if t.yatra_route_id else None
+            yatra_route_name = t.yatra_route_id.yatraRoutename if t.yatra_route_id else ''
+            
+            yatra_id = t.yatra_id.yatraId if t.yatra_id else None
+            yatra_date_time = t.yatra_id.yatraDateTime.strftime('%d-%m-%Y') if (t.yatra_id and t.yatra_id.yatraDateTime) else ''
+            yatra_fees = float(t.yatra_id.yatraFees) if (t.yatra_id and t.yatra_id.yatraFees) else 0.00
+            
+            # YatraBuses - busName is now FK to BusNames
+            yatra_bus_id = t.yatra_bus_id.yatraBusId if t.yatra_bus_id else None
+            bus_name = ''
+            if t.yatra_bus_id and t.yatra_bus_id.busName:
+                bus_name = t.yatra_bus_id.busName.busName
+            
+            # Registration details
+            firstname = t.registration_id.firstname if t.registration_id else ''
+            middlename = t.registration_id.middlename if t.registration_id else ''
+            lastname = t.registration_id.lastname if t.registration_id else ''
+            mobile_no = t.registration_id.mobileNo if t.registration_id else ''
+            alternate_mobile = t.registration_id.alternateMobileNo if t.registration_id else ''
+            
+            # BloodGroup handling
+            blood_group = ''
+            if t.registration_id and t.registration_id.bloodGroup:
+                # Assuming BloodGroup model has bloodGroupName field
+                blood_group = getattr(t.registration_id.bloodGroup, 'bloodGroupName', '') or \
+                             getattr(t.registration_id.bloodGroup, 'name', '') or ''
+            
+            gender = t.registration_id.gender if t.registration_id else None
+            photo_filename = t.registration_id.photoFileName if t.registration_id else ''
+
             result_list.append({
-                'YatraRouteId': t.yatra_route_id.yatraRouteId,
-                'YatraRouteName': t.yatra_route_id.yatraRoutename,
-                'YatraId': t.yatra_id.yatraId,
-                'YatraDateTime': t.yatra_id.yatraDateTime.strftime('%d-%m-%Y') if t.yatra_id.yatraDateTime else '',
+                'YatraRouteId': yatra_route_id,
+                'YatraRouteName': yatra_route_name,
+                'YatraId': yatra_id,
+                'YatraDateTime': yatra_date_time,
                 'PaymentMode': t.payment_mode,
-                'YatraFees': t.yatra_id.yatraFees,
-                'YatraBusId': t.yatra_bus_id.yatraBusId,
-                'BusName': t.yatra_bus_id.busName,
-                'Firstname': t.registration_id.firstname,
-                'Middlename': t.registration_id.middlename,
-                'Lastname': t.registration_id.lastname,
-                'MobileNo': t.registration_id.mobileNo,
-                'AlternateMobileNo': t.registration_id.alternateMobileNo,
-                'BloodGroup': t.registration_id.bloodGroup.bloodGroupName if t.registration_id.bloodGroup else '',
-                'Gender': t.registration_id.gender,
-                'PhotoFileName': t.registration_id.photoFileName
+                'YatraFees': yatra_fees,
+                'YatraBusId': yatra_bus_id,
+                'BusName': bus_name,
+                'Firstname': firstname,
+                'Middlename': middlename,
+                'Lastname': lastname,
+                'MobileNo': mobile_no,
+                'AlternateMobileNo': alternate_mobile,
+                'BloodGroup': blood_group,
+                'Gender': gender,
+                'PhotoFileName': photo_filename
             })
 
+        # Return appropriate response
         if not result_list:
             return Response({
                 'message_code': 999,
@@ -1435,10 +1848,9 @@ def agentbookings(request):
     except Exception as e:
         return Response({
             'message_code': 999,
-            'message_text': f'Unable to fetch tickets: {e}',
+            'message_text': f'Unable to fetch tickets: {str(e)}',
             'message_data': []
         }, status=status.HTTP_200_OK)
-
 
 @api_view(['POST'])
 def yatrabookings(request):
@@ -1654,9 +2066,6 @@ def list_routes_all(request):
 
 
 
-
-
-
 @api_view(["GET"])
 def list_buses(request):
     debug = []
@@ -1781,237 +2190,934 @@ def list_yatras_all(request):
 
 
 @api_view(["GET"])
-def list_yatra_buses(request):
-    debug = []
-    response_data = {
-        'message_code': 999,
-        'message_text': 'Failure',
-        'message_data': [],
-        'message_debug': debug
-    }
-
+def listyatrabuses(request):
+    """
+    Lists all Yatra buses with active Yatra status.
+    Exact replica of PHP fi_list_yatra_buses API.
+    """
     try:
-        yatras_buses = YatraBuses.objects.filter(yatraId__yatraStatus__statusName='Active', is_deleted=False)
+        # PHP query filters: YatraStatus = 1 (Active)
+        # Joins: Yatras → YatraRoutes → YatraBuses
+        yatras_buses = YatraBuses.objects.filter(
+            yatraId__yatraStatus=1,  # YatraStatus = 1 (assuming 1 = Active)
+            is_deleted=False
+        ).select_related(
+            'yatraId',
+            'yatraId__yatraRouteId',
+            'yatraRouteId',
+            'busName'  # FK to BusNames
+        ).order_by('yatraId', 'yatraBusId')
 
         if not yatras_buses.exists():
-            response_data['message_text'] = 'No Yatra Bus.'
-            return Response(response_data, status=status.HTTP_200_OK)
+            return Response({
+                'message_code': 999,
+                'message_text': 'No Yatra Bus.'
+            }, status=status.HTTP_200_OK)
 
         yatras_buses_list = []
         for yb in yatras_buses:
-            y = yb.yatraId
-            route = y.yatraRouteId if y else None
+            y = yb.yatraId  # Yatras object
+            route = y.yatraRouteId if y else None  # YatraRoutes object
+            
+            # Handle YatraStatus - PHP returns integer 1, not status name
+            yatra_status = None
+            if y and y.yatraStatus:
+                # If yatraStatus is FK to YatraStatus model
+                if hasattr(y.yatraStatus, 'pk'):
+                    yatra_status = y.yatraStatus.pk
+                else:
+                    yatra_status = y.yatraStatus
+            
+            # BusName - get actual name from BusNames FK
+            bus_name = ''
+            if yb.busName:
+                bus_name = yb.busName.busName
+            
             yatras_buses_list.append({
                 'YatraId': y.yatraId if y else None,
-                'YatraDateTime': y.yatraDateTime.strftime('%d-%m-%Y %H:%M') if y and y.yatraDateTime else None,
+                'YatraDateTime': y.yatraDateTime.strftime('%d-%m-%Y %H:%M') if (y and y.yatraDateTime) else None,
                 'YatraRouteId': route.yatraRouteId if route else None,
-                'YatraStatus': y.yatraStatus.statusName if y and y.yatraStatus else None,
+                'YatraStatus': yatra_status,  # Return integer, not status name
                 'YatraRouteName': route.yatraRoutename if route else None,
                 'YatraRouteDetails': route.yatraDetails if route else None,
                 'YatraBusId': yb.yatraBusId,
-                'BusName': yb.busName,
+                'BusName': bus_name,  # Get from BusNames FK
                 'BusDateTimeStart': yb.busDateTimeStart.strftime('%d-%m-%Y %H:%M') if yb.busDateTimeStart else None,
                 'SeatFees': float(yb.seatFees) if yb.seatFees else 0.0,
                 'BusCapacity': yb.busCapacity
             })
 
-        response_data['message_code'] = 1000
-        response_data['message_text'] = 'Success'
-        response_data['message_data'] = yatras_buses_list
+        return Response({
+            'message_code': 1000,
+            'message_text': 'Success',
+            'message_data': yatras_buses_list
+        }, status=status.HTTP_200_OK)
 
     except Exception as e:
-        response_data['message_text'] = 'An error occurred while fetching Yatra buses.'
-        debug.append(str(e))
+        return Response({
+            'message_code': 999,
+            'message_text': f'An error occurred while fetching Yatra buses: {str(e)}'
+        }, status=status.HTTP_200_OK)
 
-    return Response(response_data, status=status.HTTP_200_OK)
+
+# @api_view(['POST'])
+# def createyatrabus(request):
+#     """
+#     Creates a new Yatra Bus and optionally reserves seats for 'Swayamsevak'.
+#     Exact replica of PHP fi_create_yatra_bus API.
+#     """
+#     try:
+#         from datetime import datetime
+#         from django.db import transaction
+        
+#         body = request.data
+        
+#         # Extract parameters with proper validation (matching PHP logic)
+#         BusName = body.get('BusName', '').strip() if body.get('BusName') else ''
+#         BusDateTimeStart = body.get('BusDateTimeStart', '').strip() if body.get('BusDateTimeStart') else ''
+#         SeatFees = body.get('SeatFees', '')
+#         YatraRouteId = body.get('YatraRouteId', '')
+#         YatraId = body.get('YatraId', '')
+#         BusCapacity = body.get('BusCapacity', '')
+#         ReservedSeats = body.get('ReservedSeats', '1,2')
+#         UserId = body.get('UserId', 1)
+        
+#         # Convert to string for empty check (PHP treats numbers as strings in comparisons)
+#         SeatFees_str = str(SeatFees).strip() if SeatFees not in [None, ''] else ''
+#         YatraRouteId_str = str(YatraRouteId).strip() if YatraRouteId not in [None, ''] else ''
+#         YatraId_str = str(YatraId).strip() if YatraId not in [None, ''] else ''
+#         BusCapacity_str = str(BusCapacity).strip() if BusCapacity not in [None, ''] else ''
+#         ReservedSeats_str = str(ReservedSeats).strip() if ReservedSeats not in [None, ''] else '1,2'
+        
+#         # Convert UserId to int with default 1
+#         try:
+#             UserId = int(UserId) if UserId else 1
+#         except (ValueError, TypeError):
+#             UserId = 1
+
+#         # Validation in exact PHP order
+#         if BusDateTimeStart == "":
+#             return Response({
+#                 'message_code': 999,
+#                 'message_text': f'Yatra date and time must be specified to add new yatra.{body.get("BusDateTimeStart", "")}'
+#             }, status=status.HTTP_200_OK)
+#         elif YatraRouteId_str == "":
+#             return Response({
+#                 'message_code': 999,
+#                 'message_text': 'Yatra route must be specified to add new yatra.'
+#             }, status=status.HTTP_200_OK)
+#         elif SeatFees_str == "":
+#             return Response({
+#                 'message_code': 999,
+#                 'message_text': 'Yatra seat fee must be specified to add new yatra.'
+#             }, status=status.HTTP_200_OK)
+#         elif BusName == "":
+#             return Response({
+#                 'message_code': 999,
+#                 'message_text': 'Yatra bus name  must be specified to add new yatra.'
+#             }, status=status.HTTP_200_OK)
+
+#         # Parse datetime: format is "DD-MM-YYYY HH:MM"
+#         try:
+#             arrDateTime = BusDateTimeStart.split(" ")
+#             YatraDate = arrDateTime[0]  # DD-MM-YYYY
+#             YatraTime = arrDateTime[1] if len(arrDateTime) > 1 else "00:00"
+            
+#             # Parse to datetime object
+#             start_datetime = datetime.strptime(f"{YatraDate} {YatraTime}", '%d-%m-%Y %H:%M')
+#         except (ValueError, IndexError) as e:
+#             return Response({
+#                 'message_code': 999,
+#                 'message_text': f'Invalid date format for BusDateTimeStart. Please use DD-MM-YYYY HH:MM. Error: {str(e)}'
+#             }, status=status.HTTP_200_OK)
+
+#         # Convert YatraId to int and validate
+#         try:
+#             YatraId_int = int(YatraId)
+#         except (ValueError, TypeError):
+#             YatraId_int = 0
+
+#         if YatraId_int == 0:
+#             return Response({
+#                 'message_code': 999,
+#                 'message_text': 'Unable to add/locate yatra on this date.'
+#             }, status=status.HTTP_200_OK)
+
+#         # Convert YatraRouteId to int
+#         try:
+#             YatraRouteId_int = int(YatraRouteId)
+#         except (ValueError, TypeError):
+#             return Response({
+#                 'message_code': 999,
+#                 'message_text': 'Invalid YatraRouteId.'
+#             }, status=status.HTTP_200_OK)
+
+#         # Check if bus with same name exists on same date for same route and yatra
+#         existing_bus = YatraBuses.objects.filter(
+#             busName__busName__iexact=BusName,  # Case-insensitive comparison via BusNames FK
+#             busDateTimeStart__date=start_datetime.date(),
+#             yatraRouteId=YatraRouteId_int,
+#             yatraId=YatraId_int
+#         ).exists()
+
+#         if existing_bus:
+#             return Response({
+#                 'message_code': 999,
+#                 'message_text': 'Bus Name already exists. Please choose another name.'
+#             }, status=status.HTTP_200_OK)
+
+#         # Get related objects
+#         try:
+#             yatra = Yatras.objects.get(yatraId=YatraId_int)
+#         except Yatras.DoesNotExist:
+#             return Response({
+#                 'message_code': 999,
+#                 'message_text': f'Yatra with ID {YatraId_int} not found.'
+#             }, status=status.HTTP_200_OK)
+        
+#         try:
+#             route = YatraRoutes.objects.get(yatraRouteId=YatraRouteId_int)
+#         except YatraRoutes.DoesNotExist:
+#             return Response({
+#                 'message_code': 999,
+#                 'message_text': f'YatraRoute with ID {YatraRouteId_int} not found.'
+#             }, status=status.HTTP_200_OK)
+        
+#         try:
+#             user = User.objects.get(id=UserId)
+#         except User.DoesNotExist:
+#             return Response({
+#                 'message_code': 999,
+#                 'message_text': f'User with ID {UserId} not found.'
+#             }, status=status.HTTP_200_OK)
+        
+#         # Get or create BusNames object
+#         try:
+#             bus_name_obj, created = BusNames.objects.get_or_create(
+#                 busName__iexact=BusName,
+#                 defaults={'busName': BusName, 'created_by': user}
+#             )
+#         except Exception as e:
+#             return Response({
+#                 'message_code': 999,
+#                 'message_text': f'Error creating/finding bus name: {str(e)}'
+#             }, status=status.HTTP_200_OK)
+
+#         # Create YatraBus with transaction
+#         try:
+#             with transaction.atomic():
+#                 # Convert BusCapacity to int or None
+#                 bus_capacity_value = None
+#                 if BusCapacity_str != "":
+#                     try:
+#                         bus_capacity_value = int(BusCapacity)
+#                     except (ValueError, TypeError):
+#                         bus_capacity_value = None
+                
+#                 new_bus = YatraBuses.objects.create(
+#                     busName=bus_name_obj,  # FK to BusNames
+#                     busDateTimeStart=start_datetime,
+#                     seatFees=SeatFees,
+#                     yatraRouteId=route,
+#                     yatraId=yatra,
+#                     busStatus=1,
+#                     busCapacity=bus_capacity_value,
+#                     created_by=user
+#                 )
+
+#                 # Reserve seats if specified
+#                 if ReservedSeats_str != "":
+#                     seat_list = ReservedSeats_str.split(",")
+                    
+#                     for seat_no_str in seat_list:
+#                         seat_no_str = seat_no_str.strip()
+#                         if seat_no_str.isdigit():
+#                             try:
+#                                 TicketsNew.objects.create(
+#                                     ticket_year=start_datetime.year,
+#                                     yatra_id=yatra,
+#                                     yatra_route_id=route,
+#                                     yatra_bus_id=new_bus,
+#                                     seat_no=int(seat_no_str),
+#                                     seat_fees=SeatFees,
+#                                     seat_ticket_type=1,
+#                                     discount=SeatFees,
+#                                     discount_reason='Swayamsevak',
+#                                     amount_paid=SeatFees,
+#                                     payment_mode=1,
+#                                     payment_id=None,
+#                                     ticket_status_id=1,
+#                                     registration_id=None,
+#                                     permanant_id=0,
+#                                     user_id=user,
+#                                     booking_date=start_datetime.date(),
+#                                     created_by=user
+#                                 )
+#                             except Exception as ticket_error:
+#                                 # Log but don't fail the entire transaction
+#                                 print(f"Error creating ticket for seat {seat_no_str}: {str(ticket_error)}")
+
+#             return Response({
+#                 'message_code': 1000,
+#                 'message_text': 'Yatra bus added successfully.'
+#             }, status=status.HTTP_200_OK)
+            
+#         except Exception as e:
+#             return Response({
+#                 'message_code': 999,
+#                 'message_text': f'Unable to add yatra bus. Error: {str(e)}'
+#             }, status=status.HTTP_200_OK)
+
+#     except Exception as e:
+#         return Response({
+#             'message_code': 999,
+#             'message_text': f'Unexpected error: {str(e)}'
+#         }, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
 def createyatrabus(request):
     """
-    Creates a new Yatra Bus and optionally reserves seats for 'Swayamsevak'.
+    Creates a new Yatra Bus and creates all seats up to BusCapacity.
+    Reserved seats (specified in ReservedSeats) are created with status 2,
+    remaining seats are created with status 0.
     """
-    debug = []
-    response_data = {
-        'message_code': 999,
-        'message_text': 'Failure',
-        'message_data': [],
-        'message_debug': debug
-    }
-
     try:
-        body = request.data
-        bus_name = body.get('BusName', '').strip()
-        start_datetime_str = body.get('BusDateTimeStart')
-        seat_fees = body.get('SeatFees')
-        route_id = body.get('YatraRouteId')
-        yatra_id = body.get('YatraId')
-        bus_capacity = body.get('BusCapacity')
-        reserved_seats_str = body.get('ReservedSeats', '')
-        user_id = body.get('UserId', 1)
-
-        if not all([bus_name, start_datetime_str, seat_fees, route_id, yatra_id]):
-            response_data['message_text'] = 'BusName, BusDateTimeStart, SeatFees, YatraRouteId, and YatraId are required.'
-            return Response(response_data, status=status.HTTP_200_OK)
-
-        start_datetime = datetime.strptime(start_datetime_str, '%d-%m-%Y %H:%M')
-        yatra = Yatras.objects.get(yatraId=yatra_id)
-        route = YatraRoutes.objects.get(yatraRouteId=route_id)
-        user = User.objects.get(id=user_id)
+        from datetime import datetime
+        from django.db import transaction
         
-        # Use .filter().first() to safely get one registration record
-        registration = Registrations.objects.filter(userId=user).first()
-        if not registration:
-            response_data['message_text'] = f"No registration record found for User ID {user_id}."
-            return Response(response_data, status=status.HTTP_200_OK)
+        body = request.data
+        
+        # Extract parameters with proper validation (matching PHP logic)
+        BusName = body.get('BusName', '').strip() if body.get('BusName') else ''
+        BusDateTimeStart = body.get('BusDateTimeStart', '').strip() if body.get('BusDateTimeStart') else ''
+        SeatFees = body.get('SeatFees', '')
+        YatraRouteId = body.get('YatraRouteId', '')
+        YatraId = body.get('YatraId', '')
+        BusCapacity = body.get('BusCapacity', '')
+        ReservedSeats = body.get('ReservedSeats', '1,2')
+        UserId = body.get('UserId', 1)
+        
+        # Convert to string for empty check (PHP treats numbers as strings in comparisons)
+        SeatFees_str = str(SeatFees).strip() if SeatFees not in [None, ''] else ''
+        YatraRouteId_str = str(YatraRouteId).strip() if YatraRouteId not in [None, ''] else ''
+        YatraId_str = str(YatraId).strip() if YatraId not in [None, ''] else ''
+        BusCapacity_str = str(BusCapacity).strip() if BusCapacity not in [None, ''] else ''
+        ReservedSeats_str = str(ReservedSeats).strip() if ReservedSeats not in [None, ''] else '1,2'
+        
+        # Convert UserId to int with default 1
+        try:
+            UserId = int(UserId) if UserId else 1
+        except (ValueError, TypeError):
+            UserId = 1
 
-        if YatraBuses.objects.filter(busName__iexact=bus_name, yatraId=yatra, busDateTimeStart__date=start_datetime.date()).exists():
-            response_data['message_text'] = 'Bus Name already exists for this Yatra on this date.'
-            return Response(response_data, status=status.HTTP_200_OK)
+        # Validation in exact PHP order
+        if BusDateTimeStart == "":
+            return Response({
+                'message_code': 999,
+                'message_text': f'Yatra date and time must be specified to add new yatra.{body.get("BusDateTimeStart", "")}'
+            }, status=status.HTTP_200_OK)
+        elif YatraRouteId_str == "":
+            return Response({
+                'message_code': 999,
+                'message_text': 'Yatra route must be specified to add new yatra.'
+            }, status=status.HTTP_200_OK)
+        elif SeatFees_str == "":
+            return Response({
+                'message_code': 999,
+                'message_text': 'Yatra seat fee must be specified to add new yatra.'
+            }, status=status.HTTP_200_OK)
+        elif BusName == "":
+            return Response({
+                'message_code': 999,
+                'message_text': 'Yatra bus name  must be specified to add new yatra.'
+            }, status=status.HTTP_200_OK)
 
-        with transaction.atomic():
-            new_bus = YatraBuses.objects.create(
-                busName=bus_name,
-                busDateTimeStart=start_datetime,
-                seatFees=seat_fees,
-                yatraRouteId=route,
-                yatraId=yatra,
-                busStatus=1,
-                busCapacity=bus_capacity,
-                created_by=user
+        # Parse datetime: format is "DD-MM-YYYY HH:MM"
+        try:
+            arrDateTime = BusDateTimeStart.split(" ")
+            YatraDate = arrDateTime[0]  # DD-MM-YYYY
+            YatraTime = arrDateTime[1] if len(arrDateTime) > 1 else "00:00"
+            
+            # Parse to datetime object
+            start_datetime = datetime.strptime(f"{YatraDate} {YatraTime}", '%d-%m-%Y %H:%M')
+        except (ValueError, IndexError) as e:
+            return Response({
+                'message_code': 999,
+                'message_text': f'Invalid date format for BusDateTimeStart. Please use DD-MM-YYYY HH:MM. Error: {str(e)}'
+            }, status=status.HTTP_200_OK)
+
+        # Convert YatraId to int and validate
+        try:
+            YatraId_int = int(YatraId)
+        except (ValueError, TypeError):
+            YatraId_int = 0
+
+        if YatraId_int == 0:
+            return Response({
+                'message_code': 999,
+                'message_text': 'Unable to add/locate yatra on this date.'
+            }, status=status.HTTP_200_OK)
+
+        # Convert YatraRouteId to int
+        try:
+            YatraRouteId_int = int(YatraRouteId)
+        except (ValueError, TypeError):
+            return Response({
+                'message_code': 999,
+                'message_text': 'Invalid YatraRouteId.'
+            }, status=status.HTTP_200_OK)
+
+        # Check if bus with same name exists on same date for same route and yatra
+        existing_bus = YatraBuses.objects.filter(
+            busName__busName__iexact=BusName,  # Case-insensitive comparison via BusNames FK
+            busDateTimeStart__date=start_datetime.date(),
+            yatraRouteId=YatraRouteId_int,
+            yatraId=YatraId_int
+        ).exists()
+
+        if existing_bus:
+            return Response({
+                'message_code': 999,
+                'message_text': 'Bus Name already exists. Please choose another name.'
+            }, status=status.HTTP_200_OK)
+
+        # Get related objects
+        try:
+            yatra = Yatras.objects.get(yatraId=YatraId_int)
+        except Yatras.DoesNotExist:
+            return Response({
+                'message_code': 999,
+                'message_text': f'Yatra with ID {YatraId_int} not found.'
+            }, status=status.HTTP_200_OK)
+        
+        try:
+            route = YatraRoutes.objects.get(yatraRouteId=YatraRouteId_int)
+        except YatraRoutes.DoesNotExist:
+            return Response({
+                'message_code': 999,
+                'message_text': f'YatraRoute with ID {YatraRouteId_int} not found.'
+            }, status=status.HTTP_200_OK)
+        
+        try:
+            user = User.objects.get(id=UserId)
+        except User.DoesNotExist:
+            return Response({
+                'message_code': 999,
+                'message_text': f'User with ID {UserId} not found.'
+            }, status=status.HTTP_200_OK)
+        
+        # Get or create BusNames object
+        try:
+            bus_name_obj, created = BusNames.objects.get_or_create(
+                busName__iexact=BusName,
+                defaults={'busName': BusName, 'created_by': user}
             )
+        except Exception as e:
+            return Response({
+                'message_code': 999,
+                'message_text': f'Error creating/finding bus name: {str(e)}'
+            }, status=status.HTTP_200_OK)
 
-            if reserved_seats_str:
-                seat_numbers_str = reserved_seats_str.replace(',', ' ').split()
-                for seat_no_str in seat_numbers_str:
-                    if seat_no_str.isdigit():
-                        # ✅ FINAL FIX: Use the correct snake_case field names for the TicketsNew model.
-                        TicketsNew.objects.create(
-                            yatra_id=yatra, 
-                            yatra_route_id=route, 
-                            yatra_bus_id=new_bus,
-                            seat_no=int(seat_no_str), 
-                            seat_fees=seat_fees, 
-                            seat_ticket_type=1,
-                            discount=seat_fees, 
-                            discount_reason='Swayamsevak', 
-                            amount_paid=0,
-                            payment_mode=1, 
-                            ticket_status_id=1,
-                            registration_id=registration,
-                            user_id=user, 
-                            booking_date=datetime.today().date(), 
-                            created_by=user
-                        )
+        # Create YatraBus with transaction
+        try:
+            with transaction.atomic():
+                # Convert BusCapacity to int or None
+                bus_capacity_value = None
+                if BusCapacity_str != "":
+                    try:
+                        bus_capacity_value = int(BusCapacity)
+                    except (ValueError, TypeError):
+                        bus_capacity_value = None
+                
+                new_bus = YatraBuses.objects.create(
+                    busName=bus_name_obj,  # FK to BusNames
+                    busDateTimeStart=start_datetime,
+                    seatFees=SeatFees,
+                    yatraRouteId=route,
+                    yatraId=yatra,
+                    busStatus=1,
+                    busCapacity=bus_capacity_value,
+                    created_by=user
+                )
 
-        response_data['message_code'] = 1000
-        response_data['message_text'] = 'Yatra bus added successfully.'
-        response_data['message_data'] = {'YatraBusId': new_bus.yatraBusId}
+                # Parse reserved seats into a set for quick lookup
+                reserved_seat_numbers = set()
+                if ReservedSeats_str != "":
+                    seat_list = ReservedSeats_str.split(",")
+                    for seat_no_str in seat_list:
+                        seat_no_str = seat_no_str.strip()
+                        if seat_no_str.isdigit():
+                            reserved_seat_numbers.add(int(seat_no_str))
 
-    except (Yatras.DoesNotExist, YatraRoutes.DoesNotExist, User.DoesNotExist) as e:
-        response_data['message_text'] = f"A required record was not found: {e}"
-    except ValueError:
-        response_data['message_text'] = 'Invalid date format for BusDateTimeStart. Please use DD-MM-YYYY HH:MM.'
-    except BaseException as e:
-        response_data['message_text'] = 'An unexpected server error occurred.'
-        debug.append(f"Error Type: {type(e).__name__}, Details: {str(e)}")
+                # Create all seats up to BusCapacity
+                if bus_capacity_value is not None and bus_capacity_value > 0:
+                    for seat_number in range(1, bus_capacity_value + 1):
+                        try:
+                            # Check if this seat is reserved
+                            is_reserved = seat_number in reserved_seat_numbers
+                            
+                            TicketsNew.objects.create(
+                                ticket_year=start_datetime.year,
+                                yatra_id=yatra,
+                                yatra_route_id=route,
+                                yatra_bus_id=new_bus,
+                                seat_no=seat_number,
+                                seat_fees=SeatFees,
+                                seat_ticket_type=1,
+                                discount=SeatFees if is_reserved else 0,
+                                discount_reason='Swayamsevak' if is_reserved else '',
+                                amount_paid=SeatFees if is_reserved else 0,
+                                payment_mode=1 if is_reserved else 0,
+                                payment_id=None,
+                                ticket_status_id=2 if is_reserved else 0,  # 2=Reserved, 0=Available
+                                registration_id=None,
+                                permanant_id=0,
+                                user_id=user if is_reserved else None,
+                                booking_date=start_datetime.date(),
+                                created_by=user
+                            )
+                        except Exception as ticket_error:
+                            # Log the error with more details
+                            import traceback
+                            print(f"Error creating ticket for seat {seat_number}: {str(ticket_error)}")
+                            print(traceback.format_exc())
+                            raise  # Re-raise to see the actual error
 
-    return Response(response_data, status=status.HTTP_200_OK)
+            return Response({
+                'message_code': 1000,
+                'message_text': 'Yatra bus added successfully.'
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'message_code': 999,
+                'message_text': f'Unable to add yatra bus. Error: {str(e)}'
+            }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({
+            'message_code': 999,
+            'message_text': f'Unexpected error: {str(e)}'
+        }, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
-def modify_yatra_bus(request):
+def modifyyatrabus(request):
     """
-    Modifies an existing Yatra Bus and re-creates its reserved seats.
-    This version uses select_for_update() to be more explicit about locking.
+    Modifies an existing Yatra Bus and updates seats.
+    Reserved seats are marked within the bus capacity with status 2.
     """
-    debug = []
-    response_data = {
-        'message_code': 999,
-        'message_text': 'Failure',
-        'message_data': [],
-        'message_debug': debug
-    }
-
     try:
+        from datetime import datetime
+        from django.db import transaction
+        
         body = request.data
-        bus_id = body.get('YatraBusId')
+        
+        # Extract parameters with proper validation (matching PHP logic)
+        YatraBusId = body.get('YatraBusId', '')
+        BusName = body.get('BusName', '').strip() if body.get('BusName') else ''
+        BusDateTimeStart = body.get('BusDateTimeStart', '').strip() if body.get('BusDateTimeStart') else ''
+        SeatFees = body.get('SeatFees', '')
+        YatraRouteId = body.get('YatraRouteId', '')
+        YatraId = body.get('YatraId', '')
+        BusStatus = body.get('BusStatus', '')
+        BusCapacity = body.get('BusCapacity', '')
+        ReservedSeats = body.get('ReservedSeats', '1,2')
+        UserId = body.get('UserId', 1)
+        
+        # Convert to string for empty check (PHP treats numbers as strings in comparisons)
+        YatraBusId_str = str(YatraBusId).strip() if YatraBusId not in [None, ''] else ''
+        SeatFees_str = str(SeatFees).strip() if SeatFees not in [None, ''] else ''
+        YatraRouteId_str = str(YatraRouteId).strip() if YatraRouteId not in [None, ''] else ''
+        YatraId_str = str(YatraId).strip() if YatraId not in [None, ''] else ''
+        BusCapacity_str = str(BusCapacity).strip() if BusCapacity not in [None, ''] else ''
+        ReservedSeats_str = str(ReservedSeats).strip() if ReservedSeats not in [None, ''] else '1,2'
+        
+        # Convert UserId to int with default 1
+        try:
+            UserId = int(UserId) if UserId else 1
+        except (ValueError, TypeError):
+            UserId = 1
 
-        if not bus_id:
-            response_data['message_text'] = 'YatraBusId must be specified to modify a bus.'
-            return Response(response_data, status=status.HTTP_200_OK)
+        # Convert YatraBusId to int
+        try:
+            YatraBusId_int = int(YatraBusId) if YatraBusId_str != '' else 0
+        except (ValueError, TypeError):
+            YatraBusId_int = 0
 
-        with transaction.atomic():
-            try:
-                bus_to_update = YatraBuses.objects.select_for_update().get(yatraBusId=bus_id)
-            except YatraBuses.DoesNotExist:
-                response_data['message_text'] = 'This yatra bus does not exist.'
-                return Response(response_data, status=status.HTTP_200_OK)
+        # Validation in exact PHP order
+        if YatraBusId_int == 0:
+            return Response({
+                'message_code': 999,
+                'message_text': 'Yatra Id  must be specified to modify yatra.'
+            }, status=status.HTTP_200_OK)
+        elif BusDateTimeStart == "":
+            return Response({
+                'message_code': 999,
+                'message_text': 'Yatra date and time must be specified to modify yatra.'
+            }, status=status.HTTP_200_OK)
+        elif YatraRouteId_str == "":
+            return Response({
+                'message_code': 999,
+                'message_text': 'Yatra route must be specified to modify yatra.'
+            }, status=status.HTTP_200_OK)
+        elif SeatFees_str == "":
+            return Response({
+                'message_code': 999,
+                'message_text': 'Yatra seat fee must be specified to modify yatra.'
+            }, status=status.HTTP_200_OK)
+        elif BusName == "":
+            return Response({
+                'message_code': 999,
+                'message_text': 'Yatra bus name  must be specified to modify yatra.'
+            }, status=status.HTTP_200_OK)
 
-            bus_name = body.get('BusName', '').strip()
-            start_datetime_str = body.get('BusDateTimeStart')
-            seat_fees = body.get('SeatFees')
-            route_id = body.get('YatraRouteId')
-            yatra_id = body.get('YatraId')
-            bus_capacity = body.get('BusCapacity')
-            bus_status = body.get('BusStatus')
-            reserved_seats_str = body.get('ReservedSeats', '')
-            user_id = body.get('UserId', 1)
+        # Parse datetime: format is "DD-MM-YYYY HH:MM"
+        try:
+            arrDateTime = BusDateTimeStart.split(" ")
+            YatraDate = arrDateTime[0]  # DD-MM-YYYY
+            YatraTime = arrDateTime[1] if len(arrDateTime) > 1 else "00:00"
+            
+            # Parse to datetime object
+            start_datetime = datetime.strptime(f"{YatraDate} {YatraTime}", '%d-%m-%Y %H:%M')
+        except (ValueError, IndexError) as e:
+            return Response({
+                'message_code': 999,
+                'message_text': f'Invalid date format for BusDateTimeStart. Please use DD-MM-YYYY HH:MM. Error: {str(e)}'
+            }, status=status.HTTP_200_OK)
 
-            if not all([bus_name, start_datetime_str, seat_fees, route_id, yatra_id]):
-                response_data['message_text'] = 'BusName, BusDateTimeStart, SeatFees, YatraRouteId, and YatraId are required.'
-                return Response(response_data, status=status.HTTP_200_OK)
+        # Check if YatraBus exists
+        if not YatraBuses.objects.filter(yatraBusId=YatraBusId_int).exists():
+            return Response({
+                'message_code': 999,
+                'message_text': 'This yatra bus does not exist.'
+            }, status=status.HTTP_200_OK)
 
-            start_datetime = datetime.strptime(start_datetime_str, '%d-%m-%Y %H:%M')
-            yatra = Yatras.objects.get(yatraId=yatra_id)
-            route = YatraRoutes.objects.get(yatraRouteId=route_id)
-            user = User.objects.get(id=user_id)
-            registration = Registrations.objects.get(userId=user)
+        # Convert YatraId to int and validate
+        try:
+            YatraId_int = int(YatraId)
+        except (ValueError, TypeError):
+            YatraId_int = 0
 
-            if YatraBuses.objects.filter(
-                busName__iexact=bus_name, yatraId=yatra
-            ).exclude(yatraBusId=bus_id).exists():
-                response_data['message_text'] = 'Another bus with this name already exists for this Yatra. Please choose another name.'
-                return Response(response_data, status=status.HTTP_200_OK)
+        if YatraId_int == 0:
+            return Response({
+                'message_code': 999,
+                'message_text': 'Unable to add/locate yatra on this date.'
+            }, status=status.HTTP_200_OK)
 
-            bus_to_update.busName = bus_name
-            bus_to_update.busDateTimeStart = start_datetime
-            bus_to_update.seatFees = seat_fees
-            bus_to_update.yatraRouteId = route
-            bus_to_update.yatraId = yatra
-            bus_to_update.busCapacity = bus_capacity
-            bus_to_update.last_modified_by = user
-            if bus_status is not None:
-                bus_to_update.busStatus = bus_status
+        # Convert YatraRouteId to int
+        try:
+            YatraRouteId_int = int(YatraRouteId)
+        except (ValueError, TypeError):
+            return Response({
+                'message_code': 999,
+                'message_text': 'Invalid YatraRouteId.'
+            }, status=status.HTTP_200_OK)
 
-            TicketsNew.objects.filter(yatra_bus_id=bus_to_update, seat_ticket_type=1).delete()
-            if reserved_seats_str:
-                seat_numbers_str = reserved_seats_str.replace(',', ' ').split()
-                for seat_no_str in seat_numbers_str:
-                    if seat_no_str.isdigit():
-                        TicketsNew.objects.create(
-                            yatra_id=yatra, yatra_route_id=route, yatra_bus_id=bus_to_update,
-                            seat_no=int(seat_no_str), seat_fees=seat_fees, seat_ticket_type=1,
-                            discount=seat_fees, discount_reason='Swayamsevak', amount_paid=0,
-                            payment_mode=1, ticket_status_id=1, registration_id=registration,
-                            user_id=user, booking_date=datetime.today().date(), created_by=user
-                        )
-            bus_to_update.save()
+        # Check if bus with same name exists on same date (excluding current bus)
+        existing_bus = YatraBuses.objects.filter(
+            busName__busName__iexact=BusName,  # Case-insensitive comparison via BusNames FK
+            busDateTimeStart__date=start_datetime.date(),
+            yatraId=YatraId_int
+        ).exclude(yatraBusId=YatraBusId_int).exists()
 
-        response_data['message_code'] = 1000
-        response_data['message_text'] = 'Yatra bus updated successfully.'
-        response_data['message_data'] = {'YatraBusId': bus_to_update.yatraBusId}
+        if existing_bus:
+            return Response({
+                'message_code': 999,
+                'message_text': 'Bus Name already exists. Please choose another name.'
+            }, status=status.HTTP_200_OK)
 
-    except (Yatras.DoesNotExist, YatraRoutes.DoesNotExist, User.DoesNotExist, Registrations.DoesNotExist) as e:
-        response_data['message_text'] = f"A required record was not found: {e}"
-    except ValueError:
-        response_data['message_text'] = 'Invalid date format for BusDateTimeStart. Please use DD-MM-YYYY HH:MM.'
+        # Get related objects
+        try:
+            yatra = Yatras.objects.get(yatraId=YatraId_int)
+        except Yatras.DoesNotExist:
+            return Response({
+                'message_code': 999,
+                'message_text': f'Yatra with ID {YatraId_int} not found.'
+            }, status=status.HTTP_200_OK)
+        
+        try:
+            route = YatraRoutes.objects.get(yatraRouteId=YatraRouteId_int)
+        except YatraRoutes.DoesNotExist:
+            return Response({
+                'message_code': 999,
+                'message_text': f'YatraRoute with ID {YatraRouteId_int} not found.'
+            }, status=status.HTTP_200_OK)
+        
+        try:
+            user = User.objects.get(id=UserId)
+        except User.DoesNotExist:
+            return Response({
+                'message_code': 999,
+                'message_text': f'User with ID {UserId} not found.'
+            }, status=status.HTTP_200_OK)
+        
+        # Get or create BusNames object
+        try:
+            bus_name_obj, created = BusNames.objects.get_or_create(
+                busName__iexact=BusName,
+                defaults={'busName': BusName, 'created_by': user}
+            )
+        except Exception as e:
+            return Response({
+                'message_code': 999,
+                'message_text': f'Error creating/finding bus name: {str(e)}'
+            }, status=status.HTTP_200_OK)
+
+        # Update YatraBus with transaction
+        try:
+            with transaction.atomic():
+                # Get the existing bus
+                existing_yatra_bus = YatraBuses.objects.get(yatraBusId=YatraBusId_int)
+                
+                # Store old capacity for comparison
+                old_capacity = existing_yatra_bus.busCapacity
+                
+                # Convert BusCapacity to int or None
+                bus_capacity_value = None
+                if BusCapacity_str != "":
+                    try:
+                        bus_capacity_value = int(BusCapacity)
+                    except (ValueError, TypeError):
+                        bus_capacity_value = None
+                
+                # Update the bus
+                existing_yatra_bus.busName = bus_name_obj
+                existing_yatra_bus.busDateTimeStart = start_datetime
+                existing_yatra_bus.seatFees = SeatFees
+                existing_yatra_bus.yatraRouteId = route
+                existing_yatra_bus.yatraId = yatra
+                existing_yatra_bus.busCapacity = bus_capacity_value
+                existing_yatra_bus.last_modified_by = user
+                existing_yatra_bus.save()
+
+                # Parse reserved seats into a set for quick lookup
+                reserved_seat_numbers = set()
+                if ReservedSeats_str != "":
+                    seat_list = ReservedSeats_str.split(",")
+                    for seat_no_str in seat_list:
+                        seat_no_str = seat_no_str.strip()
+                        if seat_no_str.isdigit():
+                            reserved_seat_numbers.add(int(seat_no_str))
+
+                # Get all existing tickets for this bus
+                existing_tickets = TicketsNew.objects.filter(
+                    yatra_id=yatra,
+                    yatra_route_id=route,
+                    yatra_bus_id=existing_yatra_bus
+                )
+
+                # If capacity changed, handle seat addition/removal
+                if bus_capacity_value != old_capacity:
+                    if bus_capacity_value is not None:
+                        # Get existing seat numbers
+                        existing_seat_numbers = set(existing_tickets.values_list('seat_no', flat=True))
+                        
+                        # If capacity increased, add new seats
+                        if old_capacity is None or bus_capacity_value > old_capacity:
+                            start_seat = (old_capacity + 1) if old_capacity else 1
+                            for seat_number in range(start_seat, bus_capacity_value + 1):
+                                if seat_number not in existing_seat_numbers:
+                                    is_reserved = seat_number in reserved_seat_numbers
+                                    
+                                    TicketsNew.objects.create(
+                                        ticket_year=start_datetime.year,
+                                        yatra_id=yatra,
+                                        yatra_route_id=route,
+                                        yatra_bus_id=existing_yatra_bus,
+                                        seat_no=seat_number,
+                                        seat_fees=SeatFees,
+                                        seat_ticket_type=1,
+                                        discount=SeatFees if is_reserved else 0,
+                                        discount_reason='Swayamsevak' if is_reserved else '',
+                                        amount_paid=SeatFees if is_reserved else 0,
+                                        payment_mode=1 if is_reserved else 0,
+                                        payment_id=None,
+                                        ticket_status_id=2 if is_reserved else 0,
+                                        registration_id=None,
+                                        permanant_id=0,
+                                        user_id=user if is_reserved else None,
+                                        booking_date=start_datetime.date(),
+                                        created_by=user
+                                    )
+                        
+                        # If capacity decreased, remove seats beyond new capacity (only if unbooked)
+                        elif bus_capacity_value < old_capacity:
+                            TicketsNew.objects.filter(
+                                yatra_id=yatra,
+                                yatra_route_id=route,
+                                yatra_bus_id=existing_yatra_bus,
+                                seat_no__gt=bus_capacity_value,
+                                ticket_status_id=0  # Only delete available seats
+                            ).delete()
+
+                # Update existing seats' reserved status
+                for ticket in existing_tickets:
+                    is_reserved = ticket.seat_no in reserved_seat_numbers
+                    
+                    # Only update if the seat is available (status 0) or already reserved (status 2)
+                    if ticket.ticket_status_id in [0, 2]:
+                        ticket.ticket_status_id = 2 if is_reserved else 0
+                        ticket.discount = SeatFees if is_reserved else 0
+                        ticket.discount_reason = 'Swayamsevak' if is_reserved else ''
+                        ticket.amount_paid = SeatFees if is_reserved else 0
+                        ticket.payment_mode = 1 if is_reserved else 0
+                        ticket.user_id = user if is_reserved else None
+                        ticket.seat_fees = SeatFees
+                        ticket.save()
+
+            return Response({
+                'message_code': 1000,
+                'message_text': 'Yatra bus updated successfully.'
+            }, status=status.HTTP_200_OK)
+            
+        except YatraBuses.DoesNotExist:
+            return Response({
+                'message_code': 999,
+                'message_text': 'This yatra bus does not exist.'
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            import traceback
+            print(traceback.format_exc())
+            return Response({
+                'message_code': 999,
+                'message_text': f'Unable to update yatra bus. Error: {str(e)}'
+            }, status=status.HTTP_200_OK)
+
     except Exception as e:
-        response_data['message_text'] = 'An unexpected server error occurred.'
-        debug.append(f"Error Type: {type(e).__name__}, Details: {str(e)}")
+        return Response({
+            'message_code': 999,
+            'message_text': f'Unexpected error: {str(e)}'
+        }, status=status.HTTP_200_OK)
+    
 
-    return Response(response_data, status=status.HTTP_200_OK)
+@api_view(['POST'])
+def deleteyatrabus(request):
+    """
+    Permanently deletes a Yatra Bus and all its associated tickets.
+    Expects:
+    {
+        "YatraBusId": 123,
+        "UserId": 1   # Optional, who is performing the deletion
+    }
+    """
+    try:
+        from django.db import transaction
+        
+        body = request.data
+        yatra_bus_id = body.get('YatraBusId')
+        user_id = body.get('UserId', 1)
 
+        if not yatra_bus_id:
+            return Response({
+                'message_code': 999,
+                'message_text': 'YatraBusId must be specified to delete a bus.'
+            }, status=status.HTTP_200_OK)
+
+        # Convert to int
+        try:
+            yatra_bus_id_int = int(yatra_bus_id)
+        except (ValueError, TypeError):
+            return Response({
+                'message_code': 999,
+                'message_text': 'Invalid YatraBusId.'
+            }, status=status.HTTP_200_OK)
+
+        # Check if bus exists (without is_deleted filter for permanent delete)
+        try:
+            bus_to_delete = YatraBuses.objects.get(yatraBusId=yatra_bus_id_int)
+        except YatraBuses.DoesNotExist:
+            return Response({
+                'message_code': 999,
+                'message_text': 'This Yatra bus does not exist.'
+            }, status=status.HTTP_200_OK)
+
+        # Permanently delete inside a transaction
+        with transaction.atomic():
+            # Delete all tickets associated with this bus
+            deleted_tickets_count = TicketsNew.objects.filter(
+                yatra_bus_id=bus_to_delete
+            ).delete()[0]  # Returns tuple (count, {model: count})
+            
+            # Store bus name for response
+            bus_name = bus_to_delete.busName.busName if bus_to_delete.busName else 'Unknown'
+            
+            # Permanently delete the bus
+            bus_to_delete.delete()
+
+        return Response({
+            'message_code': 1000,
+            'message_text': 'Yatra bus and all its tickets deleted successfully.',
+            'message_data': {
+                'YatraBusId': yatra_bus_id_int,
+                'BusName': bus_name,
+                'DeletedTickets': deleted_tickets_count
+            }
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return Response({
+            'message_code': 999,
+            'message_text': f'An unexpected error occurred: {str(e)}'
+        }, status=status.HTTP_200_OK)
+
+# @api_view(['POST'])
+# def deleteyatrabus(request):
+#     """
+#     Soft delete a Yatra Bus by setting `is_deleted` to True.
+#     Expects:
+#     {
+#         "YatraBusId": 123,
+#         "UserId": 1   # Optional, who is performing the deletion
+#     }
+#     """
+#     try:
+#         body = request.data
+#         yatra_bus_id = body.get('YatraBusId')
+#         user_id = body.get('UserId', 1)
+
+#         if not yatra_bus_id:
+#             return Response({
+#                 'message_code': 999,
+#                 'message_text': 'YatraBusId must be specified to delete a bus.'
+#             }, status=status.HTTP_200_OK)
+
+#         try:
+#             bus_to_delete = YatraBuses.objects.get(yatraBusId=yatra_bus_id, is_deleted=False)
+#         except YatraBuses.DoesNotExist:
+#             return Response({
+#                 'message_code': 999,
+#                 'message_text': 'This Yatra bus does not exist or is already deleted.'
+#             }, status=status.HTTP_200_OK)
+
+#         try:
+#             user = User.objects.get(id=user_id)
+#         except User.DoesNotExist:
+#             return Response({
+#                 'message_code': 999,
+#                 'message_text': 'User performing deletion does not exist.'
+#             }, status=status.HTTP_200_OK)
+
+#         # Soft delete inside a transaction
+#         with transaction.atomic():
+#             bus_to_delete.is_deleted = True
+#             bus_to_delete.deleted_by = user
+#             bus_to_delete.save()
+
+#         return Response({
+#             'message_code': 1000,
+#             'message_text': 'Yatra bus deleted successfully (soft delete).',
+#             'message_data': {'YatraBusId': bus_to_delete.yatraBusId}
+#         }, status=status.HTTP_200_OK)
+
+#     except Exception as e:
+#         return Response({
+#             'message_code': 999,
+#             'message_text': f'An unexpected error occurred: {str(e)}'
+#         }, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
@@ -2275,3 +3381,580 @@ def modify_route(request):
 
 # def dashboard(request):
 #     return render(request, 'dashboard.html')
+
+@api_view(['POST'])
+def insert_ticket(request):
+    """
+    Inserts a new ticket record for a Yatra bus booking.
+    Validates all required fields before creating the ticket.
+    """
+    debug = []
+    response_data = {
+        'message_code': 999,
+        'message_text': 'Functional part is commented.',
+        'message_data': [],
+        'message_debug': debug
+    }
+
+    try:
+        body = request.data
+
+        # Extract and validate input parameters
+        yatra_id = body.get('YatraId', 0)
+        yatra_route_id = body.get('YatraRouteId', 0)
+        yatra_bus_id = body.get('YatraBusId', 0)
+        seat_no = body.get('SeatNo', 0)
+        seat_fees = body.get('SeatFees', 0)
+        seat_ticket_type = body.get('SeatTicketType', 0)
+        registration_id = body.get('RegistrationId', 0)
+        user_id = body.get('UserId', 0)
+
+        # Validation checks
+        if not yatra_id or yatra_id == 0:
+            response_data['message_text'] = 'Please provide Yatra to add ticket.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        if not yatra_route_id or yatra_route_id == 0:
+            response_data['message_text'] = 'Please provide Yatra Route to add ticket.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        if not yatra_bus_id or yatra_bus_id == 0:
+            response_data['message_text'] = 'Please provide Yatra Bus to add ticket.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        if not seat_no or seat_no == 0:
+            response_data['message_text'] = 'Please provide Seat No to add ticket.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        if not registration_id or registration_id == 0:
+            response_data['message_text'] = 'Please provide Pilgrim to add ticket.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        if not user_id or user_id == 0:
+            response_data['message_text'] = 'Please provide user who is adding ticket.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        # Fetch foreign key objects
+        try:
+            yatra_obj = Yatras.objects.get(pk=yatra_id)
+            yatra_route_obj = YatraRoutes.objects.get(pk=yatra_route_id)
+            yatra_bus_obj = YatraBuses.objects.get(pk=yatra_bus_id)
+            registration_obj = Registrations.objects.get(pk=registration_id)
+            user_obj = User.objects.get(pk=user_id)
+        except (Yatras.DoesNotExist, YatraRoutes.DoesNotExist, YatraBuses.DoesNotExist,
+                Registrations.DoesNotExist, User.DoesNotExist) as e:
+            response_data['message_text'] = f'One or more referenced records do not exist: {str(e)}'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        # Create new ticket
+        new_ticket = TicketsNew.objects.create(
+            yatra_id=yatra_obj,
+            yatra_route_id=yatra_route_obj,
+            yatra_bus_id=yatra_bus_obj,
+            seat_no=seat_no,
+            seat_fees=seat_fees,
+            seat_ticket_type=seat_ticket_type,
+            discount=0,
+            discount_reason='0',
+            amount_paid=0,
+            payment_id=None,
+            ticket_status_id=seat_ticket_type,
+            registration_id=registration_obj,
+            permanant_id=0,
+            user_id=user_obj,
+            created_by=user_obj,
+            last_modified_by=user_obj
+        )
+
+        response_data['message_code'] = 1000
+        response_data['message_text'] = 'Ticket inserted successfully.'
+        response_data['message_data'] = {'TicketId': new_ticket.ticket_id}
+
+    except Exception as e:
+        response_data['message_text'] = 'Unable to add the ticket.'
+        debug.append(f"Error Type: {type(e).__name__}, Details: {str(e)}")
+
+    return Response(response_data, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+def cancel_ticket(request):
+    """
+    Cancels an existing ticket by updating its status to cancelled (4).
+    Records the cancellation reason and updates audit fields.
+    """
+    debug = []
+    response_data = {
+        'message_code': 999,
+        'message_text': 'Functional part is commented.',
+        'message_data': [],
+        'message_debug': debug
+    }
+
+    try:
+        body = request.data
+
+        # Extract and validate input parameters
+        ticket_id = body.get('TicketId', 0)
+        user_id = body.get('UserId', 0)
+        cancel_reason = body.get('CancelReason', '')
+
+        # Validation checks
+        if not ticket_id or ticket_id == 0:
+            response_data['message_text'] = 'Please provide Ticket to cancel ticket.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        if not user_id or user_id == 0:
+            response_data['message_text'] = 'Please provide user who is adding ticket.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        # Fetch the ticket and user objects
+        try:
+            ticket = TicketsNew.objects.get(ticket_id=ticket_id)
+            user_obj = User.objects.get(pk=user_id)
+        except TicketsNew.DoesNotExist:
+            response_data['message_text'] = 'The specified ticket does not exist.'
+            return Response(response_data, status=status.HTTP_200_OK)
+        except User.DoesNotExist:
+            response_data['message_text'] = 'The specified user does not exist.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        # Update the ticket with cancellation details
+        ticket.cancel_reason = cancel_reason
+        ticket.ticket_status_id = 4  # Status 4 = Cancelled
+        ticket.last_modified_by = user_obj  # Properly track who cancelled it
+        ticket.save()
+
+        response_data['message_code'] = 1000
+        response_data['message_text'] = 'Ticket cancelled successfully.'
+        response_data['message_data'] = {'TicketId': ticket.ticket_id}
+
+    except Exception as e:
+        response_data['message_text'] = 'Unable to cancel the ticket.'
+        debug.append(f"Error Type: {type(e).__name__}, Details: {str(e)}")
+
+    return Response(response_data, status=status.HTTP_200_OK)    
+
+
+@api_view(['POST'])
+def remove_ticket(request):
+    """
+    Removes a ticket by resetting its type and status to 0.
+    This typically makes the seat available again or marks the ticket as inactive.
+    """
+    debug = []
+    response_data = {
+        'message_code': 999,
+        'message_text': 'Functional part is commented.',
+        'message_data': [],
+        'message_debug': debug
+    }
+
+    try:
+        body = request.data
+
+        # Extract and validate input parameters
+        ticket_id = body.get('TicketId', 0)
+        user_id = body.get('UserId', 0)
+
+        # Validation checks
+        if not ticket_id or ticket_id == 0:
+            response_data['message_text'] = 'Please provide Ticket to remove ticket.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        if not user_id or user_id == 0:
+            response_data['message_text'] = 'Please provide user who is removing ticket.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        # Fetch the ticket and user objects
+        try:
+            ticket = TicketsNew.objects.get(ticket_id=ticket_id)
+            user_obj = User.objects.get(pk=user_id)
+        except TicketsNew.DoesNotExist:
+            response_data['message_text'] = 'The specified ticket does not exist.'
+            return Response(response_data, status=status.HTTP_200_OK)
+        except User.DoesNotExist:
+            response_data['message_text'] = 'The specified user does not exist.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        # Update the ticket - reset type and status to 0
+        ticket.seat_ticket_type = 0
+        ticket.ticket_status_id = 0
+        ticket.last_modified_by = user_obj  # Properly track who removed it
+        ticket.save()
+
+        response_data['message_code'] = 1000
+        response_data['message_text'] = 'Ticket removed successfully.'
+        response_data['message_data'] = {'TicketId': ticket.ticket_id}
+
+    except Exception as e:
+        response_data['message_text'] = 'Unable to remove the ticket.'
+        debug.append(f"Error Type: {type(e).__name__}, Details: {str(e)}")
+
+    return Response(response_data, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+def change_ticket(request):
+    """
+    Changes/transfers a ticket by:
+    1. Marking the old ticket as 'Changed' with status 2
+    2. Creating a new ticket with updated details
+    Both operations are done in a transaction to ensure data consistency.
+    """
+    debug = []
+    response_data = {
+        'message_code': 999,
+        'message_text': 'Functional part is commented.',
+        'message_data': [],
+        'message_debug': debug
+    }
+
+    try:
+        body = request.data
+
+        # Extract and validate input parameters
+        ticket_id = body.get('TicketId', 0)
+        yatra_id = body.get('YatraId', 0)
+        yatra_route_id = body.get('YatraRouteId', 0)
+        yatra_bus_id = body.get('YatraBusId', 0)
+        seat_no = body.get('SeatNo', 0)
+        seat_fees = body.get('SeatFees', 0)
+        seat_ticket_type = body.get('SeatTicketType', 0)
+        amount_paid = body.get('AmountPaid', 0)
+        discount = body.get('Discount', 0)
+        discount_reason = body.get('DiscountReason', '')
+        payment_id = body.get('PaymentId', 0)
+        registration_id = body.get('RegistrationId', 0)
+        permanant_id = body.get('PermanantId', 0)
+        user_id = body.get('UserId', 0)
+
+        # Validation checks
+        if not ticket_id or ticket_id == 0:
+            response_data['message_text'] = 'Please provide Ticket ID to change ticket.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        if not yatra_id or yatra_id == 0:
+            response_data['message_text'] = 'Please provide Yatra to add ticket.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        if not yatra_route_id or yatra_route_id == 0:
+            response_data['message_text'] = 'Please provide Yatra Route to add ticket.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        if not yatra_bus_id or yatra_bus_id == 0:
+            response_data['message_text'] = 'Please provide Yatra Bus to add ticket.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        if not seat_no or seat_no == 0:
+            response_data['message_text'] = 'Please provide Seat No to add ticket.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        if not registration_id or registration_id == 0:
+            response_data['message_text'] = 'Please provide Pilgrim to add ticket.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        if not user_id or user_id == 0:
+            response_data['message_text'] = 'Please provide user who is adding ticket.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        # Fetch foreign key objects
+        try:
+            old_ticket = TicketsNew.objects.get(ticket_id=ticket_id)
+            yatra_obj = Yatras.objects.get(pk=yatra_id)
+            yatra_route_obj = YatraRoutes.objects.get(pk=yatra_route_id)
+            yatra_bus_obj = YatraBuses.objects.get(pk=yatra_bus_id)
+            registration_obj = Registrations.objects.get(pk=registration_id)
+            user_obj = User.objects.get(pk=user_id)
+            
+            payment_obj = None
+            if payment_id and payment_id != 0:
+                payment_obj = Payments.objects.get(pk=payment_id)
+                
+        except TicketsNew.DoesNotExist:
+            response_data['message_text'] = 'The specified ticket does not exist.'
+            return Response(response_data, status=status.HTTP_200_OK)
+        except (Yatras.DoesNotExist, YatraRoutes.DoesNotExist, YatraBuses.DoesNotExist,
+                Registrations.DoesNotExist, User.DoesNotExist, Payments.DoesNotExist) as e:
+            response_data['message_text'] = f'One or more referenced records do not exist: {str(e)}'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        # Use transaction to ensure both operations succeed or fail together
+        with transaction.atomic():
+            # Step 1: Update old ticket - mark as changed
+            old_ticket.cancel_reason = 'Changed'
+            old_ticket.ticket_status_id = 2  # Status 2 = Changed/Transferred
+            old_ticket.last_modified_by = user_obj
+            old_ticket.save()
+
+            # Step 2: Create new ticket with updated details
+            new_ticket = TicketsNew.objects.create(
+                yatra_id=yatra_obj,
+                yatra_route_id=yatra_route_obj,
+                yatra_bus_id=yatra_bus_obj,
+                seat_no=seat_no,
+                seat_fees=seat_fees,
+                seat_ticket_type=seat_ticket_type,
+                discount=discount,
+                discount_reason=discount_reason,
+                amount_paid=amount_paid,
+                payment_id=payment_obj,
+                ticket_status_id=1,  # Status 1 = Active/Confirmed
+                registration_id=registration_obj,
+                permanant_id=permanant_id,
+                user_id=user_obj,
+                created_by=user_obj,
+                last_modified_by=user_obj
+            )
+
+        response_data['message_code'] = 1000
+        response_data['message_text'] = 'Ticket changed successfully.'
+        response_data['message_data'] = {
+            'OldTicketId': old_ticket.ticket_id,
+            'NewTicketId': new_ticket.ticket_id
+        }
+
+    except Exception as e:
+        response_data['message_text'] = 'Unable to change the ticket.'
+        debug.append(f"Error Type: {type(e).__name__}, Details: {str(e)}")
+
+    return Response(response_data, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+def update_ticket_payment(request):
+    """
+    Updates payment details for all tickets with status 2 (Reserved/Changed) 
+    for a specific pilgrim and marks them as status 3 (Paid/Confirmed).
+    This is a bulk update operation for all reserved tickets of a pilgrim.
+    """
+    debug = []
+    response_data = {
+        'message_code': 999,
+        'message_text': 'Functional part is commented.',
+        'message_data': [],
+        'message_debug': debug
+    }
+
+    try:
+        body = request.data
+
+        # Extract and validate input parameters
+        amount_paid = body.get('AmountPaid', 0)
+        discount = body.get('Discount', 0)
+        discount_reason = body.get('DiscountReason', '')
+        payment_details = body.get('PaymentDetails', '')
+        payment_proof = body.get('PaymentProof', '')
+        registration_id = body.get('RegistrationId', 0)
+        user_id = body.get('UserId', 0)
+
+        # Validation checks
+        if not registration_id or registration_id == 0:
+            response_data['message_text'] = 'Please provide Pilgrim to add ticket.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        if not user_id or user_id == 0:
+            response_data['message_text'] = 'Please provide user who is adding ticket.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        # Fetch foreign key objects
+        try:
+            registration_obj = Registrations.objects.get(pk=registration_id)
+            user_obj = User.objects.get(pk=user_id)
+        except Registrations.DoesNotExist:
+            response_data['message_text'] = 'The specified registration/pilgrim does not exist.'
+            return Response(response_data, status=status.HTTP_200_OK)
+        except User.DoesNotExist:
+            response_data['message_text'] = 'The specified user does not exist.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        # Find all tickets with status 2 for this registration
+        tickets_to_update = TicketsNew.objects.filter(
+            registration_id=registration_obj,
+            ticket_status_id=2
+        )
+
+        if not tickets_to_update.exists():
+            response_data['message_text'] = 'No tickets found with status 2 (Reserved) for this pilgrim.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        # Update all matching tickets with payment information
+        with transaction.atomic():
+            updated_count = tickets_to_update.update(
+                discount=discount,
+                discount_reason=discount_reason,
+                payment_details=payment_details,
+                payment_proof=payment_proof,
+                amount_paid=amount_paid,  # Fixed: Now actually using AmountPaid
+                ticket_status_id=3,  # Status 3 = Paid/Confirmed
+                last_modified_by=user_obj
+            )
+
+        response_data['message_code'] = 1000
+        response_data['message_text'] = 'Tickets updated successfully.'
+        response_data['message_data'] = {
+            'RegistrationId': registration_id,
+            'TicketsUpdated': updated_count
+        }
+
+    except Exception as e:
+        response_data['message_text'] = 'Unable to update ticket payment.'
+        debug.append(f"Error Type: {type(e).__name__}, Details: {str(e)}")
+
+    return Response(response_data, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+def list_pilgrim_tickets(request):
+    """
+    Fetch all valid tickets for a given pilgrim (RegistrationId).
+    Equivalent to fi_list_pilgrim_tickets in PHP.
+    """
+    debug = []
+    response_data = {
+        'message_code': 999,
+        'message_text': 'Functional part is commented.',
+        'message_data': [],
+        'message_debug': debug
+    }
+
+    try:
+        body = request.data
+        registration_id = body.get('RegistrationId', 0)
+
+        # Validation
+        if not registration_id or registration_id == 0:
+            response_data['message_text'] = 'Please provide Pilgrim (RegistrationId).'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        try:
+            registration_obj = Registrations.objects.get(pk=registration_id)
+        except Registrations.DoesNotExist:
+            response_data['message_text'] = 'The specified registration/pilgrim does not exist.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        # Query tickets with joins
+        tickets = (
+            TicketsNew.objects.filter(
+                registration_id=registration_obj,
+                ticket_status_id__in=[1, 2, 3, 4],
+                yatra_bus_id__busStatus=1
+            )
+            .select_related('yatra_bus_id', 'yatra_route_id')
+        )
+
+        if not tickets.exists():
+            response_data['message_text'] = 'No Tickets.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        # Build result
+        tickets_data = []
+        for t in tickets:
+            bus_obj = t.yatra_bus_id
+            route_obj = t.yatra_route_id
+            tickets_data.append({
+                "TicketId": t.ticket_id,
+                "YatraId": t.yatra_id.pk if t.yatra_id else None,
+                "YatraRouteId": route_obj.pk if route_obj else None,
+                "YatraRouteName": getattr(route_obj, 'yatraRoutename', None),
+                "YatraBusId": bus_obj.pk if bus_obj else None,
+                "BusName": getattr(bus_obj.busName, 'name', None) if bus_obj and bus_obj.busName else None,
+                "SeatNo": t.seat_no,
+                "BusDateTimeStart": bus_obj.busDateTimeStart.strftime("%d-%m-%Y %H-%M") if bus_obj and bus_obj.busDateTimeStart else None,
+                "SeatFees": str(t.seat_fees) if t.seat_fees else "0.00",
+                "SeatTicketType": t.seat_ticket_type,
+                "Discount": str(t.discount) if t.discount else "0.00",
+                "DiscountReason": t.discount_reason,
+                "AmountPaid": str(t.amount_paid) if t.amount_paid else "0.00",
+                "PaymentId": t.payment_id.pk if t.payment_id else None,
+                "UserId": t.user_id.pk if t.user_id else None,
+                "TicketStatusId": t.ticket_status_id,
+                "CancelReason": t.cancel_reason,
+            })
+
+        response_data['message_code'] = 1000
+        response_data['message_text'] = 'Success'
+        response_data['message_data'] = tickets_data
+
+    except Exception as e:
+        response_data['message_text'] = 'Unable to fetch tickets.'
+        debug.append(f"Error Type: {type(e).__name__}, Details: {str(e)}")
+
+    return Response(response_data, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+def list_available_tickets(request):
+    """
+    List all seats for a given Yatra and Bus, marking reserved/booked seats.
+    Equivalent to fi_list_available_tickets in PHP.
+    """
+    debug = []
+    response_data = {
+        'message_code': 999,
+        'message_text': 'Functional part is commented.',
+        'message_data': [],
+        'message_debug': debug
+    }
+
+    try:
+        body = request.data
+        yatra_id = body.get('YatraId', "")
+        yatra_bus_id = body.get('YatraBusId', 0)
+
+        # Validation checks
+        if not yatra_id:
+            response_data['message_text'] = 'Yatra must be specified to list bus seats.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        if not yatra_bus_id or int(yatra_bus_id) == 0:
+            response_data['message_text'] = 'Yatra Bus must be specified to list seats.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        # Fetch bus info
+        try:
+            bus_obj = YatraBuses.objects.get(pk=yatra_bus_id, yatraId__pk=yatra_id)
+        except YatraBuses.DoesNotExist:
+            response_data['message_text'] = 'The specified Yatra Bus does not exist.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        bus_capacity = bus_obj.busCapacity or 0
+        seat_fees = bus_obj.seatFees or 0
+
+        # Step 1: Load all seats from BusSeats (limited by bus capacity)
+        seats = BusSeats.objects.all().order_by('id')[:bus_capacity]
+
+        if not seats.exists():
+            response_data['message_text'] = 'No Seats.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        # Build seat map (default status from BusSeats table)
+        seat_map = []
+        for seat in seats:
+            seat_map.append({
+                "SeatName": seat.seatName,
+                "SeatStatus": seat.seatStatus,   # initial from tblBusSeats
+                "SeatFees": str(seat_fees)
+            })
+
+        # Step 2: Fetch already booked seats for this bus
+        booked_seats = TicketsNew.objects.filter(
+            yatra_id=yatra_id,
+            yatra_bus_id=yatra_bus_id
+        ).values('seat_no', 'seat_ticket_type')
+
+        # Update seat status
+        for booking in booked_seats:
+            seat_no = booking['seat_no']
+            seat_type = booking['seat_ticket_type']
+            if seat_no and seat_no <= len(seat_map):
+                seat_map[seat_no - 1]['SeatStatus'] = seat_type
+
+        response_data['message_code'] = 1000
+        response_data['message_text'] = 'Success'
+        response_data['message_data'] = seat_map
+
+    except Exception as e:
+        response_data['message_text'] = 'Unable to fetch available tickets.'
+        debug.append(f"Error Type: {type(e).__name__}, Details: {str(e)}")
+
+    return Response(response_data, status=status.HTTP_200_OK)
