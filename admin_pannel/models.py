@@ -53,6 +53,7 @@ class Registrations(models.Model):
     lastname = models.CharField(max_length=50, null=True, blank=True)
     mobileNo = models.CharField(max_length=15, null=True, blank=True)
     alternateMobileNo = models.CharField(max_length=15, null=True, blank=True)
+    BookingMobileNo = models.CharField(max_length=15, null=True, blank=True)
     aadharNumber = models.CharField(max_length=20, null=True, blank=True)
     bloodGroup = models.ForeignKey(BloodGroup, on_delete=models.SET_NULL, null=True, related_name='Registrations_BloodGroup')
     dateOfBirth = models.DateField(null=True, blank=True)
