@@ -48,6 +48,8 @@ urlpatterns = [
     path('modifyyatrabus/', views.modifyyatrabus, name='modifyyatrabus'), 
     path('deleteyatrabus/', views.deleteyatrabus, name='deleteyatrabus'),
 
+    path("fetch_bus_seats/", views.fetch_bus_seats, name="fetch_bus_seats"),
+
     path('insertyatra/', views.create_yatra, name='create_yatra'),
     path('modifyyatra/', views.modify_yatra, name='modify_yatra'),
 
