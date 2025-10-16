@@ -71,5 +71,26 @@ urlpatterns = [
     path("list_pilgrim_tickets/", views.list_pilgrim_tickets, name="list_pilgrim_tickets"),
 
     path("list_available_tickets/", views.list_available_tickets, name="list_pilgrim_tickets"),
+
+
+    ########################### LakshyaPratishthan ######################################
+
+    path("diwaliregistration/", views.diwaliregistration, name="diwaliregistration"),
+    
+    path('check_rationcard/', views.check_rationcard, name='check_rationcard'),
+
+    path('check_diwali_token/', views.check_diwali_token, name='check_diwali_token'),
+
+    path('change_diwali_token/', views.change_diwali_token, name='change_diwali_token'),
+
+    path('list_diwalikirana/', views.list_diwalikirana, name='list_diwalikirana'),
+
+    path('list_family/', views.list_family, name='list_family'),
+
+    path('update_token_status/', views.update_token_status, name='update_token_status'),
+
+    path('add_diwali_kirana/', views.add_diwali_kirana, name='add_diwali_kirana'),
+
+    path('add_diwali_kirana_sms/', views.add_diwali_kirana_sms, name='add_diwali_kirana_sms'),
    
 ]

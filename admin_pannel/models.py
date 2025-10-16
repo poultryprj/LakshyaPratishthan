@@ -67,6 +67,10 @@ class Registrations(models.Model):
     dateOfRegistration = models.DateField(null=True, blank=True)
     permanentId = models.IntegerField(null=True, blank=True)
     userId = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Registrations_UserId')
+    age = models.SmallIntegerField(default=0, db_column='Age')
+    ration_card_no = models.CharField(max_length=25, null=True, blank=True, db_column='RationCardNo')
+    ration_card_photo = models.CharField(max_length=200, null=True, blank=True, db_column='RationCardPhoto')
+    parent_id = models.IntegerField(null=True, blank=True, default=0, db_column='ParentId')
 
     created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Registrations_created_by')
@@ -286,6 +290,7 @@ class SMSTransaction(models.Model):
     smsDeliveredOn = models.IntegerField(null=True, blank=True)
     smsMethod = models.IntegerField(null=True, blank=True)
     smsRequestByUserId = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='SMSTransaction_smsRequestByUserId')
+    smsResponse = models.TextField(null=True, blank=True) 
 
     created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='SMSTransaction_created_by')
@@ -315,5 +320,26 @@ class TourExpenses(models.Model):
 
     class Meta:
         db_table = "TourExpenses"        
+
+
+class DiwaliKirana(models.Model):
+    DiwaliKiranaId = models.AutoField(primary_key=True)
+    RegistrationId = models.ForeignKey(Registrations, on_delete=models.CASCADE, related_name='DiwaliKirana_RegistrationId')
+    DiwaliYearMonth = models.CharField(max_length=7, default='2025-10')
+    TokenNo = models.IntegerField(unique=True)
+    TokenQR = models.CharField(max_length=8)
+    TokenURL = models.CharField(max_length=255, null=True, blank=True)
+    RationCardNo = models.CharField(max_length=25)
+    TokenStatus = models.SmallIntegerField(default=0)
+
+    created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='DiwaliKirana_created_by')
+    last_modified_on = models.DateTimeField(auto_now=True)
+    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='DiwaliKirana_modified_by')
+    is_deleted = models.BooleanField(default=False)
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='DiwaliKirana_deleted_by')
+
+    class Meta:
+        db_table = "tblDiwaliKirana"
         
 
