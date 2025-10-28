@@ -341,5 +341,31 @@ class DiwaliKirana(models.Model):
 
     class Meta:
         db_table = "tblDiwaliKirana"
+
+
+# Event Managment 24/10/2024  ##################
+
+class Event(models.Model):
+    eventId = models.AutoField(primary_key=True)
+    title = models.CharField(max_length=255, null=True, blank=True)
+    description = models.TextField(null=True, blank=True)
+    eventType = models.CharField(max_length=100, null=True, blank=True)
+    capacity = models.IntegerField(null=True, blank=True)
+    entryFees = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    startDateTime = models.DateTimeField(null=True, blank=True)
+    endDateTime = models.DateTimeField(null=True, blank=True)
+    registrationStart = models.DateTimeField(null=True, blank=True)
+    registrationEnd = models.DateTimeField(null=True, blank=True)
+
+    # Audit trail fields
+    created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Event_created_by')
+    last_modified_on = models.DateTimeField(auto_now=True)
+    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Event_modified_by')
+    is_deleted = models.BooleanField(default=False)
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Event_deleted_by')
+
+    class Meta:
+        db_table = "Event"        
         
 

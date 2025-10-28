@@ -92,5 +92,18 @@ urlpatterns = [
     path('add_diwali_kirana/', views.add_diwali_kirana, name='add_diwali_kirana'),
 
     path('add_diwali_kirana_sms/', views.add_diwali_kirana_sms, name='add_diwali_kirana_sms'),
+
+
+    
+# #########  Event Managment ###################
+
+    path('event_create/', views.create_event, name='create_event'),
+    
+    path('event_list/', views.event_list, name='get_events'),
+    
+    path('event_update/', views.update_event, name='update_event'),
+    
+    path('event_delete/', views.delete_event, name='delete_event'),
+
    
 ]

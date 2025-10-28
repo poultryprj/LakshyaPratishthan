@@ -35,6 +35,13 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
 import time
+from django.db.models import Max 
+from django.db.models import Subquery, OuterRef, Q
+from django.db import transaction, models
+import secrets
+import requests
+
+
 
 
 @api_view(['POST'])
@@ -3269,8 +3276,8 @@ def create_yatra(request):
             return Response(response_data, status=status.HTTP_200_OK)
 
         try:
-            yatra_datetime = datetime.strptime(datetime_str, '%d-%m-%Y %H:%M')
-            yatra_start_datetime = datetime.strptime(start_datetime_str, '%d-%m-%Y %H:%M')
+            yatra_datetime = datetime.datetime.strptime(datetime_str, '%d-%m-%Y %H:%M')
+            yatra_start_datetime = datetime.datetime.strptime(start_datetime_str, '%d-%m-%Y %H:%M')
             
             route = YatraRoutes.objects.get(yatraRouteId=route_id)
             yatra_status_obj = YatraStatus.objects.get(statusId=status_id)
@@ -3352,8 +3359,8 @@ def modify_yatra(request):
             return Response(response_data, status=status.HTTP_200_OK)
 
         try:
-            yatra_datetime = datetime.strptime(datetime_str, '%d-%m-%Y %H:%M')
-            yatra_start_datetime = datetime.strptime(start_datetime_str, '%d-%m-%Y %H:%M')
+            yatra_datetime = datetime.datetime.strptime(datetime_str, '%d-%m-%Y %H:%M')
+            yatra_start_datetime = datetime.datetime.strptime(start_datetime_str, '%d-%m-%Y %H:%M')
             route = YatraRoutes.objects.get(yatraRouteId=route_id)
             yatra_status_obj = YatraStatus.objects.get(statusId=status_id)
         except (ValueError, TypeError):
@@ -5172,3 +5179,174 @@ def add_diwali_kirana_sms(request):
         response_data['message_text'] = f"An unexpected server error occurred: {str(e)}"
 
     return Response(response_data, status=status.HTTP_200_OK)
+
+
+
+# ###########   Event Managment ################
+
+
+
+@api_view(['POST'])
+def create_event(request):
+    """
+    Creates a new event.
+    """
+    response_data = {'message_code': 999, 'message_text': 'An error occurred.', 'message_data': []}
+    
+    try:
+        body = request.data
+        
+        # --- Basic Validation ---
+        if not body.get('title') or not body.get('startDateTime'):
+            response_data['message_text'] = 'Title and startDateTime are required fields.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        # Create the new event object
+        new_event = Event.objects.create(
+            title=body.get('title'),
+            description=body.get('description'),
+            eventType=body.get('eventType'),
+            capacity=body.get('capacity'),
+            entryFees=body.get('entryFees'),
+            startDateTime=body.get('startDateTime'),
+            endDateTime=body.get('endDateTime'),
+            registrationStart=body.get('registrationStart'),
+            registrationEnd=body.get('registrationEnd'),
+            # created_by=request.user # Example: if user is authenticated
+        )
+        
+        # Retrieve the created data as a dictionary to return in the response
+        created_event_data = Event.objects.filter(pk=new_event.pk).values().first()
+
+        response_data['message_code'] = 1000
+        response_data['message_text'] = 'Event created successfully.'
+        response_data['message_data'] = [created_event_data]
+
+    except Exception as e:
+        response_data['message_text'] = f"An unexpected error occurred: {str(e)}"
+        
+    return Response(response_data, status=status.HTTP_200_OK)
+
+
+
+
+
+
+@api_view(['GET'])
+def event_list(request):
+    """
+    Retrieves a list of non-deleted events or a single event by its ID.
+    To get a single event, pass 'eventId' as a query parameter.
+    Example: /api/event/get/?eventId=5
+    """
+    response_data = {'message_code': 999, 'message_text': 'An error occurred.', 'message_data': []}
+
+    try:
+        event_id = request.query_params.get('eventId', None)
+        
+        # Base queryset to avoid repetition
+        events_queryset = Event.objects.filter(is_deleted=False)
+
+        if event_id:
+            # Get a single event as a dictionary
+            event_data = events_queryset.filter(eventId=event_id).values()
+            if not event_data:
+                response_data['message_text'] = 'Event not found.'
+                return Response(response_data, status=status.HTTP_200_OK)
+            response_data['message_data'] = list(event_data)
+        else:
+            # Get all events as a list of dictionaries
+            all_events_data = events_queryset.values()
+            response_data['message_data'] = list(all_events_data)
+        
+        response_data['message_code'] = 1000
+        response_data['message_text'] = 'Events retrieved successfully.'
+
+    except Exception as e:
+        response_data['message_text'] = f"An unexpected error occurred: {str(e)}"
+
+    return Response(response_data, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+def update_event(request):
+    """
+    Updates an existing event's details. Requires 'eventId' in the body.
+    """
+    response_data = {'message_code': 999, 'message_text': 'An error occurred.', 'message_data': []}
+
+    try:
+        body = request.data
+        event_id = body.get('eventId')
+
+        if not event_id:
+            response_data['message_text'] = 'eventId is required to update an event.'
+            return Response(response_data, status=status.HTTP_200_OK)
+            
+        try:
+            event_to_update = Event.objects.get(eventId=event_id, is_deleted=False)
+        except Event.DoesNotExist:
+            response_data['message_text'] = 'Event not found or has been deleted.'
+            return Response(response_data, status=status.HTTP_200_OK)
+        
+        # Update fields only if they are provided in the request body
+        event_to_update.title = body.get('title', event_to_update.title)
+        event_to_update.description = body.get('description', event_to_update.description)
+        event_to_update.eventType = body.get('eventType', event_to_update.eventType)
+        event_to_update.capacity = body.get('capacity', event_to_update.capacity)
+        event_to_update.entryFees = body.get('entryFees', event_to_update.entryFees)
+        event_to_update.startDateTime = body.get('startDateTime', event_to_update.startDateTime)
+        event_to_update.endDateTime = body.get('endDateTime', event_to_update.endDateTime)
+        event_to_update.registrationStart = body.get('registrationStart', event_to_update.registrationStart)
+        event_to_update.registrationEnd = body.get('registrationEnd', event_to_update.registrationEnd)
+        # event_to_update.last_modified_by = request.user # Example
+
+        event_to_update.save()
+        
+        # Retrieve the updated data as a dictionary
+        updated_event_data = Event.objects.filter(pk=event_to_update.pk).values().first()
+
+        response_data['message_code'] = 1000
+        response_data['message_text'] = 'Event updated successfully.'
+        response_data['message_data'] = [updated_event_data]
+
+    except Exception as e:
+        response_data['message_text'] = f"An unexpected error occurred: {str(e)}"
+
+    return Response(response_data, status=status.HTTP_200_OK)
+
+
+
+# --- DELETE (Soft Delete) ---
+@api_view(['POST'])
+def delete_event(request):
+    """
+    Soft deletes an event by setting its is_deleted flag to True.
+    """
+    response_data = {'message_code': 999, 'message_text': 'An error occurred.', 'message_data': []}
+
+    try:
+        body = request.data
+        event_id = body.get('eventId')
+
+        if not event_id:
+            response_data['message_text'] = 'eventId is required to delete an event.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        # Use .update() for an efficient single DB query
+        rows_updated = Event.objects.filter(eventId=event_id, is_deleted=False).update(
+            is_deleted=True
+            # deleted_by=request.user # Example
+        )
+        
+        if rows_updated == 0:
+            response_data['message_text'] = 'Event not found.'
+        else:
+            response_data['message_code'] = 1000
+            response_data['message_text'] = 'Event marked as deleted successfully.'
+    
+    except Exception as e:
+        response_data['message_text'] = f"An unexpected error occurred: {str(e)}"
+        
+    return Response(response_data, status=status.HTTP_200_OK)
+
