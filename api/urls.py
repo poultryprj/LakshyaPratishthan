@@ -24,10 +24,12 @@ urlpatterns = [
     # path("update_pilgrimregistration/", views.update_pilgrimregistration, name="update_pilgrimregistration"),
     path("getpilgrimcard/", views.getpilgrimcard, name="getpilgrimcard"),
 
+    path("CheckTicketsForReg/", views.CheckTicketsForReg, name="CheckTicketsForReg"),
+
     path("insertblanktickets/", views.insertblanktickets, name="insertblanktickets"),
     path("inserttickets/", views.inserttickets, name="inserttickets"),
+    path("cancelticket/", views.cancelticket, name="cancelticket"),
    
-
     path("totals/", views.totals, name="totals"),
     path("totalrouteyatrabus/", views.totalrouteyatrabus, name="totalrouteyatrabus"),
 

@@ -934,6 +934,199 @@ def pilgrimregistration(request):
 
 #     return Response(response_data, status=status.HTTP_200_OK)    
 
+@api_view(['POST'])
+def CheckTicketsForReg(request):
+    """
+    This API checks a list of registration IDs to find which ones have at least
+    one ticket with a ticket_status_id of 2.
+
+    POST Parameters:
+    - regids: A list of registration IDs to check.
+      Example: {"regids": [101, 102, 105, 203]}
+    """
+    try:
+        # Retrieve the list of registration IDs from the request body.
+        reg_ids = request.data.get('regids', [])
+
+        # Validate that 'regids' is a list.
+        if not isinstance(reg_ids, list):
+            return Response({
+                "message_code": 999,
+                "message_text": "Invalid input: 'regids' must be a list.",
+                "message_data": []
+            }, status=status.HTTP_200_OK)
+
+        if not reg_ids:
+            return Response({
+                "message_code": 999,
+                "message_text": "No registration IDs were provided.",
+                "message_data": []
+            }, status=status.HTTP_200_OK)
+
+        # Query the database to find the distinct registration_ids from the input list
+        # that have at least one record with ticket_status_id = 2.
+        # Using .distinct() ensures each registration ID is returned only once.
+        matching_reg_ids = TicketsNew.objects.filter(
+            registration_id__in=reg_ids,
+            ticket_status_id=2
+        ).values_list(
+            'registration_id', flat=True
+        ).distinct()
+        
+        # Convert the QuerySet to a list
+        result_list = list(matching_reg_ids)
+
+        if result_list:
+            # If any matching registrations are found, return them in the response.
+            return Response({
+                "message_code": 1000,
+                "message_text": "Success",
+                "message_data": {
+                    "regIdsWithBookedTicket": result_list
+                }
+            }, status=status.HTTP_200_OK)
+        else:
+            # If no registration has a ticket with the specified status, return a "not found" message.
+            return Response({
+                "message_code": 999,
+                "message_text": "No registrations found with a ticket having the specified status.",
+                "message_data": []
+            }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        # Handle any potential exceptions during the process.
+        return Response({
+            "message_code": 999,
+            "message_text": f"An unexpected error occurred: {e}",
+            "message_data": []
+        }, status=status.HTTP_200_OK)
+
+
+# @api_view(['POST'])
+# def getpilgrimcard(request):
+#     """
+#     Generates a pilgrim ID card image based on a RegistrationId.
+#     """
+#     response_data = {
+#         'message_code': 999,
+#         'message_text': 'Failure',
+#         'message_data': []
+#     }
+
+#     try:
+#         body = request.data
+#         registration_id = body.get('RegistrationId')
+
+#         if not registration_id:
+#             response_data['message_text'] = 'Please provide the registration Id.'
+#             return Response(response_data, status=status.HTTP_200_OK)
+
+#         # --- Fetch registration ---
+#         try:
+#             reg_data = Registrations.objects.select_related('areaId').get(registrationId=registration_id)
+#         except Registrations.DoesNotExist:
+#             response_data['message_text'] = 'Unable to find the registered user.'
+#             return Response(response_data, status=status.HTTP_200_OK)
+
+#         # --- Fetch Yatra/Ticket Details ---
+#         yatra_details = TicketsNew.objects.filter(
+#             registration_id=registration_id,
+#             ticket_status_id=2
+#         ).select_related('yatra_route_id', 'yatra_bus_id', 'yatra_id').order_by('yatra_id__yatraStartDateTime')
+
+#         # --- Image generation ---
+#         WHITE = (255, 255, 255)
+#         BLACK = (0, 0, 0)
+#         RED = (219, 70, 20)
+#         BLUE = (66, 135, 245)
+
+#         try:
+#             font = ImageFont.load_default()
+#         except IOError:
+#             font = ImageFont.load_default()
+
+#         image = Image.new('RGB', (252, 144), WHITE)
+#         draw = ImageDraw.Draw(image)
+
+#         draw.rectangle((2, 2, 250, 142), outline=BLACK)
+#         draw.line((78, 2, 78, 120), fill=BLACK)
+#         draw.line((2, 78, 78, 78), fill=BLACK)
+
+#         # --- Profile picture ---
+#         profile_pic_path = os.path.join(settings.BASE_DIR, 'path/to/default/profile.png')
+#         if reg_data.photoFileName:
+#             user_pic_path = os.path.join(settings.MEDIA_ROOT, str(reg_data.photoFileName))
+#             if os.path.exists(user_pic_path):
+#                 profile_pic_path = user_pic_path
+
+#         try:
+#             profile_img = Image.open(profile_pic_path)
+#         except IOError:
+#             profile_img = Image.new('RGB', (100, 100), (200, 200, 200))
+
+#         profile_img = profile_img.resize((74, 74))
+#         image.paste(profile_img, (3, 3))
+
+#         # --- Draw Pilgrim Details ---
+#         y = 82
+#         draw.text((4, y), str(reg_data.firstname), fill=RED, font=font)
+#         y += 10
+#         draw.text((4, y), str(reg_data.lastname), fill=RED, font=font)
+#         y += 10
+#         draw.text((4, y), str(reg_data.mobileNo), fill=BLACK, font=font)
+#         if reg_data.alternateMobileNo:
+#             y += 10
+#             draw.text((4, y), str(reg_data.alternateMobileNo), fill=BLACK, font=font)
+#         if reg_data.address:
+#             y += 10
+#             draw.text((4, y), str(reg_data.address)[:30], fill=BLACK, font=font)
+#         if reg_data.areaId:
+#             y += 10
+#             draw.text((4, y), str(reg_data.areaId.AreaName), fill=BLACK, font=font)
+
+#         # --- Draw Yatra Details ---
+#         if yatra_details.exists():
+#             draw.line((160, 3, 160, 120), fill=BLUE)
+#             draw.line((220, 3, 220, 120), fill=BLUE)
+#             draw.text((83, 4), "Yatra", fill=RED, font=font)
+#             draw.text((162, 4), "Dep.", fill=RED, font=font)
+#             draw.text((222, 4), "Bus-Seat", fill=RED, font=font)
+            
+#             y_line = 13
+#             draw.line((79, y_line, 250, y_line), fill=BLUE)
+#             draw.line((79, 120, 250, 120), fill=BLUE)
+#             y = y_line + 2
+            
+#             for ticket in yatra_details:
+#                 if y > 110: break
+#                 draw.text((83, y), str(ticket.yatra_route_id.yatraRoutename)[:12], fill=BLACK, font=font)
+#                 dep_datetime = ticket.yatra_id.yatraStartDateTime
+#                 if dep_datetime:
+#                     dep_str = dep_datetime.strftime("%d@%H:%M")
+#                     draw.text((162, y), dep_str, fill=BLACK, font=font)
+#                 bus_seat_str = f"{ticket.yatra_bus_id.busName}-{ticket.seat_no}"
+#                 draw.text((222, y), bus_seat_str, fill=BLACK, font=font)
+                
+#                 y += 10
+#                 draw.line((79, y, 250, y), fill=BLUE)
+#                 y += 2
+
+#         # --- Save Image ---
+#         cards_dir = os.path.join(settings.MEDIA_ROOT, 'cards')
+#         os.makedirs(cards_dir, exist_ok=True)
+#         card_filename = f"{registration_id}.png"
+#         output_path = os.path.join(cards_dir, card_filename)
+#         image.save(output_path)
+
+#         card_url = f"{settings.MEDIA_URL}cards/{card_filename}"
+#         response_data['message_code'] = 1000
+#         response_data['message_text'] = 'Card Printed'
+#         response_data['message_data'] = card_url
+
+#     except Exception as e:
+#         response_data['message_text'] = 'An error occurred while generating the pilgrim card.'
+
+#     return Response(response_data, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
 def getpilgrimcard(request):
@@ -962,10 +1155,18 @@ def getpilgrimcard(request):
             return Response(response_data, status=status.HTTP_200_OK)
 
         # --- Fetch Yatra/Ticket Details ---
+        # ***** CHANGE #1: DEEPER PRE-FETCHING OF RELATED MODELS *****
+        # We now pre-fetch not just YatraBuses, but also the BusNames model it links to.
+        # This assumes the ForeignKey field in your YatraBuses model pointing to BusNames is called `busName`.
+        # If it's named something else (like 'bus_name_id'), change 'yatra_bus_id__busName' accordingly.
         yatra_details = TicketsNew.objects.filter(
             registration_id=registration_id,
             ticket_status_id=2
-        ).select_related('yatra_route_id', 'yatra_bus_id', 'yatra_id').order_by('yatra_id__yatraStartDateTime')
+        ).select_related(
+            'yatra_route_id', 
+            'yatra_bus_id__busName',  # This follows the link from YatraBuses to BusNames
+            'yatra_id'
+        ).order_by('yatra_id__yatraStartDateTime')
 
         # --- Image generation ---
         WHITE = (255, 255, 255)
@@ -985,7 +1186,7 @@ def getpilgrimcard(request):
         draw.line((78, 2, 78, 120), fill=BLACK)
         draw.line((2, 78, 78, 78), fill=BLACK)
 
-        # --- Profile picture ---
+        # --- Profile picture --- (No change here)
         profile_pic_path = os.path.join(settings.BASE_DIR, 'path/to/default/profile.png')
         if reg_data.photoFileName:
             user_pic_path = os.path.join(settings.MEDIA_ROOT, str(reg_data.photoFileName))
@@ -995,12 +1196,12 @@ def getpilgrimcard(request):
         try:
             profile_img = Image.open(profile_pic_path)
         except IOError:
-            profile_img = Image.new('RGB', (100, 100), (200, 200, 200))
+            profile_img = Image.new('RGB', (74, 74), (200, 200, 200))
 
         profile_img = profile_img.resize((74, 74))
         image.paste(profile_img, (3, 3))
 
-        # --- Draw Pilgrim Details ---
+        # --- Draw Pilgrim Details --- (No change here)
         y = 82
         draw.text((4, y), str(reg_data.firstname), fill=RED, font=font)
         y += 10
@@ -1012,10 +1213,10 @@ def getpilgrimcard(request):
             draw.text((4, y), str(reg_data.alternateMobileNo), fill=BLACK, font=font)
         if reg_data.address:
             y += 10
-            draw.text((4, y), str(reg_data.address)[:30], fill=BLACK, font=font)
+            draw.text((4, y), str(reg_data.address)[:15], fill=BLACK, font=font)
         if reg_data.areaId:
             y += 10
-            draw.text((4, y), str(reg_data.areaId.AreaName), fill=BLACK, font=font)
+            draw.text((4, y), str(reg_data.areaId.AreaName)[:15], fill=BLACK, font=font)
 
         # --- Draw Yatra Details ---
         if yatra_details.exists():
@@ -1023,7 +1224,7 @@ def getpilgrimcard(request):
             draw.line((220, 3, 220, 120), fill=BLUE)
             draw.text((83, 4), "Yatra", fill=RED, font=font)
             draw.text((162, 4), "Dep.", fill=RED, font=font)
-            draw.text((222, 4), "Bus-Seat", fill=RED, font=font)
+            draw.text((222, 4), "BusNo", fill=RED, font=font)
             
             y_line = 13
             draw.line((79, y_line, 250, y_line), fill=BLUE)
@@ -1032,19 +1233,39 @@ def getpilgrimcard(request):
             
             for ticket in yatra_details:
                 if y > 110: break
-                draw.text((83, y), str(ticket.yatra_route_id.yatraRoutename)[:12], fill=BLACK, font=font)
-                dep_datetime = ticket.yatra_id.yatraStartDateTime
-                if dep_datetime:
-                    dep_str = dep_datetime.strftime("%d@%H:%M")
+                
+                # Draw Yatra Name (no change)
+                if ticket.yatra_route_id and hasattr(ticket.yatra_route_id, 'yatraRoutename'):
+                    draw.text((83, y), str(ticket.yatra_route_id.yatraRoutename)[:12], fill=BLACK, font=font)
+                
+                # Draw Departure (no change)
+                if ticket.yatra_id and ticket.yatra_id.yatraStartDateTime:
+                    dep_str = ticket.yatra_id.yatraStartDateTime.strftime("%d@%H:%M")
                     draw.text((162, y), dep_str, fill=BLACK, font=font)
-                bus_seat_str = f"{ticket.yatra_bus_id.busName}-{ticket.seat_no}"
+                
+                # ***** CHANGE #2: CORRECTLY ACCESS THE BUS NAME AND SEAT NUMBER *****
+                bus_name = ""
+                # This new path follows the chain: Ticket -> YatraBus -> BusName -> busName (the string)
+                if ticket.yatra_bus_id and ticket.yatra_bus_id.busName:
+                    bus_name = str(ticket.yatra_bus_id.busName.busName)
+                
+                seat_number = ""
+                if ticket.seat_no is not None:
+                    seat_number = str(ticket.seat_no)
+
+                # Combine them, handling cases where one or both are empty
+                if bus_name and seat_number:
+                    bus_seat_str = f"{bus_name}-{seat_number}"
+                else:
+                    bus_seat_str = bus_name or seat_number # Show whichever one is available
+
                 draw.text((222, y), bus_seat_str, fill=BLACK, font=font)
                 
                 y += 10
                 draw.line((79, y, 250, y), fill=BLUE)
                 y += 2
 
-        # --- Save Image ---
+        # --- Save Image --- (No change here)
         cards_dir = os.path.join(settings.MEDIA_ROOT, 'cards')
         os.makedirs(cards_dir, exist_ok=True)
         card_filename = f"{registration_id}.png"
@@ -1052,12 +1273,16 @@ def getpilgrimcard(request):
         image.save(output_path)
 
         card_url = f"{settings.MEDIA_URL}cards/{card_filename}"
+        if not card_url.startswith('/'):
+            card_url = '/' + card_url
+
         response_data['message_code'] = 1000
         response_data['message_text'] = 'Card Printed'
         response_data['message_data'] = card_url
 
     except Exception as e:
-        response_data['message_text'] = 'An error occurred while generating the pilgrim card.'
+        print(f"Error in getpilgrimcard: {str(e)}")
+        response_data['message_text'] = f'An error occurred while generating the pilgrim card: {e}'
 
     return Response(response_data, status=status.HTTP_200_OK)
 
@@ -1197,11 +1422,128 @@ def insertblanktickets(request):
         
 
 
+# @api_view(['POST'])
+# def inserttickets(request):
+#     """
+#     (Corrected Optimized Version)
+#     Books tickets using true bulk operations to prevent deadlocks and ensure high performance.
+#     """
+#     response_data = { 'message_code': 999, 'message_text': 'Failure', 'message_data': {} }
+
+#     try:
+#         body = request.data
+#         user_id = body.get('UserId')
+#         bookings = body.get('Bookings')
+
+#         if not all([user_id, bookings]):
+#             response_data['message_text'] = 'UserId and a list of Bookings are required.'
+#             return Response(response_data, status=status.HTTP_200_OK)
+
+#         # --- Step 1: Gather all IDs from the entire request ---
+#         yatra_ids = set()
+#         reg_ids = set()
+#         ticket_q_objects = [] # We will build a list of Q objects for a single query
+
+#         for group in bookings:
+#             yatra_id = group.get('YatraId')
+#             yatra_bus_id = group.get('BusId')
+#             yatra_ids.add(yatra_id)
+#             for reg in group.get('Registrations', []):
+#                 reg_ids.add(reg.get('RegistrationId'))
+#                 # Create a Q object for each specific seat we need to find
+#                 ticket_q_objects.append(
+#                     Q(yatra_id=yatra_id, yatra_bus_id=yatra_bus_id, seat_no=reg.get('SeatNo'))
+#                 )
+
+#         if not ticket_q_objects:
+#             raise Exception("No registration details provided in the booking request.")
+
+#         # --- Step 2: Fetch all required objects from the DB in bulk ---
+#         user_obj = User.objects.get(id=user_id)
+#         yatras_map = {y.yatraId: y for y in Yatras.objects.filter(yatraId__in=yatra_ids)}
+#         registrations_map = {r.registrationId: r for r in Registrations.objects.filter(registrationId__in=reg_ids)}
+
+#         # *** THE CRITICAL FIX IS HERE ***
+#         # Combine all Q objects with an OR operator and execute ONE single query
+#         combined_ticket_query = functools.reduce(operator.or_, ticket_q_objects)
+        
+#         # Now, tickets_to_book contains all the ticket objects we need
+#         tickets_to_book = list(TicketsNew.objects.filter(combined_ticket_query))
+        
+#         # --- Pre-flight checks (very fast, in-memory) ---
+#         if len(tickets_to_book) != len(ticket_q_objects):
+#              raise Exception("One or more of the requested seats could not be found or do not exist.")
+        
+#         for ticket in tickets_to_book:
+#             if ticket.ticket_status_id != 0:
+#                 raise Exception(f"Seat {ticket.seat_no} for Yatra {ticket.yatra_id_id} is not available.")
+
+#         # --- Step 3: Process the logic in memory ---
+#         amount_paid_total = Decimal(body.get('AmountPaid', 0))
+#         discount_total = Decimal(body.get('Discount', 0))
+#         discount_reason = body.get('DiscountReason', '')
+#         payment_mode = body.get('PaymentMode', 1)
+
+#         total_tickets = len(tickets_to_book)
+#         amount_per_ticket = amount_paid_total / total_tickets if total_tickets > 0 else 0
+#         discount_per_ticket = discount_total / total_tickets if total_tickets > 0 else 0
+        
+#         # Loop through the objects we already have in memory
+#         for ticket_obj in tickets_to_book:
+#             # We need to find which registration this ticket belongs to from the original request
+#             # This is a bit complex, but it's all in-memory and therefore extremely fast
+#             found_reg = False
+#             for group in bookings:
+#                 if ticket_obj.yatra_id_id == int(group.get('YatraId')) and ticket_obj.yatra_bus_id_id == int(group.get('BusId')):
+#                     for reg_info in group.get('Registrations', []):
+#                         if ticket_obj.seat_no == int(reg_info.get('SeatNo')):
+#                             reg_id = int(reg_info.get('RegistrationId'))
+#                             registration_obj = registrations_map.get(reg_id)
+#                             yatra_obj = yatras_map.get(ticket_obj.yatra_id_id)
+                            
+#                             if not registration_obj or not yatra_obj:
+#                                 raise Exception(f"Invalid YatraId or RegistrationId provided.")
+                            
+#                             # Modify the object in memory
+#                             ticket_obj.ticket_status_id = 2  # Confirmed
+#                             ticket_obj.user_id = user_obj
+#                             ticket_obj.registration_id = registration_obj
+#                             ticket_obj.permanant_id = registration_obj.registrationId
+#                             ticket_obj.seat_fees = yatra_obj.yatraFees
+#                             ticket_obj.discount = discount_per_ticket
+#                             ticket_obj.discount_reason = discount_reason
+#                             ticket_obj.amount_paid = amount_per_ticket
+#                             ticket_obj.payment_mode = payment_mode
+#                             found_reg = True
+#                             break
+#                 if found_reg:
+#                     break
+
+#         # --- Step 4: Perform a single bulk update ---
+#         with transaction.atomic():
+#             TicketsNew.objects.bulk_update(tickets_to_book, [
+#                 'ticket_status_id', 'user_id', 'registration_id', 'permanant_id',
+#                 'seat_fees', 'discount', 'discount_reason', 'amount_paid', 'payment_mode'
+#             ])
+
+#         response_data = {
+#             'message_code': 1000,
+#             'message_text': f'{len(tickets_to_book)} ticket(s) booked successfully.',
+#             'message_data': {}
+#         }
+#         return Response(response_data, status=status.HTTP_200_OK)
+
+#     except Exception as e:
+#         response_data['message_text'] = f'An unexpected error occurred: {e}'
+#         return Response(response_data, status=status.HTTP_200_OK)
+
 @api_view(['POST'])
 def inserttickets(request):
     """
     (Corrected Optimized Version)
     Books tickets using true bulk operations to prevent deadlocks and ensure high performance.
+    This version ensures that the correct UserId and RegistrationId are assigned to each
+    updated ticket record.
     """
     response_data = { 'message_code': 999, 'message_text': 'Failure', 'message_data': {} }
 
@@ -1214,18 +1556,19 @@ def inserttickets(request):
             response_data['message_text'] = 'UserId and a list of Bookings are required.'
             return Response(response_data, status=status.HTTP_200_OK)
 
-        # --- Step 1: Gather all IDs from the entire request ---
+        # --- Step 1: Gather all IDs from the entire request for efficient fetching ---
         yatra_ids = set()
         reg_ids = set()
-        ticket_q_objects = [] # We will build a list of Q objects for a single query
+        ticket_q_objects = [] # A list of Q objects to find all tickets in a single query
 
         for group in bookings:
             yatra_id = group.get('YatraId')
             yatra_bus_id = group.get('BusId')
             yatra_ids.add(yatra_id)
             for reg in group.get('Registrations', []):
+                # Add the registration ID to our set for bulk fetching
                 reg_ids.add(reg.get('RegistrationId'))
-                # Create a Q object for each specific seat we need to find
+                # Create a Q object for each specific seat to identify the ticket
                 ticket_q_objects.append(
                     Q(yatra_id=yatra_id, yatra_bus_id=yatra_bus_id, seat_no=reg.get('SeatNo'))
                 )
@@ -1233,27 +1576,27 @@ def inserttickets(request):
         if not ticket_q_objects:
             raise Exception("No registration details provided in the booking request.")
 
-        # --- Step 2: Fetch all required objects from the DB in bulk ---
+        # --- Step 2: Fetch all required objects from the DB in bulk (very efficient) ---
         user_obj = User.objects.get(id=user_id)
         yatras_map = {y.yatraId: y for y in Yatras.objects.filter(yatraId__in=yatra_ids)}
+        # Create a dictionary mapping each registrationId to its object
         registrations_map = {r.registrationId: r for r in Registrations.objects.filter(registrationId__in=reg_ids)}
 
-        # *** THE CRITICAL FIX IS HERE ***
-        # Combine all Q objects with an OR operator and execute ONE single query
+        # Combine all Q objects with an OR operator to execute ONE single query
         combined_ticket_query = functools.reduce(operator.or_, ticket_q_objects)
         
-        # Now, tickets_to_book contains all the ticket objects we need
+        # Fetch all ticket objects that need to be updated
         tickets_to_book = list(TicketsNew.objects.filter(combined_ticket_query))
         
-        # --- Pre-flight checks (very fast, in-memory) ---
+        # --- Pre-flight checks (performed in-memory for speed) ---
         if len(tickets_to_book) != len(ticket_q_objects):
              raise Exception("One or more of the requested seats could not be found or do not exist.")
         
         for ticket in tickets_to_book:
-            if ticket.ticket_status_id != 0:
+            if ticket.ticket_status_id != 0: # Assuming 0 is 'Available'
                 raise Exception(f"Seat {ticket.seat_no} for Yatra {ticket.yatra_id_id} is not available.")
 
-        # --- Step 3: Process the logic in memory ---
+        # --- Step 3: Process the logic and prepare objects for update ---
         amount_paid_total = Decimal(body.get('AmountPaid', 0))
         discount_total = Decimal(body.get('Discount', 0))
         discount_reason = body.get('DiscountReason', '')
@@ -1263,27 +1606,32 @@ def inserttickets(request):
         amount_per_ticket = amount_paid_total / total_tickets if total_tickets > 0 else 0
         discount_per_ticket = discount_total / total_tickets if total_tickets > 0 else 0
         
-        # Loop through the objects we already have in memory
+        # Loop through the ticket objects we have in memory to update their fields
         for ticket_obj in tickets_to_book:
-            # We need to find which registration this ticket belongs to from the original request
-            # This is a bit complex, but it's all in-memory and therefore extremely fast
+            # Find the corresponding registration details from the original request
+            # This complex loop is fast because it operates on data already in memory
             found_reg = False
             for group in bookings:
                 if ticket_obj.yatra_id_id == int(group.get('YatraId')) and ticket_obj.yatra_bus_id_id == int(group.get('BusId')):
                     for reg_info in group.get('Registrations', []):
                         if ticket_obj.seat_no == int(reg_info.get('SeatNo')):
                             reg_id = int(reg_info.get('RegistrationId'))
+                            
+                            # Retrieve the registration and yatra objects from our maps
                             registration_obj = registrations_map.get(reg_id)
                             yatra_obj = yatras_map.get(ticket_obj.yatra_id_id)
                             
                             if not registration_obj or not yatra_obj:
                                 raise Exception(f"Invalid YatraId or RegistrationId provided.")
                             
-                            # Modify the object in memory
-                            ticket_obj.ticket_status_id = 2  # Confirmed
-                            ticket_obj.user_id = user_obj
-                            ticket_obj.registration_id = registration_obj
-                            ticket_obj.permanant_id = registration_obj.registrationId
+                            # *** KEY LOGIC: ASSIGNING USER AND REGISTRATION IDS ***
+                            # Here, we update the ticket object in memory with the correct IDs.
+                            ticket_obj.ticket_status_id = 2  # Set status to Confirmed/Booked
+                            ticket_obj.user_id = user_obj # Assign the User object
+                            ticket_obj.registration_id = registration_obj # Assign the Registration object
+                            # ******************************************************
+                            
+                            ticket_obj.permanant_id = registration_obj.registrationId # Assuming this is intended
                             ticket_obj.seat_fees = yatra_obj.yatraFees
                             ticket_obj.discount = discount_per_ticket
                             ticket_obj.discount_reason = discount_reason
@@ -1294,11 +1642,18 @@ def inserttickets(request):
                 if found_reg:
                     break
 
-        # --- Step 4: Perform a single bulk update ---
+        # --- Step 4: Perform a single, atomic bulk update to the database ---
         with transaction.atomic():
             TicketsNew.objects.bulk_update(tickets_to_book, [
-                'ticket_status_id', 'user_id', 'registration_id', 'permanant_id',
-                'seat_fees', 'discount', 'discount_reason', 'amount_paid', 'payment_mode'
+                'ticket_status_id', 
+                'user_id',             # Ensure 'user_id' is in the list of fields to update
+                'registration_id_id',     # Ensure 'registration_id' is in the list of fields to update
+                'permanant_id',
+                'seat_fees', 
+                'discount', 
+                'discount_reason', 
+                'amount_paid', 
+                'payment_mode'
             ])
 
         response_data = {
@@ -1312,226 +1667,77 @@ def inserttickets(request):
         response_data['message_text'] = f'An unexpected error occurred: {e}'
         return Response(response_data, status=status.HTTP_200_OK)
     
-    
-# @api_view(['POST'])
-# def inserttickets(request):
-#     """
-#     Book tickets, correctly implementing the group/bus assignment logic from the PHP API.
-#     """
-#     response_data = {
-#         'message_code': 999,
-#         'message_text': 'Failure',
-#         'message_data': {}
-#     }
 
-#     try:
-#         body = request.data
-#         RegistrationId = body.get('RegistrationId')
-#         UserId = body.get('UserId')
-#         YatraIds = body.get('YatraIds')
-#         AmountPaid = body.get('AmountPaid', 0)
-#         Discount = body.get('Discount', 0)
-#         DiscountReason = body.get('DiscountReason', '')
-#         # ✅ FIX: Get the PaymentId from the request. It could be a number or an empty string/null.
-#         payment_id_from_request = body.get('PaymentId')
-#         PaymentMode = body.get('PaymentMode', 1)
-#         PaymentDetails = body.get('PaymentDetails', '')
-#         GroupCount = int(body.get('GroupCount', 1))
-#         CurrentTicket = int(body.get('CurrentTicket', 1))
-#         BalanceTicket = int(body.get('BalanceTicket', GroupCount))
+@api_view(['POST'])
+def cancelticket(request):
+    """
+    Cancels all booked tickets associated with a given RegistrationId.
+    It rolls back the ticket status to 'Available' (0) and clears associated
+    booking-specific fields.
+    Requires 'RegistrationId' as a POST parameter.
+    """
+    response_data = {'message_code': 999, 'message_text': 'Cancellation Failure', 'message_data': {}}
 
-#         if not all([RegistrationId, UserId, YatraIds]):
-#             response_data['message_text'] = 'RegistrationId, UserId, and YatraIds are required.'
-#             return Response(response_data, status=status.HTTP_200_OK)
+    try:
+        body = request.data
+        registration_id_str = body.get('RegistrationId')
 
-#         user_obj = User.objects.get(id=UserId)
-#         registration_obj = Registrations.objects.get(registrationId=RegistrationId)
+        if not registration_id_str:
+            response_data['message_text'] = 'RegistrationId is required for cancellation.'
+            return Response(response_data, status=status.HTTP_200_OK)
 
-#         # ✅ FIX: Prepare the payment object. Default to None.
-#         payment_obj = None
-#         if payment_id_from_request:
-#             try:
-#                 # If an ID was provided, fetch the actual Payments object.
-#                 payment_obj = Payments.objects.get(pk=payment_id_from_request)
-#             except Payments.DoesNotExist:
-#                 # Handle the case where an invalid ID is sent.
-#                 response_data['message_text'] = f"Invalid PaymentId '{payment_id_from_request}' provided."
-#                 raise Exception(response_data['message_text'])
-        
-#         arrYatraIds = YatraIds.split(',')
-#         booked_tickets_count = 0
-        
-#         with transaction.atomic():
-#             for yid in arrYatraIds:
-#                 yatra = Yatras.objects.get(yatraId=yid)
-#                 # ... (rest of the group logic is correct)
+        try:
+            registration_id = int(registration_id_str)
+        except ValueError:
+            response_data['message_text'] = 'Invalid RegistrationId format. Must be an integer.'
+            return Response(response_data, status=status.HTTP_200_OK)
 
-#                 if BalanceTicket == GroupCount:
-#                     buses_with_capacity = TicketsNew.objects.filter(yatra_id=yatra, ticket_status_id=0).values('yatra_bus_id').annotate(available_seats=Count('ticket_id')).filter(available_seats__gte=GroupCount).order_by('yatra_bus_id')
-#                     bus_to_use = buses_with_capacity.first()
-#                     if not bus_to_use:
-#                         response_data['message_text'] = f'No bus found with capacity for a group of {GroupCount} for Yatra {yid}.'
-#                         raise Exception(response_data['message_text'])
-#                     yatra_bus_id_for_group = bus_to_use['yatra_bus_id']
-#                     seats_to_reserve = TicketsNew.objects.filter(yatra_id=yatra, yatra_bus_id=yatra_bus_id_for_group, ticket_status_id=0).order_by('ticket_id')[:GroupCount]
-#                     seat_ids_to_reserve = [seat.ticket_id for seat in seats_to_reserve]
-#                     TicketsNew.objects.filter(ticket_id__in=seat_ids_to_reserve).update(ticket_status_id=1, user_id=user_obj)
-#                 else:
-#                     existing_reservation = TicketsNew.objects.filter(yatra_id=yatra, user_id=user_obj, ticket_status_id=1).order_by('ticket_id').first()
-#                     if not existing_reservation:
-#                         response_data['message_text'] = 'Cannot find a reserved seat for the next person in the group.'
-#                         raise Exception(response_data['message_text'])
-#                     yatra_bus_id_for_group = existing_reservation.yatra_bus_id
+        # Filter tickets associated with this registration ID and that are currently booked (status 2)
+        tickets_to_cancel = TicketsNew.objects.filter(
+            registration_id=registration_id, # Assuming 'registration_id' is the ForeignKey field
+            ticket_status_id=2 # Only cancel actively booked tickets
+        )
+
+        if not tickets_to_cancel.exists():
+            response_data['message_text'] = f'No booked tickets found for RegistrationId {registration_id} to cancel.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        updated_count = 0
+        with transaction.atomic():
+            for ticket in tickets_to_cancel:
+                ticket.ticket_status_id = 0 # Set status to Available
+                ticket.user_id = None        # Clear associated user (ForeignKey to User)
+                ticket.registration_id = None # Clear associated registration (ForeignKey to Registrations)
+                ticket.permanant_id = None   # Clear permanent ID (if linked to registration)
+                ticket.seat_fees = Decimal('0.00') # Reset fees
+                ticket.discount = Decimal('0.00')  # Reset discount
+                ticket.discount_reason = ''   # Clear discount reason
+                ticket.amount_paid = Decimal('0.00') # Reset amount paid
+                ticket.payment_mode = None    # Clear payment mode (assuming nullable)
                 
-#                 ticket_to_confirm = TicketsNew.objects.filter(yatra_id=yatra, yatra_bus_id=yatra_bus_id_for_group, user_id=user_obj, ticket_status_id=1).order_by('ticket_id').first()
-#                 if not ticket_to_confirm:
-#                     response_data['message_text'] = f'Logic error: No reserved seat found for Yatra {yid} after group assignment.'
-#                     raise Exception(response_data['message_text'])
+            updated_count = TicketsNew.objects.bulk_update(tickets_to_cancel, [
+                'ticket_status_id', 
+                'user_id',             # Field to update for User ForeignKey
+                'registration_id',     # Field to update for Registration ForeignKey
+                'permanant_id',
+                'seat_fees', 
+                'discount', 
+                'discount_reason', 
+                'amount_paid', 
+                'payment_mode'
+            ])
 
-#                 ticket_to_confirm.ticket_status_id = 2
-#                 ticket_to_confirm.seat_fees = yatra.yatraFees
-#                 ticket_to_confirm.discount = Discount
-#                 ticket_to_confirm.discount_reason = DiscountReason
-#                 ticket_to_confirm.amount_paid = AmountPaid
-#                 ticket_to_confirm.payment_mode = PaymentMode
-#                 ticket_to_confirm.payment_details = PaymentDetails
-#                 # ✅ FIX: Assign the prepared payment object (which is either a Payments instance or None).
-#                 ticket_to_confirm.payment_id = payment_obj
-#                 ticket_to_confirm.registration_id = registration_obj
-#                 ticket_to_confirm.permanant_id = registration_obj.registrationId
-#                 ticket_to_confirm.save()
+        response_data = {
+            'message_code': 1000,
+            'message_text': f'{updated_count} ticket(s) cancelled successfully for RegistrationId {registration_id}.',
+            'message_data': {'registration_id': registration_id, 'cancelled_tickets_count': updated_count}
+        }
+        return Response(response_data, status=status.HTTP_200_OK)
 
-#                 booked_tickets_count += 1
-
-#             # ... (counter logic remains the same)
-#             BalanceTicket -= 1
-#             CurrentTicket += 1
-#             if BalanceTicket <= 0:
-#                 CurrentTicket = 0
-#                 GroupCount = 0
-
-#             response_data = {
-#                 'message_code': 1000,
-#                 'message_text': f'{booked_tickets_count} ticket(s) booked.',
-#                 'message_data': {"GroupCount": GroupCount, "CurrentTicket": CurrentTicket, "BalanceTicket": BalanceTicket}
-#             }
-#             return Response(response_data, status=status.HTTP_200_OK)
-
-#     except Exception as e:
-#         if not response_data.get('message_text') or response_data['message_text'] == 'Failure':
-#              response_data['message_text'] = f'An unexpected error occurred: {e}'
-#         return Response(response_data, status=status.HTTP_200_OK)
-
-
-
-# @api_view(['POST'])
-# def inserttickets(request):
-#     """
-#     Book tickets for one or multiple Yatras (comma-separated IDs), following PHP logic.
-#     """
-#     response_data = {
-#         'message_code': 999,
-#         'message_text': 'Failure',
-#         'message_data': []
-#     }
-
-#     try:
-#         body = request.data
-#         RegistrationId = body.get('RegistrationId')
-#         UserId = body.get('UserId')
-#         YatraIds = body.get('YatraIds')  # comma-separated
-#         AmountPaid = body.get('AmountPaid', 0)
-#         Discount = body.get('Discount', 0)
-#         DiscountReason = body.get('DiscountReason', '')
-#         PaymentId = body.get('PaymentId', '')
-#         PaymentMode = body.get('PaymentMode', 1)
-#         PaymentDetails = body.get('PaymentDetails', '')
-#         GroupCount = int(body.get('GroupCount', 1))
-#         CurrentTicket = int(body.get('CurrentTicket', 1))
-#         BalanceTicket = int(body.get('BalanceTicket', GroupCount))
-
-#         try:
-#             user_obj = User.objects.get(id=UserId)
-#         except User.DoesNotExist:
-#             response_data['message_text'] = f"User with id {UserId} does not exist."
-#             return Response(response_data, status=status.HTTP_200_OK)
-
-#         if not RegistrationId:
-#             response_data['message_text'] = 'Please provide Pilgrim to add ticket.'
-#             return Response(response_data, status=status.HTTP_200_OK)
-#         if not UserId:
-#             response_data['message_text'] = 'Please provide user who is adding ticket.'
-#             return Response(response_data, status=status.HTTP_200_OK)
-#         if not YatraIds:
-#             response_data['message_text'] = 'Please provide Yatras to add ticket.'
-#             return Response(response_data, status=status.HTTP_200_OK)
-
-#         registration_obj = Registrations.objects.get(registrationId=RegistrationId)
-#         user_obj = User.objects.get(id=UserId)
-
-#         arrYatraIds = YatraIds.split(',')
-#         booked_tickets = 0
-
-#         with transaction.atomic():
-#             for yid in arrYatraIds:
-#                 yatra = Yatras.objects.get(yatraId=yid)
-#                 yatra_route = yatra.yatraRouteId
-
-#                 # Step 1: Get available ticket (TicketStatusId = 0)
-#                 available_ticket = TicketsNew.objects.filter(
-#                     ticket_status_id=0,
-#                     yatra_id=yatra,
-#                     yatra_route_id=yatra_route
-#                 ).first()
-
-#                 if not available_ticket:
-#                     continue
-
-#                 # Step 2: Assign to user temporarily (TicketStatusId = 1)
-#                 available_ticket.ticket_status_id = 1
-#                 available_ticket.user_id = user_obj
-#                 available_ticket.save()
-
-#                 # Step 3: Confirm ticket (TicketStatusId = 2) with payment details
-#                 available_ticket.ticket_status_id = 2
-#                 available_ticket.seat_fees = yatra.yatraFees
-#                 available_ticket.discount = Discount
-#                 available_ticket.discount_reason = DiscountReason
-#                 available_ticket.amount_paid = AmountPaid
-#                 available_ticket.payment_mode = PaymentMode
-#                 available_ticket.payment_details = PaymentDetails
-#                 available_ticket.payment_id = PaymentId
-#                 available_ticket.registration_id = registration_obj
-#                 available_ticket.permanant_id = registration_obj.registrationId
-#                 available_ticket.save()
-
-#                 booked_tickets += 1
-
-#                 # Update balance counters
-#                 BalanceTicket -= 1
-#                 CurrentTicket += 1
-
-#         # Reset counters if all tickets booked
-#         if BalanceTicket <= 0:
-#             CurrentTicket = 0
-#             GroupCount = 0
-
-#         response_data = {
-#             'message_code': 1000,
-#             'message_text': f'{booked_tickets} ticket(s) booked.',
-#             'message_data': {
-#                 "GroupCount": GroupCount,
-#                 "CurrentTicket": CurrentTicket,
-#                 "BalanceTicket": BalanceTicket
-#             }
-#         }
-
-#     except Exception as e:
-#         response_data['message_text'] = f'Unable to add tickets: {e}'
-
-#     return Response(response_data, status=status.HTTP_200_OK)
-
-
+    except Exception as e:
+        response_data['message_text'] = f'An unexpected error occurred during cancellation: {e}'
+        return Response(response_data, status=status.HTTP_200_OK)    
+    
 
 @api_view(['GET'])
 def totals(request):
