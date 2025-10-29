@@ -1537,13 +1537,142 @@ def insertblanktickets(request):
 #         response_data['message_text'] = f'An unexpected error occurred: {e}'
 #         return Response(response_data, status=status.HTTP_200_OK)
 
+# @api_view(['POST'])
+# def inserttickets(request):
+#     """
+#     (Corrected Optimized Version)
+#     Books tickets using true bulk operations to prevent deadlocks and ensure high performance.
+#     This version ensures that the correct UserId and RegistrationId are assigned to each
+#     updated ticket record.
+#     """
+#     response_data = { 'message_code': 999, 'message_text': 'Failure', 'message_data': {} }
+
+#     try:
+#         body = request.data
+#         user_id = body.get('UserId')
+#         bookings = body.get('Bookings')
+
+#         if not all([user_id, bookings]):
+#             response_data['message_text'] = 'UserId and a list of Bookings are required.'
+#             return Response(response_data, status=status.HTTP_200_OK)
+
+#         # --- Step 1: Gather all IDs from the entire request for efficient fetching ---
+#         yatra_ids = set()
+#         reg_ids = set()
+#         ticket_q_objects = [] # A list of Q objects to find all tickets in a single query
+
+#         for group in bookings:
+#             yatra_id = group.get('YatraId')
+#             yatra_bus_id = group.get('BusId')
+#             yatra_ids.add(yatra_id)
+#             for reg in group.get('Registrations', []):
+#                 # Add the registration ID to our set for bulk fetching
+#                 reg_ids.add(reg.get('RegistrationId'))
+#                 # Create a Q object for each specific seat to identify the ticket
+#                 ticket_q_objects.append(
+#                     Q(yatra_id=yatra_id, yatra_bus_id=yatra_bus_id, seat_no=reg.get('SeatNo'))
+#                 )
+
+#         if not ticket_q_objects:
+#             raise Exception("No registration details provided in the booking request.")
+
+#         # --- Step 2: Fetch all required objects from the DB in bulk (very efficient) ---
+#         user_obj = User.objects.get(id=user_id)
+#         yatras_map = {y.yatraId: y for y in Yatras.objects.filter(yatraId__in=yatra_ids)}
+#         # Create a dictionary mapping each registrationId to its object
+#         registrations_map = {r.registrationId: r for r in Registrations.objects.filter(registrationId__in=reg_ids)}
+
+#         # Combine all Q objects with an OR operator to execute ONE single query
+#         combined_ticket_query = functools.reduce(operator.or_, ticket_q_objects)
+        
+#         # Fetch all ticket objects that need to be updated
+#         tickets_to_book = list(TicketsNew.objects.filter(combined_ticket_query))
+        
+#         # --- Pre-flight checks (performed in-memory for speed) ---
+#         if len(tickets_to_book) != len(ticket_q_objects):
+#              raise Exception("One or more of the requested seats could not be found or do not exist.")
+        
+#         for ticket in tickets_to_book:
+#             if ticket.ticket_status_id != 0: # Assuming 0 is 'Available'
+#                 raise Exception(f"Seat {ticket.seat_no} for Yatra {ticket.yatra_id_id} is not available.")
+
+#         # --- Step 3: Process the logic and prepare objects for update ---
+#         amount_paid_total = Decimal(body.get('AmountPaid', 0))
+#         discount_total = Decimal(body.get('Discount', 0))
+#         discount_reason = body.get('DiscountReason', '')
+#         payment_mode = body.get('PaymentMode', 1)
+
+#         total_tickets = len(tickets_to_book)
+#         amount_per_ticket = amount_paid_total / total_tickets if total_tickets > 0 else 0
+#         discount_per_ticket = discount_total / total_tickets if total_tickets > 0 else 0
+        
+#         # Loop through the ticket objects we have in memory to update their fields
+#         for ticket_obj in tickets_to_book:
+#             # Find the corresponding registration details from the original request
+#             # This complex loop is fast because it operates on data already in memory
+#             found_reg = False
+#             for group in bookings:
+#                 if ticket_obj.yatra_id_id == int(group.get('YatraId')) and ticket_obj.yatra_bus_id_id == int(group.get('BusId')):
+#                     for reg_info in group.get('Registrations', []):
+#                         if ticket_obj.seat_no == int(reg_info.get('SeatNo')):
+#                             reg_id = int(reg_info.get('RegistrationId'))
+                            
+#                             # Retrieve the registration and yatra objects from our maps
+#                             registration_obj = registrations_map.get(reg_id)
+#                             yatra_obj = yatras_map.get(ticket_obj.yatra_id_id)
+                            
+#                             if not registration_obj or not yatra_obj:
+#                                 raise Exception(f"Invalid YatraId or RegistrationId provided.")
+                            
+#                             # *** KEY LOGIC: ASSIGNING USER AND REGISTRATION IDS ***
+#                             # Here, we update the ticket object in memory with the correct IDs.
+#                             ticket_obj.ticket_status_id = 2  # Set status to Confirmed/Booked
+#                             ticket_obj.user_id = user_obj # Assign the User object
+#                             ticket_obj.registration_id = registration_obj # Assign the Registration object
+#                             # ******************************************************
+                            
+#                             ticket_obj.permanant_id = registration_obj.registrationId # Assuming this is intended
+#                             ticket_obj.seat_fees = yatra_obj.yatraFees
+#                             ticket_obj.discount = discount_per_ticket
+#                             ticket_obj.discount_reason = discount_reason
+#                             ticket_obj.amount_paid = amount_per_ticket
+#                             ticket_obj.payment_mode = payment_mode
+#                             found_reg = True
+#                             break
+#                 if found_reg:
+#                     break
+
+#         # --- Step 4: Perform a single, atomic bulk update to the database ---
+#         with transaction.atomic():
+#             TicketsNew.objects.bulk_update(tickets_to_book, [
+#                 'ticket_status_id', 
+#                 'user_id',             # Ensure 'user_id' is in the list of fields to update
+#                 'registration_id_id',     # Ensure 'registration_id' is in the list of fields to update
+#                 'permanant_id',
+#                 'seat_fees', 
+#                 'discount', 
+#                 'discount_reason', 
+#                 'amount_paid', 
+#                 'payment_mode'
+#             ])
+
+#         response_data = {
+#             'message_code': 1000,
+#             'message_text': f'{len(tickets_to_book)} ticket(s) booked successfully.',
+#             'message_data': {}
+#         }
+#         return Response(response_data, status=status.HTTP_200_OK)
+
+#     except Exception as e:
+#         response_data['message_text'] = f'An unexpected error occurred: {e}'
+#         return Response(response_data, status=status.HTTP_200_OK)
+    
 @api_view(['POST'])
 def inserttickets(request):
     """
     (Corrected Optimized Version)
-    Books tickets using true bulk operations to prevent deadlocks and ensure high performance.
-    This version ensures that the correct UserId and RegistrationId are assigned to each
-    updated ticket record.
+    Books tickets using true bulk operations and includes a corrected pre-flight check
+    to prevent double-booking.
     """
     response_data = { 'message_code': 999, 'message_text': 'Failure', 'message_data': {} }
 
@@ -1556,19 +1685,17 @@ def inserttickets(request):
             response_data['message_text'] = 'UserId and a list of Bookings are required.'
             return Response(response_data, status=status.HTTP_200_OK)
 
-        # --- Step 1: Gather all IDs from the entire request for efficient fetching ---
+        # --- Step 1: Gather all IDs ---
         yatra_ids = set()
         reg_ids = set()
-        ticket_q_objects = [] # A list of Q objects to find all tickets in a single query
+        ticket_q_objects = [] 
 
         for group in bookings:
             yatra_id = group.get('YatraId')
             yatra_bus_id = group.get('BusId')
             yatra_ids.add(yatra_id)
             for reg in group.get('Registrations', []):
-                # Add the registration ID to our set for bulk fetching
                 reg_ids.add(reg.get('RegistrationId'))
-                # Create a Q object for each specific seat to identify the ticket
                 ticket_q_objects.append(
                     Q(yatra_id=yatra_id, yatra_bus_id=yatra_bus_id, seat_no=reg.get('SeatNo'))
                 )
@@ -1576,24 +1703,42 @@ def inserttickets(request):
         if not ticket_q_objects:
             raise Exception("No registration details provided in the booking request.")
 
-        # --- Step 2: Fetch all required objects from the DB in bulk (very efficient) ---
+        # --- Step 2: Fetch all required objects ---
         user_obj = User.objects.get(id=user_id)
         yatras_map = {y.yatraId: y for y in Yatras.objects.filter(yatraId__in=yatra_ids)}
-        # Create a dictionary mapping each registrationId to its object
         registrations_map = {r.registrationId: r for r in Registrations.objects.filter(registrationId__in=reg_ids)}
 
-        # Combine all Q objects with an OR operator to execute ONE single query
+        # --- Pre-flight Check for Double Booking ---
+        double_booking_q_objects = []
+        for group in bookings:
+            yatra_id = group.get('YatraId')
+            for reg in group.get('Registrations', []):
+                reg_id = reg.get('RegistrationId')
+                # Create a query to check if this person is already booked for this yatra.
+                double_booking_q_objects.append(
+                    # CORRECTED LINE: Changed '__ne=0' to the valid lookup '__gt=0'
+                    Q(registration_id=reg_id, yatra_id=yatra_id, ticket_status_id__gt=0)
+                )
+
+        if double_booking_q_objects:
+            combined_double_booking_query = functools.reduce(operator.or_, double_booking_q_objects)
+            existing_booking = TicketsNew.objects.filter(combined_double_booking_query).select_related('registration_id').first()
+
+            if existing_booking:
+                reg_obj = existing_booking.registration_id
+                # Ensure your Registrations model has 'firstname' or similar fields
+                passenger_name = f"{getattr(reg_obj, 'firstname', '')} {getattr(reg_obj, 'lastname', '')}".strip()
+                raise Exception(f"Passenger '{passenger_name}' (ID: {reg_obj.registrationId}) is already booked for this Yatra.")
+
+        # --- Continue with booking logic ---
         combined_ticket_query = functools.reduce(operator.or_, ticket_q_objects)
-        
-        # Fetch all ticket objects that need to be updated
         tickets_to_book = list(TicketsNew.objects.filter(combined_ticket_query))
         
-        # --- Pre-flight checks (performed in-memory for speed) ---
         if len(tickets_to_book) != len(ticket_q_objects):
              raise Exception("One or more of the requested seats could not be found or do not exist.")
         
         for ticket in tickets_to_book:
-            if ticket.ticket_status_id != 0: # Assuming 0 is 'Available'
+            if ticket.ticket_status_id != 0:
                 raise Exception(f"Seat {ticket.seat_no} for Yatra {ticket.yatra_id_id} is not available.")
 
         # --- Step 3: Process the logic and prepare objects for update ---
@@ -1606,32 +1751,24 @@ def inserttickets(request):
         amount_per_ticket = amount_paid_total / total_tickets if total_tickets > 0 else 0
         discount_per_ticket = discount_total / total_tickets if total_tickets > 0 else 0
         
-        # Loop through the ticket objects we have in memory to update their fields
         for ticket_obj in tickets_to_book:
-            # Find the corresponding registration details from the original request
-            # This complex loop is fast because it operates on data already in memory
             found_reg = False
             for group in bookings:
                 if ticket_obj.yatra_id_id == int(group.get('YatraId')) and ticket_obj.yatra_bus_id_id == int(group.get('BusId')):
                     for reg_info in group.get('Registrations', []):
                         if ticket_obj.seat_no == int(reg_info.get('SeatNo')):
                             reg_id = int(reg_info.get('RegistrationId'))
-                            
-                            # Retrieve the registration and yatra objects from our maps
                             registration_obj = registrations_map.get(reg_id)
                             yatra_obj = yatras_map.get(ticket_obj.yatra_id_id)
                             
                             if not registration_obj or not yatra_obj:
                                 raise Exception(f"Invalid YatraId or RegistrationId provided.")
                             
-                            # *** KEY LOGIC: ASSIGNING USER AND REGISTRATION IDS ***
-                            # Here, we update the ticket object in memory with the correct IDs.
-                            ticket_obj.ticket_status_id = 2  # Set status to Confirmed/Booked
-                            ticket_obj.user_id = user_obj # Assign the User object
-                            ticket_obj.registration_id = registration_obj # Assign the Registration object
-                            # ******************************************************
+                            ticket_obj.ticket_status_id = 2
+                            ticket_obj.user_id = user_obj
+                            ticket_obj.registration_id = registration_obj
                             
-                            ticket_obj.permanant_id = registration_obj.registrationId # Assuming this is intended
+                            ticket_obj.permanant_id = registration_obj.registrationId
                             ticket_obj.seat_fees = yatra_obj.yatraFees
                             ticket_obj.discount = discount_per_ticket
                             ticket_obj.discount_reason = discount_reason
@@ -1642,18 +1779,11 @@ def inserttickets(request):
                 if found_reg:
                     break
 
-        # --- Step 4: Perform a single, atomic bulk update to the database ---
+        # --- Step 4: Perform a single, atomic bulk update ---
         with transaction.atomic():
             TicketsNew.objects.bulk_update(tickets_to_book, [
-                'ticket_status_id', 
-                'user_id',             # Ensure 'user_id' is in the list of fields to update
-                'registration_id_id',     # Ensure 'registration_id' is in the list of fields to update
-                'permanant_id',
-                'seat_fees', 
-                'discount', 
-                'discount_reason', 
-                'amount_paid', 
-                'payment_mode'
+                'ticket_status_id', 'user_id', 'registration_id', 'permanant_id',
+                'seat_fees', 'discount', 'discount_reason', 'amount_paid', 'payment_mode'
             ])
 
         response_data = {
@@ -1665,6 +1795,109 @@ def inserttickets(request):
 
     except Exception as e:
         response_data['message_text'] = f'An unexpected error occurred: {e}'
+        return Response(response_data, status=status.HTTP_200_OK)
+    
+
+@api_view(['POST'])
+@transaction.atomic
+def updateticket(request):
+    """
+    (UPDATED VERSION 2)
+    Updates a ticket by performing a "cancel and re-book" operation.
+    - Finds the original ticket without considering the user who booked it.
+    - Stamps the new ticket with the ID of the user performing the edit.
+    - Returns a highly detailed success message confirming all changes.
+    """
+    response_data = {'message_code': 999, 'message_text': 'Update Failure', 'message_data': {}}
+
+    try:
+        body = request.data
+        
+        registration_id = body.get('RegistrationId')
+        editing_user_id = body.get('UserId') 
+        
+        old_yatra_id = body.get('OldYatraId')
+        old_bus_id = body.get('OldBusId')
+        old_seat_no = body.get('OldSeatNo')
+
+        new_yatra_id = body.get('NewYatraId')
+        new_bus_id = body.get('NewBusId')
+        new_seat_no = body.get('NewSeatNo')
+
+        if not all([registration_id, editing_user_id, old_yatra_id, old_bus_id, old_seat_no, new_yatra_id, new_bus_id, new_seat_no]):
+            response_data['message_text'] = 'Missing one or more required parameters for ticket update.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        editing_user_obj = User.objects.get(id=editing_user_id)
+        registration_obj = Registrations.objects.get(registrationId=registration_id)
+        new_yatra_obj = Yatras.objects.get(yatraId=new_yatra_id)
+
+        try:
+            old_ticket = TicketsNew.objects.get(
+                registration_id=registration_id,
+                yatra_id=old_yatra_id,
+                yatra_bus_id=old_bus_id,
+                seat_no=old_seat_no,
+                ticket_status_id=2
+            )
+        except TicketsNew.DoesNotExist:
+            raise Exception(f"The original booked ticket for registration {registration_id} on seat {old_seat_no} could not be found.")
+
+        try:
+            new_ticket = TicketsNew.objects.get(
+                yatra_id=new_yatra_id,
+                yatra_bus_id=new_bus_id,
+                seat_no=new_seat_no
+            )
+            if new_ticket.ticket_status_id != 0:
+                raise Exception(f"The new seat ({new_seat_no}) is no longer available for booking.")
+        except TicketsNew.DoesNotExist:
+            raise Exception(f"The new seat ({new_seat_no}) you selected does not exist.")
+
+        # --- Cancel Old Ticket ---
+        old_ticket.ticket_status_id = 0
+        old_ticket.user_id = None
+        old_ticket.registration_id = None
+        old_ticket.permanant_id = None
+        old_ticket.seat_fees = Decimal('0.00')
+        old_ticket.discount = Decimal('0.00')
+        old_ticket.discount_reason = ''
+        old_ticket.amount_paid = Decimal('0.00')
+        old_ticket.payment_mode = None
+        old_ticket.save()
+
+        # --- Book New Ticket ---
+        new_ticket.ticket_status_id = 2
+        new_ticket.user_id = editing_user_obj
+        new_ticket.registration_id = registration_obj
+        new_ticket.permanant_id = registration_obj.registrationId
+        new_ticket.seat_fees = new_yatra_obj.yatraFees
+        new_ticket.amount_paid = new_yatra_obj.yatraFees
+        new_ticket.payment_mode = 1
+        new_ticket.save()
+
+        # ★★★ MODIFIED SUCCESS MESSAGE ★★★
+        success_message = (
+            f"Ticket successfully updated for {registration_obj.firstname}. "
+            f"Moved from Yatra ID {old_yatra_id} to {new_yatra_id}, "
+            f"Bus ID {old_bus_id} to {new_bus_id}, "
+            f"and Seat {old_seat_no} to {new_seat_no}."
+        )
+
+        response_data = {
+            'message_code': 1000,
+            'message_text': success_message, # Use the new detailed message
+            'message_data': {
+                'registration_id': registration_id,
+                'new_yatra_id': new_yatra_id,
+                'new_bus_id': new_bus_id,
+                'new_seat_no': new_seat_no
+            }
+        }
+        return Response(response_data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        response_data['message_text'] = f'An unexpected error occurred during the update: {e}'
         return Response(response_data, status=status.HTTP_200_OK)
     
 
