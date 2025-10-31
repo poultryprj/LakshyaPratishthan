@@ -1799,109 +1799,6 @@ def inserttickets(request):
     
 
 @api_view(['POST'])
-@transaction.atomic
-def updateticket(request):
-    """
-    (UPDATED VERSION 2)
-    Updates a ticket by performing a "cancel and re-book" operation.
-    - Finds the original ticket without considering the user who booked it.
-    - Stamps the new ticket with the ID of the user performing the edit.
-    - Returns a highly detailed success message confirming all changes.
-    """
-    response_data = {'message_code': 999, 'message_text': 'Update Failure', 'message_data': {}}
-
-    try:
-        body = request.data
-        
-        registration_id = body.get('RegistrationId')
-        editing_user_id = body.get('UserId') 
-        
-        old_yatra_id = body.get('OldYatraId')
-        old_bus_id = body.get('OldBusId')
-        old_seat_no = body.get('OldSeatNo')
-
-        new_yatra_id = body.get('NewYatraId')
-        new_bus_id = body.get('NewBusId')
-        new_seat_no = body.get('NewSeatNo')
-
-        if not all([registration_id, editing_user_id, old_yatra_id, old_bus_id, old_seat_no, new_yatra_id, new_bus_id, new_seat_no]):
-            response_data['message_text'] = 'Missing one or more required parameters for ticket update.'
-            return Response(response_data, status=status.HTTP_200_OK)
-
-        editing_user_obj = User.objects.get(id=editing_user_id)
-        registration_obj = Registrations.objects.get(registrationId=registration_id)
-        new_yatra_obj = Yatras.objects.get(yatraId=new_yatra_id)
-
-        try:
-            old_ticket = TicketsNew.objects.get(
-                registration_id=registration_id,
-                yatra_id=old_yatra_id,
-                yatra_bus_id=old_bus_id,
-                seat_no=old_seat_no,
-                ticket_status_id=2
-            )
-        except TicketsNew.DoesNotExist:
-            raise Exception(f"The original booked ticket for registration {registration_id} on seat {old_seat_no} could not be found.")
-
-        try:
-            new_ticket = TicketsNew.objects.get(
-                yatra_id=new_yatra_id,
-                yatra_bus_id=new_bus_id,
-                seat_no=new_seat_no
-            )
-            if new_ticket.ticket_status_id != 0:
-                raise Exception(f"The new seat ({new_seat_no}) is no longer available for booking.")
-        except TicketsNew.DoesNotExist:
-            raise Exception(f"The new seat ({new_seat_no}) you selected does not exist.")
-
-        # --- Cancel Old Ticket ---
-        old_ticket.ticket_status_id = 0
-        old_ticket.user_id = None
-        old_ticket.registration_id = None
-        old_ticket.permanant_id = None
-        old_ticket.seat_fees = Decimal('0.00')
-        old_ticket.discount = Decimal('0.00')
-        old_ticket.discount_reason = ''
-        old_ticket.amount_paid = Decimal('0.00')
-        old_ticket.payment_mode = None
-        old_ticket.save()
-
-        # --- Book New Ticket ---
-        new_ticket.ticket_status_id = 2
-        new_ticket.user_id = editing_user_obj
-        new_ticket.registration_id = registration_obj
-        new_ticket.permanant_id = registration_obj.registrationId
-        new_ticket.seat_fees = new_yatra_obj.yatraFees
-        new_ticket.amount_paid = new_yatra_obj.yatraFees
-        new_ticket.payment_mode = 1
-        new_ticket.save()
-
-        # ★★★ MODIFIED SUCCESS MESSAGE ★★★
-        success_message = (
-            f"Ticket successfully updated for {registration_obj.firstname}. "
-            f"Moved from Yatra ID {old_yatra_id} to {new_yatra_id}, "
-            f"Bus ID {old_bus_id} to {new_bus_id}, "
-            f"and Seat {old_seat_no} to {new_seat_no}."
-        )
-
-        response_data = {
-            'message_code': 1000,
-            'message_text': success_message, # Use the new detailed message
-            'message_data': {
-                'registration_id': registration_id,
-                'new_yatra_id': new_yatra_id,
-                'new_bus_id': new_bus_id,
-                'new_seat_no': new_seat_no
-            }
-        }
-        return Response(response_data, status=status.HTTP_200_OK)
-
-    except Exception as e:
-        response_data['message_text'] = f'An unexpected error occurred during the update: {e}'
-        return Response(response_data, status=status.HTTP_200_OK)
-    
-
-@api_view(['POST'])
 def cancelticket(request):
     """
     Cancels all booked tickets associated with a given RegistrationId.
@@ -4125,427 +4022,214 @@ def fetch_bus_seats(request):
             "message_text": f"An unexpected server error occurred: {str(e)}"
         }, status=500)
     
+# @api_view(['POST'])
+# def change_ticket(request):
+#     """
+#     Changes/transfers a ticket by:
+#     1. Marking the old ticket as 'Changed' with status 2
+#     2. Creating a new ticket with updated details
+#     Both operations are done in a transaction to ensure data consistency.
+#     """
+#     debug = []
+#     response_data = {
+#         'message_code': 999,
+#         'message_text': 'Functional part is commented.',
+#         'message_data': [],
+#         'message_debug': debug
+#     }
 
-@api_view(['POST'])
-def insert_ticket(request):
-    """
-    Inserts a new ticket record for a Yatra bus booking.
-    Validates all required fields before creating the ticket.
-    """
-    debug = []
-    response_data = {
-        'message_code': 999,
-        'message_text': 'Functional part is commented.',
-        'message_data': [],
-        'message_debug': debug
-    }
+#     try:
+#         body = request.data
 
-    try:
-        body = request.data
+#         # Extract and validate input parameters
+#         ticket_id = body.get('TicketId', 0)
+#         yatra_id = body.get('YatraId', 0)
+#         yatra_route_id = body.get('YatraRouteId', 0)
+#         yatra_bus_id = body.get('YatraBusId', 0)
+#         seat_no = body.get('SeatNo', 0)
+#         seat_fees = body.get('SeatFees', 0)
+#         seat_ticket_type = body.get('SeatTicketType', 0)
+#         amount_paid = body.get('AmountPaid', 0)
+#         discount = body.get('Discount', 0)
+#         discount_reason = body.get('DiscountReason', '')
+#         payment_id = body.get('PaymentId', 0)
+#         registration_id = body.get('RegistrationId', 0)
+#         permanant_id = body.get('PermanantId', 0)
+#         user_id = body.get('UserId', 0)
 
-        # Extract and validate input parameters
-        yatra_id = body.get('YatraId', 0)
-        yatra_route_id = body.get('YatraRouteId', 0)
-        yatra_bus_id = body.get('YatraBusId', 0)
-        seat_no = body.get('SeatNo', 0)
-        seat_fees = body.get('SeatFees', 0)
-        seat_ticket_type = body.get('SeatTicketType', 0)
-        registration_id = body.get('RegistrationId', 0)
-        user_id = body.get('UserId', 0)
+#         # Validation checks
+#         if not ticket_id or ticket_id == 0:
+#             response_data['message_text'] = 'Please provide Ticket ID to change ticket.'
+#             return Response(response_data, status=status.HTTP_200_OK)
 
-        # Validation checks
-        if not yatra_id or yatra_id == 0:
-            response_data['message_text'] = 'Please provide Yatra to add ticket.'
-            return Response(response_data, status=status.HTTP_200_OK)
+#         if not yatra_id or yatra_id == 0:
+#             response_data['message_text'] = 'Please provide Yatra to add ticket.'
+#             return Response(response_data, status=status.HTTP_200_OK)
 
-        if not yatra_route_id or yatra_route_id == 0:
-            response_data['message_text'] = 'Please provide Yatra Route to add ticket.'
-            return Response(response_data, status=status.HTTP_200_OK)
+#         if not yatra_route_id or yatra_route_id == 0:
+#             response_data['message_text'] = 'Please provide Yatra Route to add ticket.'
+#             return Response(response_data, status=status.HTTP_200_OK)
 
-        if not yatra_bus_id or yatra_bus_id == 0:
-            response_data['message_text'] = 'Please provide Yatra Bus to add ticket.'
-            return Response(response_data, status=status.HTTP_200_OK)
+#         if not yatra_bus_id or yatra_bus_id == 0:
+#             response_data['message_text'] = 'Please provide Yatra Bus to add ticket.'
+#             return Response(response_data, status=status.HTTP_200_OK)
 
-        if not seat_no or seat_no == 0:
-            response_data['message_text'] = 'Please provide Seat No to add ticket.'
-            return Response(response_data, status=status.HTTP_200_OK)
+#         if not seat_no or seat_no == 0:
+#             response_data['message_text'] = 'Please provide Seat No to add ticket.'
+#             return Response(response_data, status=status.HTTP_200_OK)
 
-        if not registration_id or registration_id == 0:
-            response_data['message_text'] = 'Please provide Pilgrim to add ticket.'
-            return Response(response_data, status=status.HTTP_200_OK)
+#         if not registration_id or registration_id == 0:
+#             response_data['message_text'] = 'Please provide Pilgrim to add ticket.'
+#             return Response(response_data, status=status.HTTP_200_OK)
 
-        if not user_id or user_id == 0:
-            response_data['message_text'] = 'Please provide user who is adding ticket.'
-            return Response(response_data, status=status.HTTP_200_OK)
+#         if not user_id or user_id == 0:
+#             response_data['message_text'] = 'Please provide user who is adding ticket.'
+#             return Response(response_data, status=status.HTTP_200_OK)
 
-        # Fetch foreign key objects
-        try:
-            yatra_obj = Yatras.objects.get(pk=yatra_id)
-            yatra_route_obj = YatraRoutes.objects.get(pk=yatra_route_id)
-            yatra_bus_obj = YatraBuses.objects.get(pk=yatra_bus_id)
-            registration_obj = Registrations.objects.get(pk=registration_id)
-            user_obj = User.objects.get(pk=user_id)
-        except (Yatras.DoesNotExist, YatraRoutes.DoesNotExist, YatraBuses.DoesNotExist,
-                Registrations.DoesNotExist, User.DoesNotExist) as e:
-            response_data['message_text'] = f'One or more referenced records do not exist: {str(e)}'
-            return Response(response_data, status=status.HTTP_200_OK)
-
-        # Create new ticket
-        new_ticket = TicketsNew.objects.create(
-            yatra_id=yatra_obj,
-            yatra_route_id=yatra_route_obj,
-            yatra_bus_id=yatra_bus_obj,
-            seat_no=seat_no,
-            seat_fees=seat_fees,
-            seat_ticket_type=seat_ticket_type,
-            discount=0,
-            discount_reason='0',
-            amount_paid=0,
-            payment_id=None,
-            ticket_status_id=seat_ticket_type,
-            registration_id=registration_obj,
-            permanant_id=0,
-            user_id=user_obj,
-            created_by=user_obj,
-            last_modified_by=user_obj
-        )
-
-        response_data['message_code'] = 1000
-        response_data['message_text'] = 'Ticket inserted successfully.'
-        response_data['message_data'] = {'TicketId': new_ticket.ticket_id}
-
-    except Exception as e:
-        response_data['message_text'] = 'Unable to add the ticket.'
-        debug.append(f"Error Type: {type(e).__name__}, Details: {str(e)}")
-
-    return Response(response_data, status=status.HTTP_200_OK)
-
-
-@api_view(['POST'])
-def cancel_ticket(request):
-    """
-    Cancels an existing ticket by updating its status to cancelled (4).
-    Records the cancellation reason and updates audit fields.
-    """
-    debug = []
-    response_data = {
-        'message_code': 999,
-        'message_text': 'Functional part is commented.',
-        'message_data': [],
-        'message_debug': debug
-    }
-
-    try:
-        body = request.data
-
-        # Extract and validate input parameters
-        ticket_id = body.get('TicketId', 0)
-        user_id = body.get('UserId', 0)
-        cancel_reason = body.get('CancelReason', '')
-
-        # Validation checks
-        if not ticket_id or ticket_id == 0:
-            response_data['message_text'] = 'Please provide Ticket to cancel ticket.'
-            return Response(response_data, status=status.HTTP_200_OK)
-
-        if not user_id or user_id == 0:
-            response_data['message_text'] = 'Please provide user who is adding ticket.'
-            return Response(response_data, status=status.HTTP_200_OK)
-
-        # Fetch the ticket and user objects
-        try:
-            ticket = TicketsNew.objects.get(ticket_id=ticket_id)
-            user_obj = User.objects.get(pk=user_id)
-        except TicketsNew.DoesNotExist:
-            response_data['message_text'] = 'The specified ticket does not exist.'
-            return Response(response_data, status=status.HTTP_200_OK)
-        except User.DoesNotExist:
-            response_data['message_text'] = 'The specified user does not exist.'
-            return Response(response_data, status=status.HTTP_200_OK)
-
-        # Update the ticket with cancellation details
-        ticket.cancel_reason = cancel_reason
-        ticket.ticket_status_id = 4  # Status 4 = Cancelled
-        ticket.last_modified_by = user_obj  # Properly track who cancelled it
-        ticket.save()
-
-        response_data['message_code'] = 1000
-        response_data['message_text'] = 'Ticket cancelled successfully.'
-        response_data['message_data'] = {'TicketId': ticket.ticket_id}
-
-    except Exception as e:
-        response_data['message_text'] = 'Unable to cancel the ticket.'
-        debug.append(f"Error Type: {type(e).__name__}, Details: {str(e)}")
-
-    return Response(response_data, status=status.HTTP_200_OK)    
-
-
-@api_view(['POST'])
-def remove_ticket(request):
-    """
-    Removes a ticket by resetting its type and status to 0.
-    This typically makes the seat available again or marks the ticket as inactive.
-    """
-    debug = []
-    response_data = {
-        'message_code': 999,
-        'message_text': 'Functional part is commented.',
-        'message_data': [],
-        'message_debug': debug
-    }
-
-    try:
-        body = request.data
-
-        # Extract and validate input parameters
-        ticket_id = body.get('TicketId', 0)
-        user_id = body.get('UserId', 0)
-
-        # Validation checks
-        if not ticket_id or ticket_id == 0:
-            response_data['message_text'] = 'Please provide Ticket to remove ticket.'
-            return Response(response_data, status=status.HTTP_200_OK)
-
-        if not user_id or user_id == 0:
-            response_data['message_text'] = 'Please provide user who is removing ticket.'
-            return Response(response_data, status=status.HTTP_200_OK)
-
-        # Fetch the ticket and user objects
-        try:
-            ticket = TicketsNew.objects.get(ticket_id=ticket_id)
-            user_obj = User.objects.get(pk=user_id)
-        except TicketsNew.DoesNotExist:
-            response_data['message_text'] = 'The specified ticket does not exist.'
-            return Response(response_data, status=status.HTTP_200_OK)
-        except User.DoesNotExist:
-            response_data['message_text'] = 'The specified user does not exist.'
-            return Response(response_data, status=status.HTTP_200_OK)
-
-        # Update the ticket - reset type and status to 0
-        ticket.seat_ticket_type = 0
-        ticket.ticket_status_id = 0
-        ticket.last_modified_by = user_obj  # Properly track who removed it
-        ticket.save()
-
-        response_data['message_code'] = 1000
-        response_data['message_text'] = 'Ticket removed successfully.'
-        response_data['message_data'] = {'TicketId': ticket.ticket_id}
-
-    except Exception as e:
-        response_data['message_text'] = 'Unable to remove the ticket.'
-        debug.append(f"Error Type: {type(e).__name__}, Details: {str(e)}")
-
-    return Response(response_data, status=status.HTTP_200_OK)
-
-
-@api_view(['POST'])
-def change_ticket(request):
-    """
-    Changes/transfers a ticket by:
-    1. Marking the old ticket as 'Changed' with status 2
-    2. Creating a new ticket with updated details
-    Both operations are done in a transaction to ensure data consistency.
-    """
-    debug = []
-    response_data = {
-        'message_code': 999,
-        'message_text': 'Functional part is commented.',
-        'message_data': [],
-        'message_debug': debug
-    }
-
-    try:
-        body = request.data
-
-        # Extract and validate input parameters
-        ticket_id = body.get('TicketId', 0)
-        yatra_id = body.get('YatraId', 0)
-        yatra_route_id = body.get('YatraRouteId', 0)
-        yatra_bus_id = body.get('YatraBusId', 0)
-        seat_no = body.get('SeatNo', 0)
-        seat_fees = body.get('SeatFees', 0)
-        seat_ticket_type = body.get('SeatTicketType', 0)
-        amount_paid = body.get('AmountPaid', 0)
-        discount = body.get('Discount', 0)
-        discount_reason = body.get('DiscountReason', '')
-        payment_id = body.get('PaymentId', 0)
-        registration_id = body.get('RegistrationId', 0)
-        permanant_id = body.get('PermanantId', 0)
-        user_id = body.get('UserId', 0)
-
-        # Validation checks
-        if not ticket_id or ticket_id == 0:
-            response_data['message_text'] = 'Please provide Ticket ID to change ticket.'
-            return Response(response_data, status=status.HTTP_200_OK)
-
-        if not yatra_id or yatra_id == 0:
-            response_data['message_text'] = 'Please provide Yatra to add ticket.'
-            return Response(response_data, status=status.HTTP_200_OK)
-
-        if not yatra_route_id or yatra_route_id == 0:
-            response_data['message_text'] = 'Please provide Yatra Route to add ticket.'
-            return Response(response_data, status=status.HTTP_200_OK)
-
-        if not yatra_bus_id or yatra_bus_id == 0:
-            response_data['message_text'] = 'Please provide Yatra Bus to add ticket.'
-            return Response(response_data, status=status.HTTP_200_OK)
-
-        if not seat_no or seat_no == 0:
-            response_data['message_text'] = 'Please provide Seat No to add ticket.'
-            return Response(response_data, status=status.HTTP_200_OK)
-
-        if not registration_id or registration_id == 0:
-            response_data['message_text'] = 'Please provide Pilgrim to add ticket.'
-            return Response(response_data, status=status.HTTP_200_OK)
-
-        if not user_id or user_id == 0:
-            response_data['message_text'] = 'Please provide user who is adding ticket.'
-            return Response(response_data, status=status.HTTP_200_OK)
-
-        # Fetch foreign key objects
-        try:
-            old_ticket = TicketsNew.objects.get(ticket_id=ticket_id)
-            yatra_obj = Yatras.objects.get(pk=yatra_id)
-            yatra_route_obj = YatraRoutes.objects.get(pk=yatra_route_id)
-            yatra_bus_obj = YatraBuses.objects.get(pk=yatra_bus_id)
-            registration_obj = Registrations.objects.get(pk=registration_id)
-            user_obj = User.objects.get(pk=user_id)
+#         # Fetch foreign key objects
+#         try:
+#             old_ticket = TicketsNew.objects.get(ticket_id=ticket_id)
+#             yatra_obj = Yatras.objects.get(pk=yatra_id)
+#             yatra_route_obj = YatraRoutes.objects.get(pk=yatra_route_id)
+#             yatra_bus_obj = YatraBuses.objects.get(pk=yatra_bus_id)
+#             registration_obj = Registrations.objects.get(pk=registration_id)
+#             user_obj = User.objects.get(pk=user_id)
             
-            payment_obj = None
-            if payment_id and payment_id != 0:
-                payment_obj = Payments.objects.get(pk=payment_id)
+#             payment_obj = None
+#             if payment_id and payment_id != 0:
+#                 payment_obj = Payments.objects.get(pk=payment_id)
                 
-        except TicketsNew.DoesNotExist:
-            response_data['message_text'] = 'The specified ticket does not exist.'
-            return Response(response_data, status=status.HTTP_200_OK)
-        except (Yatras.DoesNotExist, YatraRoutes.DoesNotExist, YatraBuses.DoesNotExist,
-                Registrations.DoesNotExist, User.DoesNotExist, Payments.DoesNotExist) as e:
-            response_data['message_text'] = f'One or more referenced records do not exist: {str(e)}'
-            return Response(response_data, status=status.HTTP_200_OK)
+#         except TicketsNew.DoesNotExist:
+#             response_data['message_text'] = 'The specified ticket does not exist.'
+#             return Response(response_data, status=status.HTTP_200_OK)
+#         except (Yatras.DoesNotExist, YatraRoutes.DoesNotExist, YatraBuses.DoesNotExist,
+#                 Registrations.DoesNotExist, User.DoesNotExist, Payments.DoesNotExist) as e:
+#             response_data['message_text'] = f'One or more referenced records do not exist: {str(e)}'
+#             return Response(response_data, status=status.HTTP_200_OK)
 
-        # Use transaction to ensure both operations succeed or fail together
-        with transaction.atomic():
-            # Step 1: Update old ticket - mark as changed
-            old_ticket.cancel_reason = 'Changed'
-            old_ticket.ticket_status_id = 2  # Status 2 = Changed/Transferred
-            old_ticket.last_modified_by = user_obj
-            old_ticket.save()
+#         # Use transaction to ensure both operations succeed or fail together
+#         with transaction.atomic():
+#             # Step 1: Update old ticket - mark as changed
+#             old_ticket.cancel_reason = 'Changed'
+#             old_ticket.ticket_status_id = 2  # Status 2 = Changed/Transferred
+#             old_ticket.last_modified_by = user_obj
+#             old_ticket.save()
 
-            # Step 2: Create new ticket with updated details
-            new_ticket = TicketsNew.objects.create(
-                yatra_id=yatra_obj,
-                yatra_route_id=yatra_route_obj,
-                yatra_bus_id=yatra_bus_obj,
-                seat_no=seat_no,
-                seat_fees=seat_fees,
-                seat_ticket_type=seat_ticket_type,
-                discount=discount,
-                discount_reason=discount_reason,
-                amount_paid=amount_paid,
-                payment_id=payment_obj,
-                ticket_status_id=1,  # Status 1 = Active/Confirmed
-                registration_id=registration_obj,
-                permanant_id=permanant_id,
-                user_id=user_obj,
-                created_by=user_obj,
-                last_modified_by=user_obj
-            )
+#             # Step 2: Create new ticket with updated details
+#             new_ticket = TicketsNew.objects.create(
+#                 yatra_id=yatra_obj,
+#                 yatra_route_id=yatra_route_obj,
+#                 yatra_bus_id=yatra_bus_obj,
+#                 seat_no=seat_no,
+#                 seat_fees=seat_fees,
+#                 seat_ticket_type=seat_ticket_type,
+#                 discount=discount,
+#                 discount_reason=discount_reason,
+#                 amount_paid=amount_paid,
+#                 payment_id=payment_obj,
+#                 ticket_status_id=1,  # Status 1 = Active/Confirmed
+#                 registration_id=registration_obj,
+#                 permanant_id=permanant_id,
+#                 user_id=user_obj,
+#                 created_by=user_obj,
+#                 last_modified_by=user_obj
+#             )
 
-        response_data['message_code'] = 1000
-        response_data['message_text'] = 'Ticket changed successfully.'
-        response_data['message_data'] = {
-            'OldTicketId': old_ticket.ticket_id,
-            'NewTicketId': new_ticket.ticket_id
-        }
+#         response_data['message_code'] = 1000
+#         response_data['message_text'] = 'Ticket changed successfully.'
+#         response_data['message_data'] = {
+#             'OldTicketId': old_ticket.ticket_id,
+#             'NewTicketId': new_ticket.ticket_id
+#         }
 
-    except Exception as e:
-        response_data['message_text'] = 'Unable to change the ticket.'
-        debug.append(f"Error Type: {type(e).__name__}, Details: {str(e)}")
+#     except Exception as e:
+#         response_data['message_text'] = 'Unable to change the ticket.'
+#         debug.append(f"Error Type: {type(e).__name__}, Details: {str(e)}")
 
-    return Response(response_data, status=status.HTTP_200_OK)
+#     return Response(response_data, status=status.HTTP_200_OK)
 
 
-@api_view(['POST'])
-def update_ticket_payment(request):
-    """
-    Updates payment details for all tickets with status 2 (Reserved/Changed) 
-    for a specific pilgrim and marks them as status 3 (Paid/Confirmed).
-    This is a bulk update operation for all reserved tickets of a pilgrim.
-    """
-    debug = []
-    response_data = {
-        'message_code': 999,
-        'message_text': 'Functional part is commented.',
-        'message_data': [],
-        'message_debug': debug
-    }
+# @api_view(['POST'])
+# def update_ticket_payment(request):
+#     """
+#     Updates payment details for all tickets with status 2 (Reserved/Changed) 
+#     for a specific pilgrim and marks them as status 3 (Paid/Confirmed).
+#     This is a bulk update operation for all reserved tickets of a pilgrim.
+#     """
+#     debug = []
+#     response_data = {
+#         'message_code': 999,
+#         'message_text': 'Functional part is commented.',
+#         'message_data': [],
+#         'message_debug': debug
+#     }
 
-    try:
-        body = request.data
+#     try:
+#         body = request.data
 
-        # Extract and validate input parameters
-        amount_paid = body.get('AmountPaid', 0)
-        discount = body.get('Discount', 0)
-        discount_reason = body.get('DiscountReason', '')
-        payment_details = body.get('PaymentDetails', '')
-        payment_proof = body.get('PaymentProof', '')
-        registration_id = body.get('RegistrationId', 0)
-        user_id = body.get('UserId', 0)
+#         # Extract and validate input parameters
+#         amount_paid = body.get('AmountPaid', 0)
+#         discount = body.get('Discount', 0)
+#         discount_reason = body.get('DiscountReason', '')
+#         payment_details = body.get('PaymentDetails', '')
+#         payment_proof = body.get('PaymentProof', '')
+#         registration_id = body.get('RegistrationId', 0)
+#         user_id = body.get('UserId', 0)
 
-        # Validation checks
-        if not registration_id or registration_id == 0:
-            response_data['message_text'] = 'Please provide Pilgrim to add ticket.'
-            return Response(response_data, status=status.HTTP_200_OK)
+#         # Validation checks
+#         if not registration_id or registration_id == 0:
+#             response_data['message_text'] = 'Please provide Pilgrim to add ticket.'
+#             return Response(response_data, status=status.HTTP_200_OK)
 
-        if not user_id or user_id == 0:
-            response_data['message_text'] = 'Please provide user who is adding ticket.'
-            return Response(response_data, status=status.HTTP_200_OK)
+#         if not user_id or user_id == 0:
+#             response_data['message_text'] = 'Please provide user who is adding ticket.'
+#             return Response(response_data, status=status.HTTP_200_OK)
 
-        # Fetch foreign key objects
-        try:
-            registration_obj = Registrations.objects.get(pk=registration_id)
-            user_obj = User.objects.get(pk=user_id)
-        except Registrations.DoesNotExist:
-            response_data['message_text'] = 'The specified registration/pilgrim does not exist.'
-            return Response(response_data, status=status.HTTP_200_OK)
-        except User.DoesNotExist:
-            response_data['message_text'] = 'The specified user does not exist.'
-            return Response(response_data, status=status.HTTP_200_OK)
+#         # Fetch foreign key objects
+#         try:
+#             registration_obj = Registrations.objects.get(pk=registration_id)
+#             user_obj = User.objects.get(pk=user_id)
+#         except Registrations.DoesNotExist:
+#             response_data['message_text'] = 'The specified registration/pilgrim does not exist.'
+#             return Response(response_data, status=status.HTTP_200_OK)
+#         except User.DoesNotExist:
+#             response_data['message_text'] = 'The specified user does not exist.'
+#             return Response(response_data, status=status.HTTP_200_OK)
 
-        # Find all tickets with status 2 for this registration
-        tickets_to_update = TicketsNew.objects.filter(
-            registration_id=registration_obj,
-            ticket_status_id=2
-        )
+#         # Find all tickets with status 2 for this registration
+#         tickets_to_update = TicketsNew.objects.filter(
+#             registration_id=registration_obj,
+#             ticket_status_id=2
+#         )
 
-        if not tickets_to_update.exists():
-            response_data['message_text'] = 'No tickets found with status 2 (Reserved) for this pilgrim.'
-            return Response(response_data, status=status.HTTP_200_OK)
+#         if not tickets_to_update.exists():
+#             response_data['message_text'] = 'No tickets found with status 2 (Reserved) for this pilgrim.'
+#             return Response(response_data, status=status.HTTP_200_OK)
 
-        # Update all matching tickets with payment information
-        with transaction.atomic():
-            updated_count = tickets_to_update.update(
-                discount=discount,
-                discount_reason=discount_reason,
-                payment_details=payment_details,
-                payment_proof=payment_proof,
-                amount_paid=amount_paid,  # Fixed: Now actually using AmountPaid
-                ticket_status_id=3,  # Status 3 = Paid/Confirmed
-                last_modified_by=user_obj
-            )
+#         # Update all matching tickets with payment information
+#         with transaction.atomic():
+#             updated_count = tickets_to_update.update(
+#                 discount=discount,
+#                 discount_reason=discount_reason,
+#                 payment_details=payment_details,
+#                 payment_proof=payment_proof,
+#                 amount_paid=amount_paid,  # Fixed: Now actually using AmountPaid
+#                 ticket_status_id=3,  # Status 3 = Paid/Confirmed
+#                 last_modified_by=user_obj
+#             )
 
-        response_data['message_code'] = 1000
-        response_data['message_text'] = 'Tickets updated successfully.'
-        response_data['message_data'] = {
-            'RegistrationId': registration_id,
-            'TicketsUpdated': updated_count
-        }
+#         response_data['message_code'] = 1000
+#         response_data['message_text'] = 'Tickets updated successfully.'
+#         response_data['message_data'] = {
+#             'RegistrationId': registration_id,
+#             'TicketsUpdated': updated_count
+#         }
 
-    except Exception as e:
-        response_data['message_text'] = 'Unable to update ticket payment.'
-        debug.append(f"Error Type: {type(e).__name__}, Details: {str(e)}")
+#     except Exception as e:
+#         response_data['message_text'] = 'Unable to update ticket payment.'
+#         debug.append(f"Error Type: {type(e).__name__}, Details: {str(e)}")
 
-    return Response(response_data, status=status.HTTP_200_OK)
+#     return Response(response_data, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])

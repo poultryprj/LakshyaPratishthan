@@ -28,7 +28,6 @@ urlpatterns = [
 
     path("insertblanktickets/", views.insertblanktickets, name="insertblanktickets"),
     path("inserttickets/", views.inserttickets, name="inserttickets"),
-    path("updateticket/", views.updateticket, name="updateticket"),
     path("cancelticket/", views.cancelticket, name="cancelticket"),
    
     path("totals/", views.totals, name="totals"),
@@ -61,15 +60,9 @@ urlpatterns = [
 
     ########################################################################
 
-    path("insert_ticket/", views.insert_ticket, name="insert_ticket"),
+    # path("change_ticket/", views.change_ticket, name="change_ticket"),
 
-    path("cancel_ticket/", views.cancel_ticket, name="cancel_ticket"),
-
-    path("remove_ticket/", views.remove_ticket, name="remove_ticket"),
-
-    path("change_ticket/", views.change_ticket, name="change_ticket"),
-
-    path("update_ticket_payment/", views.update_ticket_payment, name="update_ticket_payment"),
+    # path("update_ticket_payment/", views.update_ticket_payment, name="update_ticket_payment"),
 
     path("list_pilgrim_tickets/", views.list_pilgrim_tickets, name="list_pilgrim_tickets"),
 
