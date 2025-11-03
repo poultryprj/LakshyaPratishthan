@@ -69,6 +69,7 @@ urlpatterns = [
     path("list_available_tickets/", views.list_available_tickets, name="list_pilgrim_tickets"),
 
 
+    
     ########################### LakshyaPratishthan ######################################
 
     path("diwaliregistration/", views.diwaliregistration, name="diwaliregistration"),
@@ -89,6 +90,8 @@ urlpatterns = [
 
     path('add_diwali_kirana_sms/', views.add_diwali_kirana_sms, name='add_diwali_kirana_sms'),
 
+    path("delete_diwali_member/<int:reg_id>/", views.delete_diwali_member, name='api_delete_diwali_member'),
+
 
     
 # #########  Event Managment ###################
@@ -101,5 +104,10 @@ urlpatterns = [
     
     path('event_delete/', views.delete_event, name='delete_event'),
 
+    path('event_configure/<int:event_id>/',views. configure_event_fields_api, name='configure_event_fields_api'),
+
+    path('event_register/<int:event_id>/',views. event_registration_api, name='event_registration_api'),
+
+    path('event_registrations/<int:event_id>/', views.view_event_registrations_api, name='api_event_registrations'),
    
 ]

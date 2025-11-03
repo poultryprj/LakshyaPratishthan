@@ -46,6 +46,45 @@ class Gender(models.Model):
     class Meta:
         db_table = "gender"
 
+
+
+# Event Managment 24/10/2024  ##################
+
+class Event(models.Model):
+    eventId = models.AutoField(primary_key=True)
+    title = models.CharField(max_length=255, null=True, blank=True)
+    description = models.TextField(null=True, blank=True)
+    eventType = models.CharField(max_length=100, null=True, blank=True)
+    capacity = models.IntegerField(null=True, blank=True)
+    entryFees = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    startDateTime = models.DateTimeField(null=True, blank=True)
+    endDateTime = models.DateTimeField(null=True, blank=True)
+    registrationStart = models.DateTimeField(null=True, blank=True)
+    registrationEnd = models.DateTimeField(null=True, blank=True)
+
+    # Audit trail fields
+    created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Event_created_by')
+    last_modified_on = models.DateTimeField(auto_now=True)
+    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Event_modified_by')
+    is_deleted = models.BooleanField(default=False)
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Event_deleted_by')
+
+    class Meta:
+        db_table = "Event"        
+        
+class EventRegistrationField(models.Model):
+    """Stores which registration fields are active for a specific event."""
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='registration_fields')
+    field_name = models.CharField(max_length=100)
+    display_label = models.CharField(max_length=255, help_text="Custom label for the form field")
+    is_required = models.BooleanField(default=True)
+    order = models.PositiveIntegerField(default=0, help_text="Order in which fields appear on the form")
+
+    class Meta:
+        db_table = "EventRegistrationField" 
+
+
 class Registrations(models.Model):
     registrationId = models.AutoField(primary_key=True)
     firstname = models.CharField(max_length=50, null=True, blank=True)
@@ -55,29 +94,31 @@ class Registrations(models.Model):
     alternateMobileNo = models.CharField(max_length=15, null=True, blank=True)
     BookingMobileNo = models.CharField(max_length=15, null=True, blank=True)
     aadharNumber = models.CharField(max_length=20, null=True, blank=True)
-    bloodGroup = models.ForeignKey(BloodGroup, on_delete=models.SET_NULL, null=True, related_name='Registrations_BloodGroup')
+    bloodGroup = models.ForeignKey(BloodGroup, on_delete=models.SET_NULL, null=True, blank=True, related_name='Registrations_BloodGroup')
     dateOfBirth = models.DateField(null=True, blank=True)
     zonePreference = models.IntegerField(default=0, db_comment="0 = No preferance, 1 = Front, 2 = Middle, 3 = Back", null=True, blank=True)
     gender = models.IntegerField(default=1, db_comment="1 = Female, 2 = Male",null=True, blank=True)
-    areaId = models.ForeignKey(Areas, on_delete=models.SET_NULL, null=True, related_name='Registrations_Area')
+    areaId = models.ForeignKey(Areas, on_delete=models.SET_NULL, null=True, blank=True, related_name='Registrations_Area')
     address = models.TextField(null=True, blank=True)
     photoFileName = models.CharField(max_length=255, null=True, blank=True)
     idProofFileName = models.CharField(max_length=255, null=True, blank=True)
     voterIdProof = models.CharField(max_length=255, null=True, blank=True)
-    dateOfRegistration = models.DateField(null=True, blank=True)
+    dateOfRegistration = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     permanentId = models.IntegerField(null=True, blank=True)
-    userId = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Registrations_UserId')
-    age = models.SmallIntegerField(default=0, db_column='Age')
+    userId = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Registrations_UserId')
+    age = models.SmallIntegerField(default=0, db_column='Age', null=True, blank=True)
     ration_card_no = models.CharField(max_length=25, null=True, blank=True, db_column='RationCardNo')
     ration_card_photo = models.CharField(max_length=200, null=True, blank=True, db_column='RationCardPhoto')
     parent_id = models.IntegerField(null=True, blank=True, default=0, db_column='ParentId')
 
+    # event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='registrations', null=True)
+
     created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Registrations_created_by')
-    last_modified_on = models.DateTimeField(auto_now=True)
-    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Registrations_modified_by')
-    is_deleted = models.BooleanField(default=False)
-    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Registrations_deleted_by')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Registrations_created_by')
+    last_modified_on = models.DateTimeField(auto_now=True, null=True, blank=True)
+    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Registrations_modified_by')
+    is_deleted = models.BooleanField(default=False,  null=True, blank=True)
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Registrations_deleted_by')
 
     class Meta:
         db_table = "Registrations"
@@ -342,30 +383,23 @@ class DiwaliKirana(models.Model):
     class Meta:
         db_table = "tblDiwaliKirana"
 
-
-# Event Managment 24/10/2024  ##################
-
-class Event(models.Model):
-    eventId = models.AutoField(primary_key=True)
-    title = models.CharField(max_length=255, null=True, blank=True)
-    description = models.TextField(null=True, blank=True)
-    eventType = models.CharField(max_length=100, null=True, blank=True)
-    capacity = models.IntegerField(null=True, blank=True)
-    entryFees = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    startDateTime = models.DateTimeField(null=True, blank=True)
-    endDateTime = models.DateTimeField(null=True, blank=True)
-    registrationStart = models.DateTimeField(null=True, blank=True)
-    registrationEnd = models.DateTimeField(null=True, blank=True)
-
-    # Audit trail fields
+class EventRegistration(models.Model):
+    EventRegistrationId = models.AutoField(primary_key=True)
+    EventId = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='EventRegistrations_EventId')
+    RegistrationId = models.ForeignKey(Registrations, on_delete=models.CASCADE, related_name='EventRegistrations_RegistrationId')
+    RegistrationDateTime = models.DateTimeField(auto_now_add=True)
+    RegistrationStatus = models.SmallIntegerField(default=0)
+    
     created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Event_created_by')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='EventRegistration_created_by')
     last_modified_on = models.DateTimeField(auto_now=True)
-    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Event_modified_by')
+    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='EventRegistration_modified_by')
     is_deleted = models.BooleanField(default=False)
-    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Event_deleted_by')
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='EventRegistration_deleted_by')
 
     class Meta:
-        db_table = "Event"        
+        db_table = "EventRegistration"
+        
+    
         
 

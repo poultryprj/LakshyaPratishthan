@@ -40,6 +40,8 @@ from django.db.models import Subquery, OuterRef, Q
 from django.db import transaction, models
 import secrets
 import requests
+from django.forms import ValidationError
+from django.shortcuts import get_object_or_404
 
 
 
@@ -4388,6 +4390,7 @@ def list_available_tickets(request):
     return Response(response_data, status=status.HTTP_200_OK)
 
 
+
     #####################################  diwali Kirana #########################################
 
     
@@ -4573,7 +4576,7 @@ def diwaliregistration(request):
             'dateOfBirth': body.get('DateofBirth'),
             'photoFileName': body.get('PhotoFileName', ''),
             'idProofFileName': body.get('IdProofFileName', ''),
-            'voterIdProof': body.get('VoterId', ''),
+            'voterIdProof': body.get('VoterIdProof', ''),
             'zonePreference': body.get('ZonePreference', 0),
             'alternateMobileNo': alt_mobile_no,
             'aadharNumber': aadhar_no,
@@ -4699,7 +4702,8 @@ def check_rationcard(request):
                     "PermanantId": reg.get('permanentId'), # Note: Typo in PHP response ('PermanantId')
                     "RationCardNo": reg.get('ration_card_no'),
                     "ParentId": reg.get('parent_id'),
-                    "UserId": reg.get('userId_id') # ForeignKey returns the ID
+                    "UserId": reg.get('userId_id'), # ForeignKey returns the ID
+                    "Age": reg.get('age'), 
                 })
             
             response_data['message_code'] = 1000
@@ -5305,25 +5309,59 @@ def add_diwali_kirana_sms(request):
 
 
 
-# ###########   Event Managment ################
 
+
+
+@api_view(['POST'])
+def delete_diwali_member(request, reg_id):
+    """
+    Deletes a registration record by its ID.
+    """
+    try:
+        member_to_delete = Registrations.objects.get(registrationId=reg_id)
+        member_to_delete.delete()
+        return Response({
+            "status": "success",
+            "message": "Member deleted successfully."
+        }, status=status.HTTP_200_OK)
+    except Registrations.DoesNotExist:
+        return Response({
+            "status": "error",
+            "message": "Member not found."
+        }, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({
+            "status": "error",
+            "message": f"An error occurred: {str(e)}"
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+# ###########   Event Managment ################
 
 
 @api_view(['POST'])
 def create_event(request):
     """
-    Creates a new event.
+    Creates a new event, following the standardized response format.
     """
-    response_data = {'message_code': 999, 'message_text': 'An error occurred.', 'message_data': []}
-    
-    try:
-        body = request.data
-        
-        # --- Basic Validation ---
-        if not body.get('title') or not body.get('startDateTime'):
-            response_data['message_text'] = 'Title and startDateTime are required fields.'
-            return Response(response_data, status=status.HTTP_200_OK)
+    debug = []
+    response_data = {
+        'message_code': 999,
+        'message_text': 'Failure',
+        'message_data': [],
+        'message_debug': debug
+    }
 
+    body = request.data
+    
+    # --- Basic Validation ---
+    if not body.get('title') or not body.get('startDateTime'):
+        response_data['message_text'] = 'Title and startDateTime are required fields.'
+        return Response(response_data, status=status.HTTP_200_OK)
+
+    try:
         # Create the new event object
         new_event = Event.objects.create(
             title=body.get('title'),
@@ -5341,12 +5379,15 @@ def create_event(request):
         # Retrieve the created data as a dictionary to return in the response
         created_event_data = Event.objects.filter(pk=new_event.pk).values().first()
 
+        # On success, update the response data
         response_data['message_code'] = 1000
-        response_data['message_text'] = 'Event created successfully.'
+        response_data['message_text'] = 'Success' # Changed from "Event created successfully."
         response_data['message_data'] = [created_event_data]
 
     except Exception as e:
-        response_data['message_text'] = f"An unexpected error occurred: {str(e)}"
+        # On failure, set a generic message and add the specific error to debug
+        response_data['message_text'] = 'An unexpected error occurred while creating the event.'
+        debug.append(str(e))
         
     return Response(response_data, status=status.HTTP_200_OK)
 
@@ -5473,3 +5514,409 @@ def delete_event(request):
         
     return Response(response_data, status=status.HTTP_200_OK)
 
+
+
+
+
+REGISTRATION_FIELD_CHOICES = [
+    'firstname', 'middlename', 'lastname', 'mobileNo', 'alternateMobileNo',
+    'BookingMobileNo', 'aadharNumber', 'bloodGroup', 'dateOfBirth',
+    'zonePreference', 'gender', 'areaId', 'address', 'photoFileName',
+    'idProofFileName', 'voterIdProof', 'age', 'ration_card_no', 'ration_card_photo'
+]
+
+# =========================================================================
+# NEW API: CONFIGURE EVENT FIELDS (Standardized Format)
+# =========================================================================
+@api_view(['GET', 'POST'])
+def configure_event_fields_api(request, event_id):
+    """
+    GET: Fetches the field configuration for an event.
+    POST: Updates the field configuration for an event.
+    Follows the standardized response format.
+    """
+    debug = []
+    response_data = {
+        'message_code': 999,
+        'message_text': 'Failure',
+        'message_data': [],
+        'message_debug': debug
+    }
+
+    try:
+        event = Event.objects.get(pk=event_id)
+
+        # --- GET Request Logic ---
+        if request.method == 'GET':
+            selected_fields = EventRegistrationField.objects.filter(event=event).values_list('field_name', flat=True)
+            
+            data_payload = {
+                "event_title": event.title,
+                "all_possible_fields": REGISTRATION_FIELD_CHOICES,
+                "selected_fields": list(selected_fields)
+            }
+            
+            response_data['message_code'] = 1000
+            response_data['message_text'] = 'Success'
+            response_data['message_data'] = [data_payload]
+
+        # --- POST Request Logic ---
+        elif request.method == 'POST':
+            body = request.data
+            selected_fields = body.get('selected_fields')
+
+            if not isinstance(selected_fields, list):
+                response_data['message_text'] = "'selected_fields' must be a list."
+                return Response(response_data, status=status.HTTP_200_OK)
+
+            invalid_fields = set(selected_fields) - set(REGISTRATION_FIELD_CHOICES)
+            if invalid_fields:
+                response_data['message_text'] = f"Invalid field names provided: {', '.join(invalid_fields)}"
+                return Response(response_data, status=status.HTTP_200_OK)
+
+            # Perform update
+            EventRegistrationField.objects.filter(event=event).delete()
+            for index, field_name in enumerate(selected_fields):
+                label = field_name.replace('_', ' ').title()
+                EventRegistrationField.objects.create(
+                    event=event, field_name=field_name, display_label=label, is_required=True, order=index
+                )
+            
+            response_data['message_code'] = 1000
+            response_data['message_text'] = 'Success'
+            response_data['message_data'] = [{"status": f"Successfully configured fields for event '{event.title}'."}]
+
+    except Event.DoesNotExist:
+        response_data['message_text'] = f"Event with ID {event_id} not found."
+    except Exception as e:
+        response_data['message_text'] = 'An unexpected error occurred.'
+        debug.append(str(e))
+        
+    return Response(response_data, status=status.HTTP_200_OK)
+
+
+# @api_view(['GET', 'POST'])
+# def event_registration_api(request, event_id):
+#     """
+#     GET: Returns a dynamic definition of the form.
+#     POST: Creates a new registration record.
+#     Follows the standardized response format.
+#     """
+#     debug = []
+#     response_data = {
+#         'message_code': 999,
+#         'message_text': 'Failure',
+#         'message_data': [],
+#         'message_debug': debug
+#     }
+
+#     try:
+#         event = Event.objects.get(pk=event_id)
+        
+#         # --- GET Request: Get Form Definition ---
+#         if request.method == 'GET':
+#             configured_fields = EventRegistrationField.objects.filter(event=event).order_by('order')
+
+#             if not configured_fields.exists():
+#                 response_data['message_text'] = "This event has no registration fields configured."
+#                 # This is a valid state, so we can consider it a "success" with a specific message
+#                 response_data['message_code'] = 1000 
+#                 return Response(response_data, status=status.HTTP_200_OK)
+
+#             form_definition = []
+#             for config in configured_fields:
+#                 field_info = {"field_name": config.field_name, "display_label": config.display_label, "is_required": config.is_required, "field_type": "text", "choices": []}
+#                 try:
+#                     model_field = Registrations._meta.get_field(config.field_name)
+#                     if isinstance(model_field, models.DateField): field_info["field_type"] = "date"
+#                     elif isinstance(model_field, models.IntegerField): field_info["field_type"] = "number"
+#                     elif isinstance(model_field, models.ForeignKey):
+#                         field_info["field_type"] = "select"
+#                         queryset = model_field.related_model.objects.all()
+#                         if model_field.related_model == BloodGroup: field_info["choices"] = [{"value": item.pk, "display": item.bloodGroupName} for item in queryset]
+#                         elif model_field.related_model == Areas: field_info["choices"] = [{"value": item.pk, "display": item.AreaName} for item in queryset]
+#                 except models.FieldDoesNotExist: pass
+#                 form_definition.append(field_info)
+            
+#             response_data['message_code'] = 1000
+#             response_data['message_text'] = 'Success'
+#             response_data['message_data'] = [{"event_title": event.title, "fields": form_definition}]
+
+#         # --- POST Request: Submit a new registration ---
+#         elif request.method == 'POST':
+#             body = request.data
+#             configured_fields = EventRegistrationField.objects.filter(event=event)
+#             allowed_field_names = {field.field_name for field in configured_fields}
+#             required_field_names = {field.field_name for field in configured_fields if field.is_required}
+
+#             # Manual Validation
+#             errors = {}
+#             missing_fields = required_field_names - set(body.keys())
+#             if missing_fields:
+#                 for field in missing_fields: errors[field] = "This field is required."
+#             if errors:
+#                 response_data['message_text'] = 'Validation Error'
+#                 response_data['message_data'] = [errors]
+#                 return Response(response_data, status=status.HTTP_200_OK)
+            
+#             # Create Model Instance
+#             registration = Registrations(event=event)
+#             for field_name, value in body.items():
+#                 if field_name in allowed_field_names:
+#                     setattr(registration, field_name, value)
+            
+#             try:
+#                 registration.full_clean()
+#             except ValidationError as e:
+#                 response_data['message_text'] = 'Validation Error'
+#                 response_data['message_data'] = [e.message_dict]
+#                 return Response(response_data, status=status.HTTP_200_OK)
+            
+#             registration.save()
+            
+#             response_data['message_code'] = 1000
+#             response_data['message_text'] = 'Success'
+#             response_data['message_data'] = [{"message": "Registration successful.", "registrationId": registration.registrationId}]
+
+#     except Event.DoesNotExist:
+#         response_data['message_text'] = f"Event with ID {event_id} not found."
+#     except Exception as e:
+#         response_data['message_text'] = 'An unexpected error occurred during registration.'
+#         debug.append(str(e))
+        
+#     return Response(response_data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET', 'POST'])
+def event_registration_api(request, event_id):
+    """
+    GET: Returns a dynamic definition of the form.
+    POST: Creates a new registration record using the EventRegistration linking table.
+    """
+    debug = []
+    response_data = {
+        'message_code': 999, 'message_text': 'Failure', 'message_data': [], 'message_debug': debug
+    }
+
+    try:
+        event = Event.objects.get(pk=event_id)
+        
+        # --- GET Request: Get Form Definition (No changes needed) ---
+        if request.method == 'GET':
+            configured_fields = EventRegistrationField.objects.filter(event=event).order_by('order')
+
+            if not configured_fields.exists():
+                response_data['message_text'] = "This event has no registration fields configured."
+                response_data['message_code'] = 1000 
+                return Response(response_data, status=status.HTTP_200_OK)
+
+            form_definition = []
+            for config in configured_fields:
+                field_info = {"field_name": config.field_name, "display_label": config.display_label, "is_required": config.is_required, "field_type": "text", "choices": []}
+                try:
+                    model_field = Registrations._meta.get_field(config.field_name)
+                    if isinstance(model_field, models.DateField): field_info["field_type"] = "date"
+                    elif isinstance(model_field, models.IntegerField): field_info["field_type"] = "number"
+                    elif isinstance(model_field, models.ForeignKey):
+                        field_info["field_type"] = "select"
+                        queryset = model_field.related_model.objects.all()
+                        if model_field.related_model == BloodGroup: field_info["choices"] = [{"value": item.pk, "display": item.bloodGroupName} for item in queryset]
+                        elif model_field.related_model == Areas: field_info["choices"] = [{"value": item.pk, "display": item.AreaName} for item in queryset]
+                except models.FieldDoesNotExist: pass
+                form_definition.append(field_info)
+            
+            response_data['message_code'] = 1000
+            response_data['message_text'] = 'Success'
+            response_data['message_data'] = [{"event_title": event.title, "fields": form_definition}]
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        # --- POST Request: Submit a new registration (UPDATED LOGIC) ---
+        elif request.method == 'POST':
+            body = request.data
+            configured_fields = EventRegistrationField.objects.filter(event=event)
+            allowed_field_names = {field.field_name for field in configured_fields}
+            required_field_names = {field.field_name for field in configured_fields if field.is_required}
+
+            # Manual Validation
+            errors = {}
+            missing_fields = required_field_names - set(body.keys())
+            if missing_fields:
+                for field in missing_fields: errors[field] = "This field is required."
+            if errors:
+                response_data['message_text'] = 'Validation Error'
+                response_data['message_data'] = [errors]
+                return Response(response_data, status=status.HTTP_200_OK)
+
+            # --- START OF THE NEW LOGIC ---
+
+            # Step 1: Create the master person record in the 'Registrations' table
+            person_record = Registrations()
+            
+            for field_name, value in body.items():
+                if field_name in allowed_field_names:
+                    # Special handling for foreign keys
+                    if field_name == 'bloodGroup' and value:
+                        person_record.bloodGroup = get_object_or_404(BloodGroup, pk=value)
+                    elif field_name == 'areaId' and value:
+                        person_record.areaId = get_object_or_404(Areas, pk=value)
+                    else:
+                        setattr(person_record, field_name, value)
+            
+            try:
+                person_record.full_clean()
+                person_record.save()
+            except ValidationError as e:
+                response_data['message_text'] = 'Validation Error'
+                response_data['message_data'] = [e.message_dict]
+                return Response(response_data, status=status.HTTP_200_OK)
+
+            # Step 2: Create the linking record in the 'EventRegistration' table
+            # Check for duplicates first
+            if EventRegistration.objects.filter(EventId=event, RegistrationId=person_record).exists():
+                response_data['message_text'] = 'This person is already registered for this event.'
+                # You might want to delete the newly created person_record here if it's a true duplicate scenario
+                person_record.delete()
+                return Response(response_data, status=status.HTTP_200_OK)
+
+            event_reg_link = EventRegistration.objects.create(
+                EventId=event,
+                RegistrationId=person_record
+            )
+            
+            # --- END OF THE NEW LOGIC ---
+            
+            response_data['message_code'] = 1000
+            response_data['message_text'] = 'Success'
+            response_data['message_data'] = [{
+                "message": "Registration successful.", 
+                "registrationId": person_record.registrationId,
+                "eventRegistrationId": event_reg_link.EventRegistrationId
+            }]
+
+    except Event.DoesNotExist:
+        response_data['message_text'] = f"Event with ID {event_id} not found."
+    except Exception as e:
+        response_data['message_text'] = 'An unexpected error occurred during registration.'
+        debug.append(str(e))
+        
+    return Response(response_data, status=status.HTTP_200_OK)
+
+
+
+# @api_view(['GET'])
+# def view_event_registrations_api(request, event_id):
+#     """
+#     GET: Fetches all registrations for an event, but only returns the data
+#     for the fields that have been configured for that event.
+#     """
+#     debug = []
+#     response_data = {
+#         'message_code': 999,
+#         'message_text': 'Failure',
+#         'message_data': [],
+#         'message_debug': debug
+#     }
+
+#     try:
+#         event = Event.objects.get(pk=event_id)
+        
+#         # 1. Get the configured fields for this event
+#         configured_fields = EventRegistrationField.objects.filter(event=event).order_by('order')
+
+#         if not configured_fields.exists():
+#             response_data['message_code'] = 1000
+#             response_data['message_text'] = 'This event has no registration fields configured.'
+#             return Response(response_data, status=status.HTTP_200_OK)
+
+#         headers = [field.display_label for field in configured_fields]
+#         field_keys = [field.field_name for field in configured_fields]
+
+#         registrations = Registrations.objects.filter(event=event).values(*field_keys)
+
+#         data_payload = {
+#             "event_title": event.title,
+#             "headers": headers,
+#             "registrations": list(registrations)
+#         }
+
+#         response_data['message_code'] = 1000
+#         response_data['message_text'] = 'Success'
+#         response_data['message_data'] = [data_payload]
+
+#     except Event.DoesNotExist:
+#         response_data['message_text'] = f"Event with ID {event_id} not found."
+#     except Exception as e:
+#         response_data['message_text'] = 'An unexpected error occurred.'
+#         debug.append(str(e))
+        
+#     return Response(response_data, status=status.HTTP_200_OK)    
+    
+
+
+@api_view(['GET'])
+def view_event_registrations_api(request, event_id):
+    """
+    GET: Fetches all registrations for an event using the new EventRegistration
+    linking table. It only returns the data for the fields configured for that event.
+    """
+    debug = []
+    response_data = {
+        'message_code': 999,
+        'message_text': 'Failure',
+        'message_data': [],
+        'message_debug': debug
+    }
+
+    try:
+        event = Event.objects.get(pk=event_id)
+        
+        # 1. Get the configured fields for this event (No change here)
+        configured_fields = EventRegistrationField.objects.filter(event=event).order_by('order')
+
+        if not configured_fields.exists():
+            response_data['message_code'] = 1000
+            response_data['message_text'] = 'This event has no registration fields configured.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        # 2. Prepare the headers and field keys (No change here)
+        headers = [field.display_label for field in configured_fields]
+        # We need to prepend 'RegistrationId__' to each field key to traverse the relationship
+        field_keys = [f'RegistrationId__{field.field_name}' for field in configured_fields]
+        
+        # --- START OF THE NEW LOGIC ---
+
+        # 3. Fetch the registrations through the new linking table
+        # We start from EventRegistration and select the related person's details.
+        event_registrations = EventRegistration.objects.filter(EventId=event).values(*field_keys)
+
+        # The result from .values() will have keys like 'RegistrationId__firstname'.
+        # We need to clean these up for the front-end to use them easily.
+        cleaned_registrations = []
+        for reg in event_registrations:
+            cleaned_row = {}
+            for key, value in reg.items():
+                # 'RegistrationId__firstname' becomes 'firstname'
+                new_key = key.replace('RegistrationId__', '')
+                cleaned_row[new_key] = value
+            cleaned_registrations.append(cleaned_row)
+
+        # --- END OF THE NEW LOGIC ---
+
+        # 4. Assemble the final data payload
+        data_payload = {
+            "event_title": event.title,
+            "headers": headers,
+            "registrations": cleaned_registrations # Use the cleaned list
+        }
+
+        response_data['message_code'] = 1000
+        response_data['message_text'] = 'Success'
+        response_data['message_data'] = [data_payload]
+
+    except Event.DoesNotExist:
+        response_data['message_text'] = f"Event with ID {event_id} not found."
+    except Exception as e:
+        response_data['message_text'] = f'An unexpected error occurred: {str(e)}'
+        debug.append(str(e))
+        
+    return Response(response_data, status=status.HTTP_200_OK)    
