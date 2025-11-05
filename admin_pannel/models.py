@@ -82,7 +82,7 @@ class EventRegistrationField(models.Model):
     order = models.PositiveIntegerField(default=0, help_text="Order in which fields appear on the form")
 
     class Meta:
-        db_table = "EventRegistrationField" 
+        db_table = "EventRegistrationField"  
 
 
 class Registrations(models.Model):
@@ -110,6 +110,7 @@ class Registrations(models.Model):
     ration_card_no = models.CharField(max_length=25, null=True, blank=True, db_column='RationCardNo')
     ration_card_photo = models.CharField(max_length=200, null=True, blank=True, db_column='RationCardPhoto')
     parent_id = models.IntegerField(null=True, blank=True, default=0, db_column='ParentId')
+    VoterID_No = models.CharField(max_length=20, null=True, blank=True)
 
     # event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='registrations', null=True)
 
@@ -389,6 +390,9 @@ class EventRegistration(models.Model):
     RegistrationId = models.ForeignKey(Registrations, on_delete=models.CASCADE, related_name='EventRegistrations_RegistrationId')
     RegistrationDateTime = models.DateTimeField(auto_now_add=True)
     RegistrationStatus = models.SmallIntegerField(default=0)
+    TokenNo = models.IntegerField(null=True, blank=True)
+    QRCode  = models.CharField(max_length=8, null=True, blank=True)
+    QRURL = models.CharField(max_length=255, null=True, blank=True)
     
     created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='EventRegistration_created_by')
@@ -399,7 +403,3 @@ class EventRegistration(models.Model):
 
     class Meta:
         db_table = "EventRegistration"
-        
-    
-        
-
