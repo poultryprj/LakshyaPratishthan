@@ -393,6 +393,7 @@ class EventRegistration(models.Model):
     TokenNo = models.IntegerField(null=True, blank=True)
     QRCode  = models.CharField(max_length=8, null=True, blank=True)
     QRURL = models.CharField(max_length=255, null=True, blank=True)
+    Reg_status= models.IntegerField( null=True, blank=True)
     
     created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='EventRegistration_created_by')
