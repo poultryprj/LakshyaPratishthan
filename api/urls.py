@@ -119,5 +119,9 @@ urlpatterns = [
     path('event_registrations/<int:event_id>/', views.view_event_registrations_api, name='api_event_registrations'),
 
     path('public/verify/<int:event_id>/<int:registration_id>/', views.get_public_registration_details, name='get_public_registration_details'),
+
+    path('public/update_status/<int:event_id>/<int:registration_id>/', views.update_registration_status, name='update_registration_status'),
+    
+    path('public/cancel/<int:event_id>/<int:registration_id>/', views.cancel_registration, name='cancel_registration'),
    
 ]

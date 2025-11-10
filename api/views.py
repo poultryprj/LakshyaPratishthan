@@ -6190,42 +6190,97 @@ def view_event_registrations_api(request, event_id):
 def get_public_registration_details(request, event_id, registration_id):
     """
     Publicly accessible endpoint to get details for the digital pass.
-    UPDATED to include token_no and qr_url.
+    UPDATED to include eventType and current registration status (Reg_status).
     """
     response_data = {
-        'message_code': 999,
-        'message_text': 'Failure',
-        'message_data': []
+        'message_code': 999, 'message_text': 'Failure', 'message_data': []
     }
 
     try:
+        # Select related event to optimize the query
         event_registration = get_object_or_404(
-            EventRegistration, 
+            EventRegistration.objects.select_related('EventId', 'RegistrationId'), 
             EventId_id=event_id, 
-            RegistrationId_id=registration_id
+            RegistrationId_id=registration_id,
+            is_deleted=False  # Ensure we don't fetch already cancelled QRs
         )
         
         event = event_registration.EventId
         registration = event_registration.RegistrationId
         
-        # Prepare the data to be returned
         details = {
             'customer_name': f"{registration.firstname or ''} {registration.lastname or ''}".strip(),
             'event_title': event.title,
-            'token_no': event_registration.TokenNo, # <-- ADDED
-            'qr_url': event_registration.QRURL, # <-- ADDED
-            'registration_status': 'Verified' 
+            'token_no': event_registration.TokenNo,
+            'qr_url': event_registration.QRURL,
+            'registration_status': 'Verified',
+            # --- NEWLY ADDED FIELDS ---
+            'event_type': event.get_eventType_display(), # 'Normal Event' or 'Distribution Event'
+            'event_type_key': event.eventType, # 'normal' or 'distribution'
+            'reg_status': event_registration.Reg_status, # Will be 0, 1, or None
         }
         
-        response_data['message_code'] = 1000
-        response_data['message_text'] = 'Success'
-        response_data['message_data'] = [details]
+        response_data.update({'message_code': 1000, 'message_text': 'Success', 'message_data': [details]})
 
     except EventRegistration.DoesNotExist:
-        response_data['message_text'] = 'Registration not found for this event.'
+        response_data['message_text'] = 'This registration is invalid, has been cancelled, or does not exist.'
         return Response(response_data, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         response_data['message_text'] = f"An unexpected error occurred: {str(e)}"
         return Response(response_data, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
     return Response(response_data, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+def update_registration_status(request, event_id, registration_id):
+    """
+    Updates the status of an event registration.
+    Expects a JSON body with {'status': 0} or {'status': 1}.
+    """
+    response_data = {'message_code': 999, 'message_text': 'Failure'}
+    
+    try:
+        event_reg = get_object_or_404(EventRegistration, EventId_id=event_id, RegistrationId_id=registration_id)
+        
+        new_status = request.data.get('status')
+
+        if new_status not in [0, 1]:
+            response_data['message_text'] = "Invalid status provided. Must be 0 or 1."
+            return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+
+        event_reg.Reg_status = new_status
+        event_reg.save()
+
+        response_data.update({'message_code': 1000, 'message_text': 'Status updated successfully.'})
+        return Response(response_data, status=status.HTTP_200_OK)
+
+    except EventRegistration.DoesNotExist:
+        response_data['message_text'] = 'Registration not found.'
+        return Response(response_data, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        response_data['message_text'] = f"An unexpected error occurred: {str(e)}"
+        return Response(response_data, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+def cancel_registration(request, event_id, registration_id):
+    """ Soft deletes an event registration. """
+    response_data = {'message_code': 999, 'message_text': 'Failure'}
+
+    try:
+        rows_updated = EventRegistration.objects.filter(
+            EventId_id=event_id, 
+            RegistrationId_id=registration_id
+        ).update(is_deleted=True)
+        
+        if rows_updated == 0:
+            response_data['message_text'] = 'Registration not found.'
+            return Response(response_data, status=status.HTTP_404_NOT_FOUND)
+        else:
+            response_data.update({'message_code': 1000, 'message_text': 'Registration has been successfully cancelled.'})
+            return Response(response_data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        response_data['message_text'] = f"An unexpected error occurred: {str(e)}"
+        return Response(response_data, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

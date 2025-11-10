@@ -51,10 +51,17 @@ class Gender(models.Model):
 # Event Managment 24/10/2024  ##################
 
 class Event(models.Model):
+
+
+    EVENT_TYPE_CHOICES = [
+        ('normal', 'Normal Event'),
+        ('distribution', 'Distribution Event'),
+    ]
+
     eventId = models.AutoField(primary_key=True)
     title = models.CharField(max_length=255, null=True, blank=True)
     description = models.TextField(null=True, blank=True)
-    eventType = models.CharField(max_length=100, null=True, blank=True)
+    eventType = models.CharField(max_length=20, choices=EVENT_TYPE_CHOICES, default='normal', null=True, blank=True)
     capacity = models.IntegerField(null=True, blank=True)
     entryFees = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     startDateTime = models.DateTimeField(null=True, blank=True)

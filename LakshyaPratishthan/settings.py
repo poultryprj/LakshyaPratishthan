@@ -86,13 +86,24 @@ WSGI_APPLICATION = 'LakshyaPratishthan.wsgi.application'
 #     }
 # }
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'LakshyaPratishthan',
+#         'USER': 'postgres',
+#         'PASSWORD': 'Lakshya123',
+#         'HOST': '127.0.0.1',
+#         'PORT': '5432',
+#     }
+# }
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'LakshyaPratishthan',
+        'NAME': 'LakshyaPratishthan_db',
         'USER': 'postgres',
-        'PASSWORD': 'Lakshya123',
-        'HOST': '127.0.0.1',
+        'PASSWORD': 'lakshya1812',
+        'HOST': '43.205.198.148',
         'PORT': '5432',
     }
 }
@@ -132,12 +143,12 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
-STATIC_URL = "/static/"
-# STATIC_URL = "/LakshyaPratishthan/static/"
+# STATIC_URL = "/static/"
+STATIC_URL = "/LakshyaPratishthan/static/"
 
 STATICFILES_DIRS = [
-    # BASE_DIR / "LakshyaPratishthan/static",
-    BASE_DIR / "static",
+    BASE_DIR / "LakshyaPratishthan/static",
+    # BASE_DIR / "static",
 ]
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
