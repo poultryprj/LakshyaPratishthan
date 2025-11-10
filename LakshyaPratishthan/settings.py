@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'admin_pannel',
     'api',
     'mobile_api',
+    'active_link',
 ]
 
 MIDDLEWARE = [

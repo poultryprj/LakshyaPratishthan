@@ -1,0 +1,100 @@
+{% extends "base.html" %} {% block content %}
+
+<div class="content container-fluid">
+  <div class="page-header">
+    <div class="row">
+      <div class="col-sm-12">
+        <h3 class="page-title">Welcome Admin!</h3>
+        <!-- <ul class="breadcrumb">
+          <li class="breadcrumb-item active">Dashboard</li>
+        </ul> -->
+      </div>
+    </div>
+  </div>
+  {% include "includes/message.html" %}
+  <div class="row">
+    <div class="col-xl-3 col-sm-6 col-12 d-flex">
+      <div class="card bg-one w-100">
+        <div class="card-body">
+          <div
+            class="db-widgets d-flex justify-content-between align-items-center"
+          >
+            <div class="db-icon">
+              <i class="fa-solid fa-road"></i>
+            </div>
+            <div class="db-info">
+              <h3>{{routesCounts}}</h3>
+              <h6>Road Map</h6>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-xl-3 col-sm-6 col-12 d-flex">
+      <div class="card bg-two w-100">
+        <div class="card-body">
+          <div
+            class="db-widgets d-flex justify-content-between align-items-center"
+          >
+            <div class="db-icon">
+              <i class="fa-solid fa-shop"></i>
+            </div>
+            <div class="db-info">
+              <h3>{{shopsCounts}}</h3>
+              <h6>APNAHRMS</h6>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-xl-3 col-sm-6 col-12 d-flex">
+      <div class="card bg-three w-100">
+        <div class="card-body">
+          <div
+            class="db-widgets d-flex justify-content-between align-items-center"
+          >
+            <div class="db-icon">
+              <i class="fa-solid fa-people-roof"></i>
+            </div>
+            <div class="db-info">
+              <h3>{{shopsOwnersCounts}}</h3>
+              <h6>Owner</h6>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-xl-3 col-sm-6 col-12 d-flex">
+      <div class="card bg-four w-100">
+        <div class="card-body">
+          <div
+            class="db-widgets d-flex justify-content-between align-items-center"
+          >
+            <div class="db-icon">
+              <i class="fas fa-book-reader"></i>
+            </div>
+            <div class="db-info">
+              <h3></h3>
+              <h6>magazine</h6>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  const user_id = "{{ user_id|escapejs }}";   // Ensure proper escaping
+  const token = "{{ token|escapejs }}";         // Ensure proper escaping
+  const user_name = "{{ user_name|escapejs }}"; // Ensure proper escaping
+
+  // Storing in localStorage
+  localStorage.setItem("user_id", user_id);
+  localStorage.setItem("token", token);
+  localStorage.setItem("user_name", user_name);
+
+  // Logging to verify
+  console.log(user_id, token, user_name); // Access the values
+</script>
+
+{% include "includes/chart.html" %} {% endblock content %}

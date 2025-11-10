@@ -5310,11 +5310,6 @@ def add_diwali_kirana_sms(request):
 
     return Response(response_data, status=status.HTTP_200_OK)
 
-
-
-
-
-
 @api_view(['POST'])
 def delete_diwali_member(request, reg_id):
     """
@@ -5337,6 +5332,234 @@ def delete_diwali_member(request, reg_id):
             "status": "error",
             "message": f"An error occurred: {str(e)}"
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+@api_view(['POST'])
+@transaction.atomic
+def bulk_update_diwali_kirana(request):
+    """
+    Accepts a list of registration objects and updates them in the database.
+    """
+    response_data = {'message_code': 999, 'message_text': 'Failure'}
+    records_to_update = request.data
+
+    if not isinstance(records_to_update, list):
+        response_data['message_text'] = 'Invalid data format. Expected a list of objects.'
+        return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        updated_ids = []
+        for record_data in records_to_update:
+            reg_id = record_data.get('RegistrationId')
+            if not reg_id:
+                continue
+
+            try:
+                registration = Registrations.objects.get(registrationId=reg_id)
+                
+                # Update allowed fields from the grid
+                registration.firstname = record_data.get('Firstname', registration.firstname)
+                registration.middlename = record_data.get('Middlename', registration.middlename)
+                registration.lastname = record_data.get('Lastname', registration.lastname)
+                registration.address = record_data.get('Address', registration.address)
+                registration.mobileNo = record_data.get('MobileNo', registration.mobileNo)
+                registration.VoterID_No = record_data.get('VoterID_No', registration.VoterID_No)
+                
+                registration.save()
+                updated_ids.append(reg_id)
+
+            except Registrations.DoesNotExist:
+                print(f"Warning: Registration with ID {reg_id} not found. Skipping.")
+                continue
+        
+        response_data['message_code'] = 1000
+        response_data['message_text'] = f'Successfully updated {len(updated_ids)} records.'
+        return Response(response_data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        response_data['message_text'] = f"An error occurred during bulk update: {str(e)}"
+        return Response(response_data, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+def add_diwali_family_member(request):
+    """
+    Adds a new family member (a new row in the Registrations table).
+    """
+    response_data = {'message_code': 999, 'message_text': 'Failure'}
+    data = request.data
+    
+    if not data.get('RationCardNo') or not data.get('ParentId'):
+        response_data['message_text'] = 'RationCardNo and ParentId are required to add a family member.'
+        return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        new_member = Registrations.objects.create(
+            firstname=data.get('Firstname', 'New'),
+            lastname=data.get('Lastname', 'Member'),
+            mobileNo=data.get('MobileNo', ''),
+            VoterID_No=data.get('VoterID_No', ''),
+            ration_card_no=data.get('RationCardNo'),
+            parent_id=data.get('ParentId'),
+            address=data.get('Address', ''),
+        )
+
+        # We return the full object so the grid can update itself
+        response_payload = {
+            "RegistrationId": new_member.registrationId,
+            "Firstname": new_member.firstname,
+            "Lastname": new_member.lastname,
+            "VoterID_No": new_member.VoterID_No,
+            "MobileNo": new_member.mobileNo,
+            "Address": new_member.address,
+            "VoterIdProof": new_member.voterIdProof, 
+            "RationCardNo": new_member.ration_card_no,
+            "ParentId": new_member.parent_id,
+            "TokenNo": None 
+        }
+
+        response_data['message_code'] = 1000
+        response_data['message_text'] = 'Family member added successfully.'
+        response_data['message_data'] = response_payload
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        response_data['message_text'] = f"An error occurred while adding member: {str(e)}"
+        return Response(response_data, status=status.HTTP_500_INTERNAL_SERVER_ERROR)    
+
+
+
+@api_view(['POST'])
+def upload_voter_id(request):
+    """
+    Handles uploading a voter ID file for a specific registration.
+    Expects multipart/form-data with 'registration_id' and 'voter_id_file'.
+    """
+    response_data = {'message_code': 999, 'message_text': 'Failure'}
+    try:
+        registration_id = request.POST.get('registration_id')
+        uploaded_file = request.FILES.get('voter_id_file')
+
+        if not registration_id or not uploaded_file:
+            response_data['message_text'] = 'Registration ID and a file are required.'
+            return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+
+        # Find the registration record
+        registration = Registrations.objects.get(registrationId=registration_id)
+
+        # --- File Saving Logic ---
+        # Generate a unique filename to prevent overwrites
+        file_extension = os.path.splitext(uploaded_file.name)[1]
+        unique_filename = f"voter-{uuid.uuid4().hex}{file_extension}"
+        
+        # Define the save path within your static directory
+        # IMPORTANT: Make sure your Django project can serve files from here
+        save_path_dir = os.path.join(settings.BASE_DIR, 'static', 'assets', 'voter_ids')
+        os.makedirs(save_path_dir, exist_ok=True) # Create directory if it doesn't exist
+        file_save_path = os.path.join(save_path_dir, unique_filename)
+        
+        # Write the file to the disk
+        with open(file_save_path, 'wb+') as destination:
+            for chunk in uploaded_file.chunks():
+                destination.write(chunk)
+        
+        # Create the URL path to be saved in the database
+        voter_id_url_path = f"/static/assets/voter_ids/{unique_filename}"
+        
+        # Update the database record
+        registration.voterIdProof = voter_id_url_path
+        registration.save()
+
+        response_data['message_code'] = 1000
+        response_data['message_text'] = 'File uploaded successfully.'
+        response_data['message_data'] = {'new_url': voter_id_url_path} # Send the new URL back
+        return Response(response_data, status=status.HTTP_200_OK)
+
+    except Registrations.DoesNotExist:
+        response_data['message_text'] = 'Registration not found.'
+        return Response(response_data, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        response_data['message_text'] = f"An error occurred during file upload: {str(e)}"
+        return Response(response_data, status=status.HTTP_500_INTERNAL_SERVER_ERROR)            
+
+
+
+
+# Lakshpratishthan/api/views.py
+
+# ... (keep all your existing imports and views) ...
+
+@api_view(['POST', 'GET']) # Allow GET requests as well for simple fetching
+def list_all_registrations(request):
+    """
+    Lists ALL registrations from the Registrations table.
+    For each registration, it also retrieves their corresponding Diwali Token number if one exists.
+    """
+    response_data = {
+        'message_code': 999,
+        'message_text': 'An error occurred.',
+        'message_data': []
+    }
+
+    try:
+        # Step 1: Define the subquery to find a token number (this remains the same).
+        token_subquery = DiwaliKirana.objects.filter(
+            RegistrationId=OuterRef('pk'),
+            DiwaliYearMonth='2025-10' # You can adjust or remove this year filter if needed
+        ).values('TokenNo')[:1]
+
+        # --- THE ONLY CHANGE IS HERE ---
+        # Step 2: Build the main query for Registrations.
+        # We remove the filter `Q(ration_card_no__isnull=False) & ~Q(ration_card_no='')`
+        # and simply call .all() to get every record.
+        all_registrations = Registrations.objects.all().annotate(
+            TokenNo=Subquery(token_subquery)
+        )
+
+        # Step 3: Check if any records were found.
+        if all_registrations.exists():
+            # Step 4: Format the data (this logic remains the same).
+            formatted_data = []
+            for reg in all_registrations:
+                formatted_data.append({
+                    "RegistrationId": reg.registrationId,
+                    "Firstname": reg.firstname,
+                    "Middlename": reg.middlename,
+                    "Lastname": reg.lastname,
+                    "MobileNo": reg.mobileNo,
+                    "VoterID_No": reg.VoterID_No,
+                    "AlternateMobileNo": reg.alternateMobileNo,
+                    "BloodGroup": reg.bloodGroup_id,
+                    "DateOfBirth": reg.dateOfBirth,
+                    "ZonePreference": reg.zonePreference,
+                    "Gender": reg.gender,
+                    "AadharNumber": reg.aadharNumber,
+                    "AreaId": reg.areaId_id,
+                    "Address": reg.address,
+                    "PhotoFileName": reg.photoFileName,
+                    "IdProofFileName": reg.idProofFileName,
+                    "VoterIdProof": reg.voterIdProof,
+                    "DateOfRegistration": reg.dateOfRegistration,
+                    "PermanantId": reg.permanentId,
+                    "RationCardNo": reg.ration_card_no,
+                    "RationCardPhoto": reg.ration_card_photo,
+                    "ParentId": reg.parent_id,
+                    "UserId": reg.userId_id,
+                    "TokenNo": reg.TokenNo
+                })
+
+            response_data['message_code'] = 1000
+            response_data['message_text'] = 'All Registrations Retrieved'
+            response_data['message_data'] = formatted_data
+        else:
+            response_data['message_text'] = 'No Registration Data Found.'
+
+    except Exception as e:
+        response_data['message_text'] = f"An unexpected error occurred: {str(e)}"
+
+    return Response(response_data, status=status.HTTP_200_OK)
 
 
 

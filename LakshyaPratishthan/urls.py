@@ -14,6 +14,8 @@ urlpatterns = [
 
     # UNIQUE PATH for the api app
     path('LakshyaPratishthan/api/', include('api.urls')),
+
+    path('lakshadmin/', include('admin_pannel.urls')),
 ]
 
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

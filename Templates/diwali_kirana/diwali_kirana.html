@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+
+{% block content %}
+{# Assets #}
+<script src="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<div class="content container-fluid">
+    <div class="page-header">
+        <div class="row align-items-center">
+            <div class="col">
+                <h3 class="page-title">Registration List</h3>
+            </div>
+            <div class="col-auto">
+                <button id="save-btn" class="btn btn-success"><i class="fas fa-save"></i> Save Changes</button>
+                <input id="search-box" type="text" class="form-control d-inline-block ms-2"
+                       placeholder="Search name / mobile" style="width: 225px;">
+            </div>
+        </div>
+    </div>
+
+    {% include "includes/message.html" %}
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <p class="text-muted small">
+               To add a new family member, click the <i class="fas fa-plus-circle text-primary"></i> icon. To delete a record, click the <i class="fas fa-trash-alt text-danger"></i> icon.
+            </p>
+            <div id="kirana-grid"></div>
+            {% if error_message %}
+                <div class="alert alert-danger mt-3" role="alert">{{ error_message }}</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const gridData = {{ registrations_json|safe }};
+    const container = document.getElementById('kirana-grid');
+    const changedRegistrationIds = new Set();
+
+    function actionsRenderer(instance, td, row, col, prop, value, cellProperties) {
+        Handsontable.renderers.HtmlRenderer.apply(this, arguments);
+        const rowData = instance.getSourceDataAtRow(row);
+        
+        let addBtnHTML = '';
+        
+        if (rowData && rowData.ParentId === 1) {
+            addBtnHTML = `
+                <button class="btn btn-sm btn-link add-member-inline-btn" title="Add Family Member" data-row="${row}">
+                    <i class="fas fa-plus-circle text-primary fs-6"></i>
+                </button>
+            `;
+        }
+
+        const deleteBtnHTML = `
+            <button class="btn btn-sm btn-link delete-record-btn" title="Delete Record" data-row="${row}">
+                <i class="fas fa-trash-alt text-danger fs-6"></i>
+            </button>
+        `;
+
+        td.innerHTML = `<div class="d-flex justify-content-center align-items-center gap-1">${addBtnHTML}${deleteBtnHTML}</div>`;
+    }
+
+    function voterIdLinkRenderer(instance, td, row, col, prop, value, cellProperties) {
+        Handsontable.renderers.HtmlRenderer.apply(this, arguments);
+        td.style.whiteSpace = 'nowrap';
+        td.style.textAlign = 'center';
+        td.style.verticalAlign = 'middle';
+        td.style.padding = '4px';
+        let viewBtn = value ?
+            `<a href="http://127.0.0.1:8000${value}" target="_blank" class="btn btn-sm btn-outline-info"><i class="fas fa-eye"></i></a>` : '';
+        td.innerHTML = `<div style="display: flex; gap: 4px; justify-content: center;">${viewBtn}<button class="btn btn-sm btn-outline-secondary upload-btn" data-row="${row}"><i class="fas fa-upload"></i></button></div>`;
+    }
+
+    const hot = new Handsontable(container, {
+        data: gridData,
+        rowHeaders: false,
+        colHeaders: ['Sr. No.','First Name', 'Middle Name', 'Last Name', 'Voter ID No', 'Mobile No', 'Address', 'Voter ID Photo', 'Actions'],
+        columns: [
+            { data: 'sr_no', readOnly: true, width: 80 },
+            { data: 'Firstname', width: 150 },{ data: 'Middlename', width: 150 }, { data: 'Lastname', width: 150 },
+            { data: 'VoterID_No', width: 140 }, { data: 'MobileNo', width: 120 },
+            { data: 'Address', width: 250 },
+            { data: 'VoterIdProof', renderer: voterIdLinkRenderer, readOnly: true, width: 120 },
+            { renderer: actionsRenderer, readOnly: true, width: 100 },
+            { data: 'RegistrationId' }, { data: 'TokenNo' },
+            { data: 'RationCardNo' }, { data: 'ParentId' },
+        ],
+        hiddenColumns: { columns: [9, 10, 11, 12], indicators: false },
+        height: '70vh', width: '100%', stretchH: 'last',
+        licenseKey: 'non-commercial-and-evaluation',
+        contextMenu: true, filters: true, dropdownMenu: true,
+        cells: function (row, col, prop) {
+            const cellProperties = {};
+            const rowData = this.instance.getSourceDataAtRow(row);
+            if (rowData && rowData.ParentId === 1) {
+                cellProperties.className = 'family-head-row';
+            }
+            return cellProperties;
+        },
+        afterChange: (changes, source) => {
+            if (source === 'edit') {
+                changes.forEach(([row]) => {
+                    const rowData = hot.getSourceDataAtRow(row);
+                    if (rowData?.RegistrationId) changedRegistrationIds.add(rowData.RegistrationId);
+                });
+            }
+        }
+    });
+
+    setTimeout(() => {
+        hot.render();
+    }, 10);
+
+    /**Event listener now also handles delete button clicks.*/
+    container.addEventListener('click', function(event) {
+        const uploadBtn = event.target.closest('.upload-btn');
+        if (uploadBtn) {
+            const row = uploadBtn.getAttribute('data-row');
+            const rowData = hot.getSourceDataAtRow(row);
+            uploadFileForRegistration(rowData.RegistrationId, row);
+            return;
+        }
+
+        const addMemberBtn = event.target.closest('.add-member-inline-btn');
+        if (addMemberBtn) {
+            const headRowIndex = parseInt(addMemberBtn.getAttribute('data-row'));
+            const headRowData = hot.getSourceDataAtRow(headRowIndex);
+            const currentRationCardNo = headRowData.RationCardNo;
+            if (!currentRationCardNo || currentRationCardNo.trim() === '') {
+                Swal.fire('Missing Information', 'Cannot add a member because the selected Head of Family does not have a Ration Card Number.', 'error');
+                return;
+            }
+            const newMemberPayload = {
+                Firstname: 'New', Lastname: 'Member', MobileNo: '', VoterID_No: '',
+                Address: headRowData.Address, RationCardNo: currentRationCardNo, ParentId: headRowData.RegistrationId,
+            };
+            Swal.fire({ title: 'Adding Member...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            fetch("{% url 'proxy_add_member' %}", {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                body: JSON.stringify(newMemberPayload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.message_code === 1000) {
+                    const newRecord = data.message_data;
+                    const insertIndex = headRowIndex + 1;
+                    hot.alter('insert_row_below', headRowIndex, 1);
+                    hot.populateFromArray(insertIndex, 0, [[
+                        '*',
+                        newRecord.Firstname, newRecord.Lastname, newRecord.VoterID_No,
+                        newRecord.MobileNo, newRecord.Address, newRecord.VoterIdProof,
+                        null, newRecord.RegistrationId, newRecord.TokenNo, newRecord.RationCardNo,
+                        newRecord.ParentId
+                    ]]);
+                    changedRegistrationIds.add(newRecord.RegistrationId);
+                    Swal.fire('Success', 'New member row added. Edit and click "Save Changes".', 'success');
+                } else {
+                     Swal.fire('Error', data.message_text || 'Failed to add member.', 'error');
+                }
+            }).catch(error => Swal.fire('Network Error', `An error occurred: ${error}`, 'error'));
+            return;
+        }
+
+        //  Handle delete record button
+        const deleteBtn = event.target.closest('.delete-record-btn');
+        if (deleteBtn) {
+            const rowIndex = parseInt(deleteBtn.getAttribute('data-row'));
+            const rowData = hot.getSourceDataAtRow(rowIndex);
+            const regId = rowData.RegistrationId;
+            const name = `${rowData.Firstname || ''} ${rowData.Middlename || ''} ${rowData.Lastname || ''}`.trim();
+
+            Swal.fire({
+                title: 'Are you sure?',
+                text: `You are about to delete "${name}". You won't be able to revert this!`,
+                icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6', confirmButtonText: 'Yes, delete it!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const urlTemplate = "{% url 'proxy_delete_member' 0 %}";
+                    const deleteUrl = urlTemplate.replace('0', regId);
+                    fetch(deleteUrl, { method: 'POST', headers: { 'X-CSRFToken': '{{ csrf_token }}' } })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            hot.alter('remove_row', rowIndex, 1);
+                            Swal.fire('Deleted!', 'The record has been deleted.', 'success');
+                        } else {
+                            Swal.fire('Error!', data.message || 'Could not delete the record.', 'error');
+                        }
+                    }).catch(error => Swal.fire('Request Failed!', `An error occurred: ${error}`, 'error'));
+                }
+            });
+        }
+    });
+
+    function uploadFileForRegistration(registrationId, row) {
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*,.pdf';
+        fileInput.onchange = () => {
+            if (fileInput.files.length > 0) {
+                uploadFile(fileInput.files[0], registrationId, row);
+            }
+        };
+        fileInput.click();
+    }
+    function uploadFile(file, registrationId, row) {
+        const formData = new FormData();
+        formData.append('voter_id_file', file);
+        formData.append('registration_id', registrationId);
+        Swal.fire({ title: 'Uploading...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        fetch("{% url 'proxy_upload_voter_id' %}", {
+            method: 'POST',
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.message_code === 1000) {
+                hot.setDataAtCell(row, 7, data.message_data.new_url);
+                changedRegistrationIds.add(registrationId);
+                Swal.fire('Success!', 'Uploaded successfully.', 'success');
+            } else {
+                Swal.fire('Error', data.message_text || 'Upload failed.', 'error');
+            }
+        });
+    }
+    document.getElementById('save-btn').addEventListener('click', () => {
+        if (changedRegistrationIds.size === 0) {
+            Swal.fire('No Changes', 'There is nothing to save.', 'info');
+            return;
+        }
+        const allData = hot.getSourceData();
+        const dataToSave = allData.filter(row =>
+            row && changedRegistrationIds.has(row.RegistrationId)
+        );
+        Swal.fire({ title: 'Saving...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        fetch("{% url 'proxy_bulk_update' %}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+            body: JSON.stringify(dataToSave)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.message_code === 1000) {
+                changedRegistrationIds.clear();
+                Swal.fire('Success!', 'Records updated successfully.', 'success');
+            } else {
+                Swal.fire('Error', data.message_text, 'error');
+            }
+        });
+    });
+    document.getElementById('search-box').addEventListener('keyup', function () {
+        const search = this.value.toLowerCase();
+        hot.loadData(search === "" ? gridData :
+            gridData.filter(row =>
+                row.Firstname?.toLowerCase().includes(search) ||
+                row.Middlename?.toLowerCase().includes(search) ||
+                row.Lastname?.toLowerCase().includes(search) ||
+                row.MobileNo?.toLowerCase().includes(search)
+            )
+        );
+    });
+});
+</script>
+
+
+<style>
+.handsontable td, .handsontable th {
+    height: 38px !important;
+    padding: 4px 8px !important;
+    vertical-align: middle !important;
+    line-height: 1.4 !important;
+}
+.handsontable .btn {
+    padding: 0.2rem 0.45rem;
+    font-size: 12px;
+    line-height: 1;
+}
+.handsontable .family-head-row {
+    background-color: #e6f7ff !important;
+    font-weight: bold;
+    color: #0056b3;
+}
+.handsontable .btn-link {
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    text-decoration: none;
+}
+.handsontable .btn-link:hover i {
+    transform: scale(1.25);
+    transition: transform 0.2s;
+}
+</style>
+
+{% endblock %}

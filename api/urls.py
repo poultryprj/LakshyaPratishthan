@@ -92,6 +92,14 @@ urlpatterns = [
 
     path("delete_diwali_member/<int:reg_id>/", views.delete_diwali_member, name='api_delete_diwali_member'),
 
+    path('bulk_update_diwali_kirana/', views.bulk_update_diwali_kirana, name='api_bulk_update_diwali_kirana'),
+
+    path('add_diwali_family_member/', views.add_diwali_family_member, name='api_add_diwali_family_member'),
+
+    path('upload_voter_id/', views.upload_voter_id, name='api_upload_voter_id'),
+
+    path('list_all_registrations/', views.list_all_registrations, name='api_list_all_registrations'),
+
 
     
 # #########  Event Managment ###################
