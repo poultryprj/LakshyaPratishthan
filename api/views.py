@@ -6036,10 +6036,10 @@ def event_registration_api(request, event_id):
             # --- Generate Token and QR Code (unchanged) ---
             token_number = EventRegistration.objects.filter(EventId=event).count() + 1
 
-            FRONTEND_BASE_URL = "http://127.0.0.1:8001/Yatra_darshan" 
+            FRONTEND_BASE_URL = "http://43.205.198.148/Yatra_darshan" 
 
             #qr_url_to_encode = f"https://www.google.com?eventId={event.eventId}&regId={person_record.registrationId}"
-            qr_url_to_encode = f"http://127.0.0.1:8001/Yatra_darshan/verify/{event.eventId}/{person_record.registrationId}/"
+            qr_url_to_encode = f"http://43.205.198.148/Yatra_darshan/verify/{event.eventId}/{person_record.registrationId}/"
             qr = qrcode.QRCode(version=1, box_size=10, border=4)
             qr.add_data(qr_url_to_encode)
             qr.make(fit=True)
