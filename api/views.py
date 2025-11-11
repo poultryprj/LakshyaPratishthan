@@ -30,7 +30,7 @@ import requests
 
 from django.db.models import Subquery, OuterRef
 
-import datetime
+from datetime import datetime
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
@@ -2203,7 +2203,7 @@ def agentbookings(request):
     replicating the PHP API exactly.
     """
     try:
-        from datetime import datetime
+        # from datetime import datetime
 
         body = request.data
         
@@ -2953,8 +2953,8 @@ def createyatrabus(request):
     remaining seats are created with status 0.
     """
     try:
-        from datetime import datetime
-        from django.db import transaction
+        # from datetime import datetime
+        # from django.db import transaction
         
         body = request.data
         
@@ -3617,8 +3617,8 @@ def create_yatra(request):
             return Response(response_data, status=status.HTTP_200_OK)
 
         try:
-            yatra_datetime = datetime.datetime.strptime(datetime_str, '%d-%m-%Y %H:%M')
-            yatra_start_datetime = datetime.datetime.strptime(start_datetime_str, '%d-%m-%Y %H:%M')
+            yatra_datetime = datetime.strptime(datetime_str, '%d-%m-%Y %H:%M')
+            yatra_start_datetime = datetime.strptime(start_datetime_str, '%d-%m-%Y %H:%M')
             
             route = YatraRoutes.objects.get(yatraRouteId=route_id)
             yatra_status_obj = YatraStatus.objects.get(statusId=status_id)
@@ -3700,8 +3700,8 @@ def modify_yatra(request):
             return Response(response_data, status=status.HTTP_200_OK)
 
         try:
-            yatra_datetime = datetime.datetime.strptime(datetime_str, '%d-%m-%Y %H:%M')
-            yatra_start_datetime = datetime.datetime.strptime(start_datetime_str, '%d-%m-%Y %H:%M')
+            yatra_datetime = datetime.strptime(datetime_str, '%d-%m-%Y %H:%M')
+            yatra_start_datetime = datetime.strptime(start_datetime_str, '%d-%m-%Y %H:%M')
             route = YatraRoutes.objects.get(yatraRouteId=route_id)
             yatra_status_obj = YatraStatus.objects.get(statusId=status_id)
         except (ValueError, TypeError):
