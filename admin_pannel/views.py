@@ -203,4 +203,4 @@ def proxy_delete_member_view(request, reg_id):
     except requests.exceptions.RequestException as e:
         return JsonResponse({'message_code': 999, 'message_text': f'Network error calling backend API: {e}'}, status=503)
     except Exception as e:
-        return JsonResponse({'message_code': 999, 'message_text': f'An internal error occurred: {e}'}, status=500)    
+        return JsonResponse({'message_code': 999, 'message_text': f'An internal error occurred: {e}'}, status=500)
