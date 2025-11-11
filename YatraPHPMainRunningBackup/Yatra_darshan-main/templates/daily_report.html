@@ -1,0 +1,168 @@
+<!-- templates/daily_report.html -->
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Darshan Yatra - Daily Report</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #e9eef2; }
+        .navbar { background-color: #ff7b00; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .back-btn { font-size: 1.5rem; color: white; text-decoration: none; }
+        .navbar-brand { font-weight: bold; }
+        .container-main { max-width: 500px; margin: 80px auto 40px auto; }
+        .content-card { background: #ffffff; padding: 2rem; border-radius: 15px; box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
+        .card-icon { font-size: 3rem; color: #ff7b00; margin-bottom: 1rem; }
+        .card-title { color: #003399; font-weight: bold; margin-bottom: 0.5rem; }
+        .card-lead { color: #6c757d; font-size: 1rem; margin-bottom: 2rem; }
+        .input-group-custom { display: flex; align-items: center; border: 1px solid #ced4da; border-radius: 8px; padding: 0 12px; margin-bottom: 1.5rem; transition: border-color 0.2s, box-shadow 0.2s; height: 50px; }
+        .input-group-custom:focus-within { border-color: #006633; box-shadow: 0 0 8px rgba(0,102,51,0.2); }
+        .input-group-custom .form-control, .input-group-custom .select2-container { flex-grow: 1; }
+        .input-group-custom .form-control, .input-group-custom .select2-container--bootstrap-5 .select2-selection { border: none !important; box-shadow: none !important; padding-left: 0; background-color: transparent; height: 100%; }
+        .input-group-custom .input-group-text { background: transparent; border: none; color: #003399; font-size: 1.2rem; padding-right: 0.75rem; }
+        .results-header { text-align: center; border-bottom: 1px solid #eee; padding-bottom: 1rem; margin-bottom: 1rem;}
+        .booking-card { border-bottom: 1px solid #f0f0f0; padding: 0.75rem 0; }
+        .booking-card:last-child { border-bottom: none; }
+        .total-collection-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .collection-box { text-align: center; padding: 1rem; border-radius: 8px; }
+        .bg-light-green { background-color: #e8f5e9; }
+        .bg-light-blue { background-color: #e3f2fd; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar fixed-top">
+    <div class="container-fluid d-flex justify-content-between align-items-center">
+        <a href="{% url 'home' %}" class="back-btn"><i class="bi bi-arrow-left-circle"></i></a>
+        <span class="navbar-brand mb-0 h1" style="color:white">Daily Collection Report</span>
+        <span style="width: 30px;"></span> 
+    </div>
+</nav>
+
+<div class="container-main">
+    <div class="content-card">
+        <div class="card-icon text-center"><i class="bi bi-cash-stack"></i></div>
+        <h3 class="card-title text-center">Daily Collection Report</h3>
+        <p class="card-lead text-center">View bookings and collections for a specific agent and date.</p>
+        <div class="filters">
+            {% if user_role == '1' %}
+            <div class="input-group-custom">
+                <span class="input-group-text"><i class="bi bi-person-circle"></i></span>
+                <select class="form-select" id="userSelect" style="width: 100%;"><option value="">-- Select an Agent --</option>{% for u in all_users %}<option value="{{ u.UserId }}">{{ u.UserFirstname }} {{ u.UserLastname }}</option>{% endfor %}</select>
+            </div>
+            {% endif %}
+            <div class="input-group-custom">
+                <span class="input-group-text"><i class="bi bi-calendar-event"></i></span>
+                <input type="date" class="form-control" id="dateSelect">
+            </div>
+        </div>
+    </div>
+    <div class="content-card mt-4" id="resultsContainer">
+        {% if user_role != '1' %}<div class="text-center"><div class="spinner-border text-primary"></div></div>
+        {% else %}<div class="text-center text-muted">Please select filters to view the report.</div>{% endif %}
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    const dateSelect = document.getElementById('dateSelect');
+    const resultsContainer = document.getElementById('resultsContainer');
+    const currentUserRole = "{{ user_role }}";
+    const currentUserId = "{{ request.session.user_id }}";
+    
+    if (document.getElementById('userSelect')) {
+        $(document).ready(function() {
+            $('#userSelect').select2({ theme: "bootstrap-5", placeholder: "-- Select an Agent --" });
+        });
+    }
+    dateSelect.value = new Date().toISOString().split('T')[0];
+
+    function fetchReport() {
+        const selectedDate = dateSelect.value;
+        let selectedUserId;
+        if (currentUserRole === '1') {
+            selectedUserId = $('#userSelect').val();
+            if (!selectedUserId || !selectedDate) {
+                resultsContainer.innerHTML = '<div class="text-center text-muted">Please select a user and a date.</div>';
+                return;
+            }
+        } else {
+            selectedUserId = currentUserId;
+            if (!selectedDate) {
+                resultsContainer.innerHTML = '<div class="text-center text-muted">Please select a date.</div>';
+                return;
+            }
+        }
+        resultsContainer.innerHTML = '<div class="text-center"><div class="spinner-border text-primary"></div></div>';
+        let formData = new FormData();
+        formData.append('user_id', selectedUserId);
+        formData.append('booking_date', selectedDate);
+        fetch("{% url 'daily_report_api' %}", { method: 'POST', body: formData })
+            .then(res => res.json())
+            .then(result => {
+                if (result.status === 'success') { renderReport(result.data); } 
+                else { resultsContainer.innerHTML = `<div class="alert alert-danger">${result.message}</div>`; }
+            });
+    }
+
+    function renderReport(bookings) {
+        if (!bookings || bookings.length === 0) {
+            resultsContainer.innerHTML = '<div class="alert alert-secondary text-center">No bookings found for the selected criteria.</div>';
+            return;
+        }
+        let totalCash = 0, totalUpi = 0;
+        let reportHtml = '';
+        bookings.reverse(); // Show latest first
+        bookings.forEach(booking => {
+            const fees = parseFloat(booking.YatraFees) || 0;
+            const fullName = `${booking.Firstname} ${booking.Lastname}`.trim();
+            const paymentModeCode = booking.PaymentMode;
+            
+            let badgeClass = 'bg-success';
+
+            if (paymentModeCode === '1' || paymentModeCode.toLowerCase() === 'cash') {
+                // Cash
+                totalCash += fees;
+                badgeClass = 'bg-success';
+            } else if (paymentModeCode === '2' || paymentModeCode.toLowerCase() === 'upi') {
+                // UPI
+                totalUpi += fees;
+                badgeClass = 'bg-primary';
+            } else {
+                // Unknown payment mode → treat as Cash (fallback)
+                totalCash += fees;
+            }
+
+            reportHtml += `<div class="booking-card"><div class="d-flex justify-content-between align-items-center"><div><div class="fw-bold">${fullName}</div><div class="text-muted small">${booking.MobileNo || 'N/A'}</div></div><span class="badge ${badgeClass} fs-6">₹${fees.toFixed(2)}</span></div><div class="text-muted small mt-1"><span>${booking.YatraRouteName}</span> | <span>Bus: ${booking.BusName}</span></div></div>`;
+        });
+        let headerHtml = `
+            <div class="text-center mb-4"><h3>Total Collection: <span class="text-success">₹${(totalCash + totalUpi).toFixed(2)}</span></h3><h5 class="text-muted">Total Bookings: ${bookings.length}</h5></div>
+            <div class="total-collection-grid mb-4">
+                <div class="collection-box bg-light-green">
+                    <div class="fw-bold fs-5 text-success">₹${totalCash.toFixed(2)}</div>
+                    <div class="text-muted small">Cash Collection</div>
+                </div>
+                <div class="collection-box bg-light-blue">
+                    <div class="fw-bold fs-5 text-primary">₹${totalUpi.toFixed(2)}</div>
+                    <div class="text-muted small">UPI Collection</div>
+                </div>
+            </div>`;
+        resultsContainer.innerHTML = headerHtml + reportHtml;
+    }
+
+    dateSelect.addEventListener('change', fetchReport);
+    if (currentUserRole === '1') {
+        $('#userSelect').on('change', fetchReport);
+    }
+    if (currentUserRole !== '1') {
+        document.addEventListener('DOMContentLoaded', fetchReport);
+    }
+</script>
+</body>
+</html>
