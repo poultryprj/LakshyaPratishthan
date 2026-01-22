@@ -103,7 +103,7 @@ DATABASES = {
         'NAME': 'LakshyaPratishthan_db',
         'USER': 'postgres',
         'PASSWORD': 'lakshya1812',
-        'HOST': '43.205.198.148',
+        'HOST': '13.233.236.229',
         'PORT': '5432',
     }
 }
