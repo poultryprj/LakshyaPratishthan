@@ -91,7 +91,7 @@ WSGI_APPLICATION = 'LakshyaPratishthan.wsgi.application'
 #         'ENGINE': 'django.db.backends.postgresql',
 #         'NAME': 'LakshyaPratishthan',
 #         'USER': 'postgres',
-#         'PASSWORD': 'Lakshya123',
+#         'PASSWORD': '7777',
 #         'HOST': '127.0.0.1',
 #         'PORT': '5432',
 #     }

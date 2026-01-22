@@ -7,11 +7,11 @@ class Areas(models.Model):
     AreaStatus = models.CharField(default=1, db_comment="0 = Inactive, 1 = Active", null=True, blank=True)  
 
     created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Area_created_by')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Area_created_by')
     last_modified_on = models.DateTimeField(auto_now=True, null=True, blank=True)
-    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Area_modified_by')
+    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Area_modified_by')
     is_deleted = models.BooleanField(default=False, null=True, blank=True)
-    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Area_deleted_by')
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Area_deleted_by')
 
     class Meta:
         db_table = "Areas"
@@ -22,11 +22,11 @@ class BloodGroup(models.Model):
     bloodGroupOrder = models.IntegerField(null=True, blank=True)
 
     created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='BloodGroup_created_by')
-    last_modified_on = models.DateTimeField(auto_now=True)
-    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='BloodGroup_modified_by')
-    is_deleted = models.BooleanField(default=False)
-    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='BloodGroup_deleted_by')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='BloodGroup_created_by')
+    last_modified_on = models.DateTimeField(auto_now=True,null=True, blank=True)
+    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='BloodGroup_modified_by')
+    is_deleted = models.BooleanField(default=False,null=True, blank=True)
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='BloodGroup_deleted_by')
 
     class Meta:
         db_table = "BloodGroup"
@@ -37,11 +37,11 @@ class Gender(models.Model):
     GenderOrder = models.IntegerField(null=True, blank=True)
 
     created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Gender_created_by')
-    last_modified_on = models.DateTimeField(auto_now=True)
-    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Gender_modified_by')
-    is_deleted = models.BooleanField(default=False)
-    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Gender_deleted_by')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Gender_created_by')
+    last_modified_on = models.DateTimeField(auto_now=True,null=True, blank=True)
+    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Gender_modified_by')
+    is_deleted = models.BooleanField(default=False, null=True, blank=True)
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Gender_deleted_by')
 
     class Meta:
         db_table = "gender"
@@ -71,11 +71,11 @@ class Event(models.Model):
 
     # Audit trail fields
     created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Event_created_by')
-    last_modified_on = models.DateTimeField(auto_now=True)
-    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Event_modified_by')
-    is_deleted = models.BooleanField(default=False)
-    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Event_deleted_by')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Event_created_by')
+    last_modified_on = models.DateTimeField(auto_now=True,null=True, blank=True)
+    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Event_modified_by')
+    is_deleted = models.BooleanField(default=False,null=True, blank=True)
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Event_deleted_by')
 
     class Meta:
         db_table = "Event"        
@@ -153,11 +153,11 @@ class YatraRoutes(models.Model):
     yatraStatus = models.IntegerField(default=1, null=True, blank=True, db_comment="0 = Inactive, 1 = Active")
 
     created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='YatraRoute_created_by')
-    last_modified_on = models.DateTimeField(auto_now=True)
-    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='YatraRoute_modified_by')
-    is_deleted = models.BooleanField(default=False)
-    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='YatraRoute_deleted_by')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='YatraRoute_created_by')
+    last_modified_on = models.DateTimeField(auto_now=True,null=True, blank=True)
+    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='YatraRoute_modified_by')
+    is_deleted = models.BooleanField(default=False,null=True, blank=True)
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='YatraRoute_deleted_by')
 
     class Meta:
         db_table = "YatraRoutes"
@@ -167,11 +167,11 @@ class BusNames(models.Model):
     busName = models.CharField(max_length=150, null=True, blank=True)
 
     created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='BusNames_created_by')
-    last_modified_on = models.DateTimeField(auto_now=True)
-    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='BusNames_modified_by')
-    is_deleted = models.BooleanField(default=False)
-    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='BusNames_deleted_by')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='BusNames_created_by')
+    last_modified_on = models.DateTimeField(auto_now=True,null=True, blank=True)
+    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='BusNames_modified_by')
+    is_deleted = models.BooleanField(default=False,null=True, blank=True)
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='BusNames_deleted_by')
 
     class Meta:
         db_table = "BusNames"      
@@ -182,11 +182,11 @@ class BusSeats(models.Model):
     seatStatus = models.CharField(max_length=10,default="1",db_comment="0 = Inactive, 1 = Active",null=True, blank=True)
 
     created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='BusSeats_created_by')
-    last_modified_on = models.DateTimeField(auto_now=True)
-    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='BusSeats_modified_by')
-    is_deleted = models.BooleanField(default=False)
-    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='BusSeats_deleted_by')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='BusSeats_created_by')
+    last_modified_on = models.DateTimeField(auto_now=True,null=True, blank=True)
+    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='BusSeats_modified_by')
+    is_deleted = models.BooleanField(default=False,null=True, blank=True)
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='BusSeats_deleted_by')
 
     class Meta:
         db_table = "BusSeats"
@@ -202,11 +202,11 @@ class Yatras(models.Model):
     seatNo = models.IntegerField(null=True, blank=True)
 
     created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Yatras_created_by')
-    last_modified_on = models.DateTimeField(auto_now=True)
-    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Yatras_modified_by')
-    is_deleted = models.BooleanField(default=False)
-    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Yatras_deleted_by')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Yatras_created_by')
+    last_modified_on = models.DateTimeField(auto_now=True,null=True, blank=True)
+    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Yatras_modified_by')
+    is_deleted = models.BooleanField(default=False,null=True, blank=True)
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Yatras_deleted_by')
 
     class Meta:
         db_table = "Yatras"                    
@@ -222,11 +222,11 @@ class YatraBuses(models.Model):
     busCapacity = models.IntegerField(null=True, blank=True)
 
     created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='YatraBus_created_by')
-    last_modified_on = models.DateTimeField(auto_now=True)
-    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='YatraBus_modified_by')
-    is_deleted = models.BooleanField(default=False)
-    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='YatraBus_deleted_by')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='YatraBus_created_by')
+    last_modified_on = models.DateTimeField(auto_now=True,null=True, blank=True)
+    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='YatraBus_modified_by')
+    is_deleted = models.BooleanField(default=False,null=True, blank=True)
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='YatraBus_deleted_by')
 
     class Meta:
         db_table = "YatraBuses"  
@@ -243,11 +243,11 @@ class Payments(models.Model):
     paymentUserId = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Payment_PaymentUserid')
 
     created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Payment_created_by')
-    last_modified_on = models.DateTimeField(auto_now=True)
-    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Payment_modified_by')
-    is_deleted = models.BooleanField(default=False)
-    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Payment_deleted_by')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Payment_created_by')
+    last_modified_on = models.DateTimeField(auto_now=True,null=True, blank=True)
+    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Payment_modified_by')
+    is_deleted = models.BooleanField(default=False,null=True, blank=True)
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Payment_deleted_by')
 
     class Meta:
         db_table = "Payments"        
@@ -277,11 +277,11 @@ class TicketsNew(models.Model):
     booking_date = models.DateField(null=True, blank=True)
 
     created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='TicketsNew_created_by')
-    last_modified_on = models.DateTimeField(auto_now=True)
-    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='TicketsNew_modified_by')
-    is_deleted = models.BooleanField(default=False)
-    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='TicketsNew_deleted_by')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='TicketsNew_created_by')
+    last_modified_on = models.DateTimeField(auto_now=True,null=True, blank=True)
+    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='TicketsNew_modified_by')
+    is_deleted = models.BooleanField(default=False,null=True, blank=True)
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='TicketsNew_deleted_by')
 
     class Meta:
         db_table = 'tickets_new'  
@@ -300,11 +300,11 @@ class Feedback(models.Model):
     userId = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Feedback_PaymentUserid')
 
     created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Feedback_created_by')
-    last_modified_on = models.DateTimeField(auto_now=True)
-    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Feedback_modified_by')
-    is_deleted = models.BooleanField(default=False)
-    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='Feedback_deleted_by')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Feedback_created_by')
+    last_modified_on = models.DateTimeField(auto_now=True,null=True, blank=True)
+    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Feedback_modified_by')
+    is_deleted = models.BooleanField(default=False,null=True, blank=True)
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Feedback_deleted_by')
 
     class Meta:
         db_table = "tblFeedbacks"    
@@ -316,11 +316,11 @@ class SMSMaster(models.Model):
     templateMessageBody = models.TextField(null=True, blank=True)
 
     created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='SMSMaster_created_by')
-    last_modified_on = models.DateTimeField(auto_now=True)
-    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='SMSMaster_modified_by')
-    is_deleted = models.BooleanField(default=False)
-    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='SMSMaster_deleted_by')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='SMSMaster_created_by')
+    last_modified_on = models.DateTimeField(auto_now=True,null=True, blank=True)
+    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='SMSMaster_modified_by')
+    is_deleted = models.BooleanField(default=False,null=True, blank=True)
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='SMSMaster_deleted_by')
 
     class Meta:
         db_table = "tblSMSMaster"            
@@ -342,11 +342,11 @@ class SMSTransaction(models.Model):
     smsResponse = models.TextField(null=True, blank=True) 
 
     created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='SMSTransaction_created_by')
-    last_modified_on = models.DateTimeField(auto_now=True)
-    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='SMSTransaction_modified_by')
-    is_deleted = models.BooleanField(default=False)
-    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='SMSTransaction_deleted_by')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='SMSTransaction_created_by')
+    last_modified_on = models.DateTimeField(auto_now=True,null=True, blank=True)
+    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='SMSTransaction_modified_by')
+    is_deleted = models.BooleanField(default=False,null=True, blank=True)
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='SMSTransaction_deleted_by')
 
     class Meta:
         db_table = "tblSMSTransactions"
@@ -361,11 +361,11 @@ class TourExpenses(models.Model):
     expenseUserId = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='TourExpenses_expenseUserId')
 
     created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='TourExpenses_created_by')
-    last_modified_on = models.DateTimeField(auto_now=True)
-    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='TourExpenses_modified_by')
-    is_deleted = models.BooleanField(default=False)
-    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='TourExpenses_deleted_by')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='TourExpenses_created_by')
+    last_modified_on = models.DateTimeField(auto_now=True,null=True, blank=True)
+    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='TourExpenses_modified_by')
+    is_deleted = models.BooleanField(default=False,null=True, blank=True)
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='TourExpenses_deleted_by')
 
     class Meta:
         db_table = "TourExpenses"        
@@ -382,11 +382,11 @@ class DiwaliKirana(models.Model):
     TokenStatus = models.SmallIntegerField(default=0)
 
     created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='DiwaliKirana_created_by')
-    last_modified_on = models.DateTimeField(auto_now=True)
-    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='DiwaliKirana_modified_by')
-    is_deleted = models.BooleanField(default=False)
-    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='DiwaliKirana_deleted_by')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='DiwaliKirana_created_by')
+    last_modified_on = models.DateTimeField(auto_now=True,null=True, blank=True)
+    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL,null=True, blank=True, related_name='DiwaliKirana_modified_by')
+    is_deleted = models.BooleanField(default=False,null=True, blank=True)
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='DiwaliKirana_deleted_by')
 
     class Meta:
         db_table = "tblDiwaliKirana"
@@ -403,11 +403,11 @@ class EventRegistration(models.Model):
     Reg_status= models.IntegerField( null=True, blank=True)
     
     created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='EventRegistration_created_by')
-    last_modified_on = models.DateTimeField(auto_now=True)
-    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='EventRegistration_modified_by')
-    is_deleted = models.BooleanField(default=False)
-    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='EventRegistration_deleted_by')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='EventRegistration_created_by')
+    last_modified_on = models.DateTimeField(auto_now=True,null=True, blank=True)
+    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='EventRegistration_modified_by')
+    is_deleted = models.BooleanField(default=False,null=True, blank=True)
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='EventRegistration_deleted_by')
 
     class Meta:
         db_table = "EventRegistration"
