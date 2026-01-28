@@ -138,9 +138,9 @@ class YatraStatus(models.Model):
 
     created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='YatraStatus_created_by')
-    last_modified_on = models.DateTimeField(auto_now=True)
+    last_modified_on = models.DateTimeField(auto_now=True, null=True, blank=True)
     last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='YatraStatus_modified_by')
-    is_deleted = models.BooleanField(default=False)
+    is_deleted = models.BooleanField(default=False, null=True, blank=True)
     deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='YatraStatus_deleted_by')
 
     class Meta:
