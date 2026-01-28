@@ -92,6 +92,45 @@ class EventRegistrationField(models.Model):
         db_table = "EventRegistrationField"  
 
 
+# class Registrations(models.Model):
+#     registrationId = models.AutoField(primary_key=True)
+#     firstname = models.CharField(max_length=50, null=True, blank=True)
+#     middlename = models.CharField(max_length=50, null=True, blank=True)
+#     lastname = models.CharField(max_length=50, null=True, blank=True)
+#     mobileNo = models.CharField(max_length=15, null=True, blank=True)
+#     alternateMobileNo = models.CharField(max_length=15, null=True, blank=True)
+#     BookingMobileNo = models.CharField(max_length=15, null=True, blank=True)
+#     aadharNumber = models.CharField(max_length=20, null=True, blank=True)
+#     bloodGroup = models.ForeignKey(BloodGroup, on_delete=models.SET_NULL, null=True, blank=True, related_name='Registrations_BloodGroup')
+#     dateOfBirth = models.DateField(null=True, blank=True)
+#     zonePreference = models.IntegerField(default=0, db_comment="0 = No preferance, 1 = Front, 2 = Middle, 3 = Back", null=True, blank=True)
+#     gender = models.IntegerField(default=1, db_comment="1 = Female, 2 = Male",null=True, blank=True)
+#     areaId = models.ForeignKey(Areas, on_delete=models.SET_NULL, null=True, blank=True, related_name='Registrations_Area')
+#     address = models.TextField(null=True, blank=True)
+#     photoFileName = models.CharField(max_length=255, null=True, blank=True)
+#     idProofFileName = models.CharField(max_length=255, null=True, blank=True)
+#     voterIdProof = models.CharField(max_length=255, null=True, blank=True)
+#     dateOfRegistration = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+#     permanentId = models.IntegerField(null=True, blank=True)
+#     userId = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Registrations_UserId')
+#     age = models.SmallIntegerField(default=0, db_column='Age', null=True, blank=True)
+#     ration_card_no = models.CharField(max_length=25, null=True, blank=True, db_column='RationCardNo')
+#     ration_card_photo = models.CharField(max_length=200, null=True, blank=True, db_column='RationCardPhoto')
+#     parent_id = models.IntegerField(null=True, blank=True, default=0, db_column='ParentId')
+#     VoterID_No = models.CharField(max_length=20, null=True, blank=True)
+
+#     # event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='registrations', null=True)
+
+#     created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+#     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Registrations_created_by')
+#     last_modified_on = models.DateTimeField(auto_now=True, null=True, blank=True)
+#     last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Registrations_modified_by')
+#     is_deleted = models.BooleanField(default=False,  null=True, blank=True)
+#     deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Registrations_deleted_by')
+
+#     class Meta:
+#         db_table = "Registrations"
+
 class Registrations(models.Model):
     registrationId = models.AutoField(primary_key=True)
     firstname = models.CharField(max_length=50, null=True, blank=True)
@@ -99,11 +138,9 @@ class Registrations(models.Model):
     lastname = models.CharField(max_length=50, null=True, blank=True)
     mobileNo = models.CharField(max_length=15, null=True, blank=True)
     alternateMobileNo = models.CharField(max_length=15, null=True, blank=True)
-    BookingMobileNo = models.CharField(max_length=15, null=True, blank=True)
     aadharNumber = models.CharField(max_length=20, null=True, blank=True)
     bloodGroup = models.ForeignKey(BloodGroup, on_delete=models.SET_NULL, null=True, blank=True, related_name='Registrations_BloodGroup')
     dateOfBirth = models.DateField(null=True, blank=True)
-    zonePreference = models.IntegerField(default=0, db_comment="0 = No preferance, 1 = Front, 2 = Middle, 3 = Back", null=True, blank=True)
     gender = models.IntegerField(default=1, db_comment="1 = Female, 2 = Male",null=True, blank=True)
     areaId = models.ForeignKey(Areas, on_delete=models.SET_NULL, null=True, blank=True, related_name='Registrations_Area')
     address = models.TextField(null=True, blank=True)
@@ -114,10 +151,9 @@ class Registrations(models.Model):
     permanentId = models.IntegerField(null=True, blank=True)
     userId = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Registrations_UserId')
     age = models.SmallIntegerField(default=0, db_column='Age', null=True, blank=True)
-    ration_card_no = models.CharField(max_length=25, null=True, blank=True, db_column='RationCardNo')
+
     ration_card_photo = models.CharField(max_length=200, null=True, blank=True, db_column='RationCardPhoto')
     parent_id = models.IntegerField(null=True, blank=True, default=0, db_column='ParentId')
-    VoterID_No = models.CharField(max_length=20, null=True, blank=True)
 
     # event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='registrations', null=True)
 
@@ -275,6 +311,8 @@ class TicketsNew(models.Model):
     ticket_status_id = models.IntegerField(null=True, blank=True )
     cancel_reason = models.TextField(null=True, blank=True)
     booking_date = models.DateField(null=True, blank=True)
+    booking_mobile_no = models.CharField(max_length=15, null=True, blank=True) 
+    zone_preference = models.IntegerField(default=0, null=True, blank=True)
 
     created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='TicketsNew_created_by')
@@ -411,3 +449,34 @@ class EventRegistration(models.Model):
 
     class Meta:
         db_table = "EventRegistration"
+
+
+class ElectionManagement(models.Model):
+    ElectionId = models.AutoField(primary_key=True)
+    # Link to the person (Voter)
+    RegistrationId = models.ForeignKey(Registrations, on_delete=models.CASCADE, related_name='Election_RegistrationId')
+    
+    # Fields from your Screenshot
+    VotingCardNo = models.CharField(max_length=25, null=True, blank=True)
+    BoothAddress = models.TextField(null=True, blank=True)
+    AssemblyNo = models.CharField(max_length=50, null=True, blank=True)
+    YadiNo = models.CharField(max_length=50, null=True, blank=True) # Part Number
+    SrNo = models.IntegerField(null=True, blank=True) # Serial Number in List
+    
+    # Status Fields
+    CallStatus = models.IntegerField(default=0, null=True, blank=True, db_comment="0=Pending, 1=Success, 2=Failed/Unreachable")
+    VotingStatus = models.IntegerField(default=0, null=True, blank=True, db_comment="0=Not Voted, 1=Voted")
+    
+    CallerId = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Election_CallerId')
+    CallerName = models.CharField(max_length=150, null=True, blank=True)
+    CallTimestamp = models.DateTimeField(null=True, blank=True)
+
+    created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Election_created_by')
+    last_modified_on = models.DateTimeField(auto_now=True, null=True, blank=True)
+    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Election_modified_by')
+    is_deleted = models.BooleanField(default=False, null=True, blank=True)
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Election_deleted_by')
+
+    class Meta:
+        db_table = "tblElectionManagement"        
