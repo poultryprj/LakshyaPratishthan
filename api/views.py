@@ -18,7 +18,7 @@ from django.db.models import F
 
 # from django.utils.dateformat import DateFormat
 # from django.utils.timezone import localtime
-from admin_pannel.models import TicketsNew, YatraRoutes, Yatras, BusNames, Registrations, Areas
+from admin_pannel.models import TicketsNew, YatraRoutes, Yatras, BusNames, Registrations, Areas,TblUsers
 from django.db.models import Count, F
 from django.db.models.functions import Cast
 from django.db.models import CharField
@@ -491,20 +491,15 @@ def listuserall(request):
         }, status=status.HTTP_200_OK)
 
 
+
+
 @api_view(['POST'])
 def agentlogin(request):
-    """
-    Authenticates an agent using mobile number and password/pin.
-    Returns PHP-style response:
-    - message_text: Success/Failure
-    - message_data: array of user info
-    """
     try:
-        body = request.data
-        mobile_no = body.get('userMobileNo', '').strip()
-        password = body.get('userPassword', '').strip()
+        mobile_no = str(request.data.get('userMobileNo', '')).strip()
+        password = str(request.data.get('userPassword', '')).strip()
 
-        # --- Validation ---
+        # Validation
         if not mobile_no:
             return Response({
                 'message_code': 999,
@@ -519,41 +514,40 @@ def agentlogin(request):
                 'message_data': []
             }, status=status.HTTP_200_OK)
 
-        # --- Fetch User ---
-        try:
-            user = User.objects.get(username=mobile_no)
-        except User.DoesNotExist:
+        # Fetch from TblUsers using UserMobileNo
+        user = TblUsers.objects.filter(UserMobileNo=mobile_no).first()
+        if not user:
             return Response({
                 'message_code': 999,
                 'message_text': 'Mobile no and Password/pin not valid.',
                 'message_data': []
             }, status=status.HTTP_200_OK)
 
-        # Check password
-        if not user.check_password(password):
+        # Compare pin (TblUsers.UserLoginPin is IntegerField)
+        if str(user.UserLoginPin) != str(password):
             return Response({
                 'message_code': 999,
                 'message_text': 'Mobile no and Password/pin not valid.',
                 'message_data': []
             }, status=status.HTTP_200_OK)
 
-        # Check active status
-        if not user.is_active:
+        # Active status check
+        if int(user.UserStatus or 0) != 1:
             return Response({
                 'message_code': 999,
                 'message_text': 'Your login is not active.',
                 'message_data': []
             }, status=status.HTTP_200_OK)
 
-        # --- Successful login ---
+        # Success response (PHP-style)
         user_data = [{
-            "UserId": str(user.id),
-            "UserFirstname": user.first_name,
-            "UserLastname": user.last_name,
-            "UserMobileNo": user.username,
-            "UserLoginPin": "",
-            "UserStatus": str(1 if user.is_active else 0),
-            "UserRole": str(getattr(user, 'role', 1))
+            "UserId": str(user.UserId),
+            "UserFirstname": user.UserFirstname,
+            "UserLastname": user.UserLastname or "",
+            "UserMobileNo": user.UserMobileNo,
+            "UserLoginPin": "",  # hide pin
+            "UserStatus": str(user.UserStatus),
+            "UserRole": str(user.UserRole or 0)
         }]
 
         return Response({
@@ -562,12 +556,13 @@ def agentlogin(request):
             'message_data': user_data
         }, status=status.HTTP_200_OK)
 
-    except Exception:
+    except Exception as e:
         return Response({
             'message_code': 999,
-            'message_text': 'Failure',
+            'message_text': f'Failure: {str(e)}',
             'message_data': []
         }, status=status.HTTP_200_OK)
+
 
 
 @api_view(['POST'])
@@ -6036,10 +6031,10 @@ def event_registration_api(request, event_id):
             # --- Generate Token and QR Code (unchanged) ---
             token_number = EventRegistration.objects.filter(EventId=event).count() + 1
 
-            FRONTEND_BASE_URL = "http://43.205.198.148/Yatra_darshan" 
+            FRONTEND_BASE_URL = "http://43.205.199.11/Yatra_darshan" 
 
             #qr_url_to_encode = f"https://www.google.com?eventId={event.eventId}&regId={person_record.registrationId}"
-            qr_url_to_encode = f"http://43.205.198.148/Yatra_darshan/verify/{event.eventId}/{person_record.registrationId}/"
+            qr_url_to_encode = f"http://43.205.199.11/Yatra_darshan/verify/{event.eventId}/{person_record.registrationId}/"
             qr = qrcode.QRCode(version=1, box_size=10, border=4)
             qr.add_data(qr_url_to_encode)
             qr.make(fit=True)
