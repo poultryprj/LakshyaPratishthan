@@ -47,6 +47,25 @@ class Gender(models.Model):
         db_table = "gender"
 
 
+class TblUsers(models.Model):
+    UserId = models.AutoField(primary_key=True)
+    UserFirstname = models.CharField(max_length=100)
+    UserLastname = models.CharField(max_length=100, null=True, blank=True)
+    UserMobileNo = models.CharField(max_length=15, unique=True)
+    UserLoginPin = models.IntegerField()
+    UserStatus = models.IntegerField(default=1)  # 1=Active, 0=Inactive
+    UserRole = models.IntegerField(null=True, blank=True)
+
+    created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Users_created_by')
+    last_modified_on = models.DateTimeField(auto_now=True, null=True, blank=True)
+    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Users_modified_by')
+    is_deleted = models.BooleanField(default=False, null=True, blank=True)
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Users_deleted_by')
+
+    class Meta:
+        db_table = "tblUsers"           
+
 
 # Event Managment 24/10/2024  ##################
 
@@ -288,7 +307,6 @@ class Payments(models.Model):
     class Meta:
         db_table = "Payments"        
 
-
 class TicketsNew(models.Model):
     ticket_id = models.AutoField(primary_key=True)
     ticket_year = models.IntegerField(null=True, blank=True)
@@ -307,7 +325,7 @@ class TicketsNew(models.Model):
     payment_proof = models.CharField(max_length=50,null=True, blank=True)
     registration_id = models.ForeignKey(Registrations, on_delete=models.SET_NULL, null=True, related_name='TicketsNew_RegistrationId')
     permanant_id = models.IntegerField(null=True, blank=True)
-    user_id = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='TicketsNew_Userid')
+    UserId= models.ForeignKey(TblUsers, on_delete=models.SET_NULL, null=True, related_name='TicketsNew_Userid')
     ticket_status_id = models.IntegerField(null=True, blank=True )
     cancel_reason = models.TextField(null=True, blank=True)
     booking_date = models.DateField(null=True, blank=True)
@@ -480,22 +498,4 @@ class ElectionManagement(models.Model):
 
     class Meta:
         db_table = "tblElectionManagement"   
-
-class TblUsers(models.Model):
-    UserId = models.AutoField(primary_key=True)
-    UserFirstname = models.CharField(max_length=100)
-    UserLastname = models.CharField(max_length=100, null=True, blank=True)
-    UserMobileNo = models.CharField(max_length=15, unique=True)
-    UserLoginPin = models.IntegerField()
-    UserStatus = models.IntegerField(default=1)  # 1=Active, 0=Inactive
-    UserRole = models.IntegerField(null=True, blank=True)
-
-    created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Users_created_by')
-    last_modified_on = models.DateTimeField(auto_now=True, null=True, blank=True)
-    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Users_modified_by')
-    is_deleted = models.BooleanField(default=False, null=True, blank=True)
-    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Users_deleted_by')
-
-    class Meta:
-        db_table = "tblUsers"             
+          
