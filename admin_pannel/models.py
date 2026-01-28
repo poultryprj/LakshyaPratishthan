@@ -479,4 +479,23 @@ class ElectionManagement(models.Model):
     deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Election_deleted_by')
 
     class Meta:
-        db_table = "tblElectionManagement"        
+        db_table = "tblElectionManagement"   
+
+class TblUsers(models.Model):
+    UserId = models.AutoField(primary_key=True)
+    UserFirstname = models.CharField(max_length=100)
+    UserLastname = models.CharField(max_length=100, null=True, blank=True)
+    UserMobileNo = models.CharField(max_length=15, unique=True)
+    UserLoginPin = models.IntegerField()
+    UserStatus = models.IntegerField(default=1)  # 1=Active, 0=Inactive
+    UserRole = models.IntegerField(null=True, blank=True)
+
+    created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Users_created_by')
+    last_modified_on = models.DateTimeField(auto_now=True, null=True, blank=True)
+    last_modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Users_modified_by')
+    is_deleted = models.BooleanField(default=False, null=True, blank=True)
+    deleted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='Users_deleted_by')
+
+    class Meta:
+        db_table = "tblUsers"             
