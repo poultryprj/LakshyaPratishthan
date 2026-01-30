@@ -2,6 +2,7 @@ from decimal import Decimal
 import functools
 from itertools import count
 import operator
+import traceback
 from rest_framework import status
 from admin_pannel.models import *
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
@@ -258,237 +259,394 @@ def listbloodgroup(request):
     return Response(response_data, status=status.HTTP_200_OK)
 
     
-@api_view(['POST'])
-def insertuser(request):
-    """
-    Insert a new user into the database.
+# @api_view(['POST'])
+# def insertuser(request):
+#     """
+#     Insert a new user into the database.
 
-    Maps UserMobileNo to username and UserLoginPin to password.
-    """
-    response_data = {
-        'message_code': 999,
-        'message_text': 'Failure',
-        'message_data': []
-    }
+#     Maps UserMobileNo to username and UserLoginPin to password.
+#     """
+#     response_data = {
+#         'message_code': 999,
+#         'message_text': 'Failure',
+#         'message_data': []
+#     }
 
-    try:
-        body = request.data
-        first_name = body.get('UserFirstname', '').strip()
-        last_name = body.get('UserLastname', '').strip()
-        mobile_no = body.get('UserMobileNo', '').strip()
-        login_pin = body.get('UserLoginPin', '').strip()
-        status_val = body.get('UserStatus', 1)
+#     try:
+#         body = request.data
+#         first_name = body.get('UserFirstname', '').strip()
+#         last_name = body.get('UserLastname', '').strip()
+#         mobile_no = body.get('UserMobileNo', '').strip()
+#         login_pin = body.get('UserLoginPin', '').strip()
+#         status_val = body.get('UserStatus', 1)
 
-        # --- Validation ---
-        if not first_name:
-            response_data['message_text'] = 'User firstname must be specified.'
-            return Response(response_data, status=status.HTTP_200_OK)
-        if not last_name:
-            response_data['message_text'] = 'User lastname must be specified.'
-            return Response(response_data, status=status.HTTP_200_OK)
-        if not mobile_no:
-            response_data['message_text'] = 'User mobile no must be specified.'
-            return Response(response_data, status=status.HTTP_200_OK)
-        if not login_pin:
-            response_data['message_text'] = 'User login pin must be specified.'
-            return Response(response_data, status=status.HTTP_200_OK)
+#         # --- Validation ---
+#         if not first_name:
+#             response_data['message_text'] = 'User firstname must be specified.'
+#             return Response(response_data, status=status.HTTP_200_OK)
+#         if not last_name:
+#             response_data['message_text'] = 'User lastname must be specified.'
+#             return Response(response_data, status=status.HTTP_200_OK)
+#         if not mobile_no:
+#             response_data['message_text'] = 'User mobile no must be specified.'
+#             return Response(response_data, status=status.HTTP_200_OK)
+#         if not login_pin:
+#             response_data['message_text'] = 'User login pin must be specified.'
+#             return Response(response_data, status=status.HTTP_200_OK)
 
-        # --- Check for existing user ---
-        if User.objects.filter(username=mobile_no).exists():
-            response_data['message_text'] = 'User with this mobile no. already exists.'
-            return Response(response_data, status=status.HTTP_200_OK)
+#         # --- Check for existing user ---
+#         if User.objects.filter(username=mobile_no).exists():
+#             response_data['message_text'] = 'User with this mobile no. already exists.'
+#             return Response(response_data, status=status.HTTP_200_OK)
 
-        # --- Create User ---
-        user = User(
-            username=mobile_no,
-            first_name=first_name,
-            last_name=last_name,
-            is_active=(status_val == 1)
-        )
-        user.set_password(login_pin)
-        user.save()
+#         # --- Create User ---
+#         user = User(
+#             username=mobile_no,
+#             first_name=first_name,
+#             last_name=last_name,
+#             is_active=(status_val == 1)
+#         )
+#         user.set_password(login_pin)
+#         user.save()
 
-        response_data['message_code'] = 1000
-        response_data['message_text'] = 'User created successfully.'
-        response_data['message_data'] = {
-            'UserId': user.id,
-            'UserFirstname': user.first_name,
-            'UserLastname': user.last_name,
-            'UserMobileNo': user.username,
-            'UserStatus': 1 if user.is_active else 0
-        }
+#         response_data['message_code'] = 1000
+#         response_data['message_text'] = 'User created successfully.'
+#         response_data['message_data'] = {
+#             'UserId': user.id,
+#             'UserFirstname': user.first_name,
+#             'UserLastname': user.last_name,
+#             'UserMobileNo': user.username,
+#             'UserStatus': 1 if user.is_active else 0
+#         }
 
-    except Exception:
-        response_data['message_text'] = 'An error occurred while creating user.'
+#     except Exception:
+#         response_data['message_text'] = 'An error occurred while creating user.'
 
-    return Response(response_data, status=status.HTTP_200_OK)
-
-
-
-@api_view(['POST'])
-def modifyuser(request):
-    """
-    Modify an existing user's details.
-    """
-    response_data = {
-        'message_code': 999,
-        'message_text': 'Failure',
-        'message_data': []
-    }
-
-    try:
-        body = request.data
-        user_id = body.get('UserId')
-        first_name = body.get('UserFirstname', '').strip()
-        last_name = body.get('UserLastname', '').strip()
-        mobile_no = body.get('UserMobileNo', '').strip()
-        login_pin = body.get('UserLoginPin', '').strip()
-        status_val = body.get('UserStatus', 1)
-
-        # --- Validation ---
-        if not user_id:
-            response_data['message_text'] = 'UserId must be specified.'
-            return Response(response_data, status=status.HTTP_200_OK)
-
-        if not first_name:
-            response_data['message_text'] = 'User firstname must be specified.'
-            return Response(response_data, status=status.HTTP_200_OK)
-
-        if not last_name:
-            response_data['message_text'] = 'User lastname must be specified.'
-            return Response(response_data, status=status.HTTP_200_OK)
-
-        if not mobile_no:
-            response_data['message_text'] = 'User mobile no must be specified.'
-            return Response(response_data, status=status.HTTP_200_OK)
-
-        # --- Get User ---
-        try:
-            user = User.objects.get(id=user_id)
-        except User.DoesNotExist:
-            response_data['message_text'] = 'User does not exist.'
-            return Response(response_data, status=status.HTTP_200_OK)
-
-        # --- Check for Mobile No. conflict ---
-        if User.objects.filter(username=mobile_no).exclude(id=user_id).exists():
-            response_data['message_text'] = 'Another user with this mobile no. already exists.'
-            return Response(response_data, status=status.HTTP_200_OK)
-
-        # --- Update fields ---
-        user.username = mobile_no
-        user.first_name = first_name
-        user.last_name = last_name
-        user.is_active = (status_val == 1)
-
-        if login_pin:
-            user.set_password(login_pin)
-
-        user.save()
-
-        response_data['message_code'] = 1000
-        response_data['message_text'] = 'User information modified successfully.'
-        response_data['message_data'] = {
-            'UserId': user.id,
-            'UserFirstname': user.first_name,
-            'UserLastname': user.last_name,
-            'UserMobileNo': user.username,
-            'UserStatus': 1 if user.is_active else 0
-        }
-
-    except Exception:
-        response_data['message_text'] = 'An error occurred while modifying user.'
-
-    return Response(response_data, status=status.HTTP_200_OK)
+#     return Response(response_data, status=status.HTTP_200_OK)
 
 
-@api_view(['POST'])
-def deleteuser(request):
-    """
-    Deactivate a user (soft delete) by setting is_active to False.
-    """
-    response_data = {
-        'message_code': 999,
-        'message_text': 'Failure',
-        'message_data': []
-    }
 
-    try:
-        body = request.data
-        user_id = body.get('UserId')
+# @api_view(['POST'])
+# def modifyuser(request):
+#     """
+#     Modify an existing user's details.
+#     """
+#     response_data = {
+#         'message_code': 999,
+#         'message_text': 'Failure',
+#         'message_data': []
+#     }
 
-        # --- Validation ---
-        if not user_id:
-            response_data['message_text'] = 'UserId must be specified.'
-            return Response(response_data, status=status.HTTP_200_OK)
+#     try:
+#         body = request.data
+#         user_id = body.get('UserId')
+#         first_name = body.get('UserFirstname', '').strip()
+#         last_name = body.get('UserLastname', '').strip()
+#         mobile_no = body.get('UserMobileNo', '').strip()
+#         login_pin = body.get('UserLoginPin', '').strip()
+#         status_val = body.get('UserStatus', 1)
 
-        # --- Get User ---
-        try:
-            user = User.objects.get(id=user_id)
-        except User.DoesNotExist:
-            response_data['message_text'] = 'User does not exist.'
-            return Response(response_data, status=status.HTTP_200_OK)
+#         # --- Validation ---
+#         if not user_id:
+#             response_data['message_text'] = 'UserId must be specified.'
+#             return Response(response_data, status=status.HTTP_200_OK)
 
-        # --- Perform soft delete ---
-        user.is_active = False
-        user.save()
+#         if not first_name:
+#             response_data['message_text'] = 'User firstname must be specified.'
+#             return Response(response_data, status=status.HTTP_200_OK)
 
-        response_data['message_code'] = 1000
-        response_data['message_text'] = 'User deactivated successfully.'
-        response_data['message_data'] = {
-            'UserId': user.id,
-            'UserFirstname': user.first_name,
-            'UserLastname': user.last_name,
-            'UserMobileNo': user.username,
-            'UserStatus': 0
-        }
+#         if not last_name:
+#             response_data['message_text'] = 'User lastname must be specified.'
+#             return Response(response_data, status=status.HTTP_200_OK)
 
-    except Exception:
-        response_data['message_text'] = 'An error occurred while deactivating user.'
+#         if not mobile_no:
+#             response_data['message_text'] = 'User mobile no must be specified.'
+#             return Response(response_data, status=status.HTTP_200_OK)
 
-    return Response(response_data, status=status.HTTP_200_OK)
+#         # --- Get User ---
+#         try:
+#             user = User.objects.get(id=user_id)
+#         except User.DoesNotExist:
+#             response_data['message_text'] = 'User does not exist.'
+#             return Response(response_data, status=status.HTTP_200_OK)
 
+#         # --- Check for Mobile No. conflict ---
+#         if User.objects.filter(username=mobile_no).exclude(id=user_id).exists():
+#             response_data['message_text'] = 'Another user with this mobile no. already exists.'
+#             return Response(response_data, status=status.HTTP_200_OK)
+
+#         # --- Update fields ---
+#         user.username = mobile_no
+#         user.first_name = first_name
+#         user.last_name = last_name
+#         user.is_active = (status_val == 1)
+
+#         if login_pin:
+#             user.set_password(login_pin)
+
+#         user.save()
+
+#         response_data['message_code'] = 1000
+#         response_data['message_text'] = 'User information modified successfully.'
+#         response_data['message_data'] = {
+#             'UserId': user.id,
+#             'UserFirstname': user.first_name,
+#             'UserLastname': user.last_name,
+#             'UserMobileNo': user.username,
+#             'UserStatus': 1 if user.is_active else 0
+#         }
+
+#     except Exception:
+#         response_data['message_text'] = 'An error occurred while modifying user.'
+
+#     return Response(response_data, status=status.HTTP_200_OK)
+
+
+# @api_view(['POST'])
+# def deleteuser(request):
+#     """
+#     Deactivate a user (soft delete) by setting is_active to False.
+#     """
+#     response_data = {
+#         'message_code': 999,
+#         'message_text': 'Failure',
+#         'message_data': []
+#     }
+
+#     try:
+#         body = request.data
+#         user_id = body.get('UserId')
+
+#         # --- Validation ---
+#         if not user_id:
+#             response_data['message_text'] = 'UserId must be specified.'
+#             return Response(response_data, status=status.HTTP_200_OK)
+
+#         # --- Get User ---
+#         try:
+#             user = User.objects.get(id=user_id)
+#         except User.DoesNotExist:
+#             response_data['message_text'] = 'User does not exist.'
+#             return Response(response_data, status=status.HTTP_200_OK)
+
+#         # --- Perform soft delete ---
+#         user.is_active = False
+#         user.save()
+
+#         response_data['message_code'] = 1000
+#         response_data['message_text'] = 'User deactivated successfully.'
+#         response_data['message_data'] = {
+#             'UserId': user.id,
+#             'UserFirstname': user.first_name,
+#             'UserLastname': user.last_name,
+#             'UserMobileNo': user.username,
+#             'UserStatus': 0
+#         }
+
+#     except Exception:
+#         response_data['message_text'] = 'An error occurred while deactivating user.'
+
+#     return Response(response_data, status=status.HTTP_200_OK)
+
+
+
+# @api_view(['GET'])
+# def listuserall(request):
+#     """
+#     Retrieve a list of all users, matching the PHP API structure, including password/PIN.
+#     """
+#     try:
+#         users = User.objects.all()
+        
+#         if not users.exists():
+#             return Response({
+#                 'message_code': 999,
+#                 'message_text': 'No Users.',
+#                 'message_data': []
+#             }, status=status.HTTP_200_OK)
+        
+#         user_list = []
+#         for u in users:
+#             # Assuming User model has 'password' field as login PIN or a related field
+#             user_list.append({
+#                 "UserId": str(u.id),
+#                 "UserFirstname": u.first_name,
+#                 "UserLastname": u.last_name,
+#                 "UserMobileNo": u.username,
+#                 "UserLoginPin": getattr(u, 'password', ''),  # or 'u.userloginpin' if custom field
+#                 "UserStatus": "1" if u.is_active else "0",
+#                 "UserRole": "1" if u.is_staff else "2"
+#             })
+        
+#         return Response({
+#             'message_code': 1000,
+#             'message_text': 'Success',
+#             'message_data': user_list
+#         }, status=status.HTTP_200_OK)
+
+#     except Exception as e:
+#         return Response({
+#             'message_code': 999,
+#             'message_text': f'Unable to fetch users: {e}',
+#             'message_data': []
+#         }, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
 def listuserall(request):
-    """
-    Retrieve a list of all users, matching the PHP API structure, including password/PIN.
-    """
+    users = TblUsers.objects.all().order_by('-UserId')
+
+    data = []
+    for u in users:
+        data.append({
+            "UserId": u.UserId,
+            "UserFirstname": u.UserFirstname,
+            "UserLastname": u.UserLastname,
+            "UserMobileNo": u.UserMobileNo,
+            "UserLoginPin": u.UserLoginPin,   # ⚠ only because your UI needs it
+            "UserStatus": str(u.UserStatus),
+            "UserRole": str(u.UserRole)
+        })
+
+    return Response({
+        'message_code': 1000,
+        'message_text': 'Success',
+        'message_data': data
+    })
+
+
+@api_view(['POST'])
+def insertuser(request):
+    response_data = {
+        'message_code': 999,
+        'message_text': 'Failure',
+        'message_data': []
+    }
+
     try:
-        users = User.objects.all()
-        
-        if not users.exists():
-            return Response({
-                'message_code': 999,
-                'message_text': 'No Users.',
-                'message_data': []
-            }, status=status.HTTP_200_OK)
-        
-        user_list = []
-        for u in users:
-            # Assuming User model has 'password' field as login PIN or a related field
-            user_list.append({
-                "UserId": str(u.id),
-                "UserFirstname": u.first_name,
-                "UserLastname": u.last_name,
-                "UserMobileNo": u.username,
-                "UserLoginPin": getattr(u, 'password', ''),  # or 'u.userloginpin' if custom field
-                "UserStatus": "1" if u.is_active else "0",
-                "UserRole": "1" if u.is_staff else "2"
-            })
-        
-        return Response({
-            'message_code': 1000,
-            'message_text': 'Success',
-            'message_data': user_list
-        }, status=status.HTTP_200_OK)
+        body = request.data
+
+        first_name = body.get('UserFirstname', '').strip()
+        last_name  = body.get('UserLastname', '').strip()
+        mobile_no  = body.get('UserMobileNo', '').strip()
+        login_pin  = body.get('UserLoginPin')
+        role       = body.get('UserRole', 2)
+
+        if not first_name:
+            response_data['message_text'] = 'User firstname must be specified.'
+            return Response(response_data)
+
+        if not last_name:
+            response_data['message_text'] = 'User lastname must be specified.'
+            return Response(response_data)
+
+        if not mobile_no:
+            response_data['message_text'] = 'User mobile no must be specified.'
+            return Response(response_data)
+
+        if not login_pin:
+            response_data['message_text'] = 'User login pin must be specified.'
+            return Response(response_data)
+
+        if TblUsers.objects.filter(UserMobileNo=mobile_no).exists():
+            response_data['message_text'] = 'User with this mobile no already exists.'
+            return Response(response_data)
+
+        user = TblUsers.objects.create(
+            UserFirstname=first_name,
+            UserLastname=last_name,
+            UserMobileNo=mobile_no,
+            UserLoginPin=login_pin,
+            UserStatus=1,
+            UserRole=role
+        )
+
+        response_data['message_code'] = 1000
+        response_data['message_text'] = 'User created successfully.'
+        response_data['message_data'] = {
+            'UserId': user.UserId
+        }
 
     except Exception as e:
-        return Response({
-            'message_code': 999,
-            'message_text': f'Unable to fetch users: {e}',
-            'message_data': []
-        }, status=status.HTTP_200_OK)
+        response_data['message_text'] = str(e)
+
+    return Response(response_data)
+
+
+@api_view(['POST'])
+def modifyuser(request):
+    response_data = {
+        'message_code': 999,
+        'message_text': 'Failure',
+        'message_data': []
+    }
+
+    try:
+        body = request.data
+        user_id = body.get('UserId')
+
+        if not user_id:
+            response_data['message_text'] = 'UserId must be specified.'
+            return Response(response_data)
+
+        try:
+            user = TblUsers.objects.get(UserId=user_id)
+        except TblUsers.DoesNotExist:
+            response_data['message_text'] = 'User does not exist.'
+            return Response(response_data)
+
+        mobile_no = body.get('UserMobileNo', '').strip()
+
+        if TblUsers.objects.filter(UserMobileNo=mobile_no).exclude(UserId=user_id).exists():
+            response_data['message_text'] = 'Mobile number already used.'
+            return Response(response_data)
+
+        user.UserFirstname = body.get('UserFirstname', user.UserFirstname)
+        user.UserLastname  = body.get('UserLastname', user.UserLastname)
+        user.UserMobileNo  = mobile_no
+        user.UserRole      = body.get('UserRole', user.UserRole)
+        user.UserStatus    = body.get('UserStatus', user.UserStatus)
+
+        if body.get('UserLoginPin'):
+            user.UserLoginPin = body.get('UserLoginPin')
+
+        user.save()
+
+        response_data['message_code'] = 1000
+        response_data['message_text'] = 'User updated successfully.'
+
+    except Exception as e:
+        response_data['message_text'] = str(e)
+
+    return Response(response_data)
+
+
+@api_view(['POST'])
+def deleteuser(request):
+    response_data = {
+        'message_code': 999,
+        'message_text': 'Failure',
+        'message_data': []
+    }
+
+    try:
+        user_id = request.data.get('UserId')
+
+        if not user_id:
+            response_data['message_text'] = 'UserId must be specified.'
+            return Response(response_data)
+
+        user = TblUsers.objects.get(UserId=user_id)
+        user.UserStatus = 0
+        user.save()
+
+        response_data['message_code'] = 1000
+        response_data['message_text'] = 'User deactivated successfully.'
+
+    except TblUsers.DoesNotExist:
+        response_data['message_text'] = 'User not found.'
+
+    return Response(response_data)
 
 
 
@@ -609,7 +767,7 @@ def searchregistrations(request):
                 "PhotoFileName": r.photoFileName or "",
                 "DateOfRegistration": str(dor_ts),
                 "PermanantId": str(r.permanentId or 0),
-                "UserId": str(r.userId.id) if getattr(r, 'userId', None) else "",
+                "UserId": str(r.userId.UserId) if getattr(r, 'userId', None) else "",
                 "IdProofFileName": r.idProofFileName or "",
                 "VoterIdProof": r.voterIdProof or ""
             })
@@ -678,7 +836,6 @@ def pilgrimregistration(request):
             'photoFileName': body.get('PhotoFileName', ''),
             'idProofFileName': body.get('IdProofFileName', ''),
             'voterIdProof': body.get('VoterId', ''),
-            'zonePreference': body.get('ZonePreference', 0),
             'alternateMobileNo': alt_mobile_no,
             'aadharNumber': aadhar_no,
         }
@@ -698,12 +855,18 @@ def pilgrimregistration(request):
                 response_data['message_text'] = 'Blood Group not found.'
                 return Response(response_data, status=status.HTTP_200_OK)
 
-        if body.get('UserId'):
+        user_id = body.get('UserId')
+
+        if user_id not in [None, "", 0, "0"]:
             try:
-                data_to_save['userId'] = User.objects.get(id=body.get('UserId'))
-            except User.DoesNotExist:
-                response_data['message_text'] = 'User not found.'
-                return Response(response_data, status=status.HTTP_200_OK)
+                data_to_save['userId'] = TblUsers.objects.get(UserId=int(user_id))  
+                # OR: TblUsers.objects.get(id=int(user_id))  (depends on your PK)
+            except (TblUsers.DoesNotExist, ValueError, TypeError):
+                data_to_save['userId'] = None
+        else:
+            data_to_save['userId'] = None
+
+
 
         # --- Create or Update ---
         if not registration_id:
@@ -736,9 +899,14 @@ def pilgrimregistration(request):
             }
 
     except Exception as e:
-        response_data['message_text'] = 'An error occurred while saving registration.'
 
-    return Response(response_data, status=status.HTTP_200_OK)
+        print("❌ pilgrimregistration ERROR:", str(e))
+        traceback.print_exc()
+
+        response_data['message_text'] = f"Error: {str(e)}"   # show real reason
+        return Response(response_data, status=status.HTTP_200_OK)
+
+ 
 
 
 
@@ -1670,9 +1838,9 @@ def insertblanktickets(request):
 @api_view(['POST'])
 def inserttickets(request):
     """
-    (Corrected Optimized Version)
-    Books tickets using true bulk operations and includes a corrected pre-flight check
-    to prevent double-booking.
+    (Robust Version)
+    Books tickets and AUTOMATICALLY CREATES missing seats if they don't exist.
+    Prevents "Seats not found" error permanently.
     """
     response_data = { 'message_code': 999, 'message_text': 'Failure', 'message_data': {} }
 
@@ -1685,72 +1853,80 @@ def inserttickets(request):
             response_data['message_text'] = 'UserId and a list of Bookings are required.'
             return Response(response_data, status=status.HTTP_200_OK)
 
-        # --- Step 1: Gather all IDs ---
+        # --- Step 1: Validate User ---
+        try:
+            user_obj = TblUsers.objects.get(UserId=user_id)
+        except TblUsers.DoesNotExist:
+            response_data['message_text'] = f"Agent User ID {user_id} not found."
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        # --- Step 2: AUTO-HEAL (Ensure all requested seats exist) ---
+        # This loop fixes the "Seats not found" error by creating them on the fly
+        ticket_q_objects = []
         yatra_ids = set()
         reg_ids = set()
-        ticket_q_objects = [] 
 
         for group in bookings:
             yatra_id = group.get('YatraId')
             yatra_bus_id = group.get('BusId')
             yatra_ids.add(yatra_id)
+
+            # Fetch parent objects needed to create a seat if missing
+            try:
+                yatra_obj = Yatras.objects.get(yatraId=yatra_id)
+                bus_obj = YatraBuses.objects.get(yatraBusId=yatra_bus_id)
+                route_obj = yatra_obj.yatraRouteId
+            except Exception:
+                raise Exception("Invalid Yatra or Bus ID provided.")
+
             for reg in group.get('Registrations', []):
+                seat_no = int(reg.get('SeatNo'))
                 reg_ids.add(reg.get('RegistrationId'))
+                
+                # Critical Fix: Create ticket row if it doesn't exist
+                TicketsNew.objects.get_or_create(
+                    yatra_id=yatra_obj,
+                    yatra_bus_id=bus_obj,
+                    seat_no=seat_no,
+                    defaults={
+                        'yatra_route_id': route_obj,
+                        'seat_fees': bus_obj.seatFees if bus_obj.seatFees else 0,
+                        'ticket_status_id': 0, # Available
+                        'discount': 0,
+                        'amount_paid': 0
+                    }
+                )
+                
+                # Build query for the next step
                 ticket_q_objects.append(
-                    Q(yatra_id=yatra_id, yatra_bus_id=yatra_bus_id, seat_no=reg.get('SeatNo'))
+                    Q(yatra_id=yatra_id, yatra_bus_id=yatra_bus_id, seat_no=seat_no)
                 )
 
-        if not ticket_q_objects:
-            raise Exception("No registration details provided in the booking request.")
-
-        # --- Step 2: Fetch all required objects ---
-        user_obj = User.objects.get(id=user_id)
-        yatras_map = {y.yatraId: y for y in Yatras.objects.filter(yatraId__in=yatra_ids)}
+        # --- Step 3: Fetch and Check for Double Booking ---
         registrations_map = {r.registrationId: r for r in Registrations.objects.filter(registrationId__in=reg_ids)}
+        yatras_map = {y.yatraId: y for y in Yatras.objects.filter(yatraId__in=yatra_ids)}
 
-        # --- Pre-flight Check for Double Booking ---
-        double_booking_q_objects = []
-        for group in bookings:
-            yatra_id = group.get('YatraId')
-            for reg in group.get('Registrations', []):
-                reg_id = reg.get('RegistrationId')
-                # Create a query to check if this person is already booked for this yatra.
-                double_booking_q_objects.append(
-                    # CORRECTED LINE: Changed '__ne=0' to the valid lookup '__gt=0'
-                    Q(registration_id=reg_id, yatra_id=yatra_id, ticket_status_id__gt=0)
-                )
-
-        if double_booking_q_objects:
-            combined_double_booking_query = functools.reduce(operator.or_, double_booking_q_objects)
-            existing_booking = TicketsNew.objects.filter(combined_double_booking_query).select_related('registration_id').first()
-
-            if existing_booking:
-                reg_obj = existing_booking.registration_id
-                # Ensure your Registrations model has 'firstname' or similar fields
-                passenger_name = f"{getattr(reg_obj, 'firstname', '')} {getattr(reg_obj, 'lastname', '')}".strip()
-                raise Exception(f"Passenger '{passenger_name}' (ID: {reg_obj.registrationId}) is already booked for this Yatra.")
-
-        # --- Continue with booking logic ---
+        # Fetch tickets (Now guaranteed to exist)
         combined_ticket_query = functools.reduce(operator.or_, ticket_q_objects)
         tickets_to_book = list(TicketsNew.objects.filter(combined_ticket_query))
-        
-        if len(tickets_to_book) != len(ticket_q_objects):
-             raise Exception("One or more of the requested seats could not be found or do not exist.")
-        
+
+        # Check if already booked by someone else
         for ticket in tickets_to_book:
             if ticket.ticket_status_id != 0:
-                raise Exception(f"Seat {ticket.seat_no} for Yatra {ticket.yatra_id_id} is not available.")
+                raise Exception(f"Seat {ticket.seat_no} is already booked.")
 
-        # --- Step 3: Process the logic and prepare objects for update ---
+        # --- Step 4: Prepare Data ---
         amount_paid_total = Decimal(body.get('AmountPaid', 0))
         discount_total = Decimal(body.get('Discount', 0))
         discount_reason = body.get('DiscountReason', '')
         payment_mode = body.get('PaymentMode', 1)
+        booking_date_today = datetime.now().date()
 
         total_tickets = len(tickets_to_book)
         amount_per_ticket = amount_paid_total / total_tickets if total_tickets > 0 else 0
         discount_per_ticket = discount_total / total_tickets if total_tickets > 0 else 0
-        
+
+        # --- Step 5: Update Objects in Memory ---
         for ticket_obj in tickets_to_book:
             found_reg = False
             for group in bookings:
@@ -1761,40 +1937,39 @@ def inserttickets(request):
                             registration_obj = registrations_map.get(reg_id)
                             yatra_obj = yatras_map.get(ticket_obj.yatra_id_id)
                             
-                            if not registration_obj or not yatra_obj:
-                                raise Exception(f"Invalid YatraId or RegistrationId provided.")
-                            
-                            ticket_obj.ticket_status_id = 2
+                            ticket_obj.ticket_status_id = 2 # Booked
                             ticket_obj.user_id = user_obj
                             ticket_obj.registration_id = registration_obj
-                            
                             ticket_obj.permanant_id = registration_obj.registrationId
                             ticket_obj.seat_fees = yatra_obj.yatraFees
                             ticket_obj.discount = discount_per_ticket
                             ticket_obj.discount_reason = discount_reason
                             ticket_obj.amount_paid = amount_per_ticket
                             ticket_obj.payment_mode = payment_mode
+                            ticket_obj.booking_date = booking_date_today
                             found_reg = True
                             break
                 if found_reg:
                     break
 
-        # --- Step 4: Perform a single, atomic bulk update ---
+        # --- Step 6: Save to Database ---
         with transaction.atomic():
             TicketsNew.objects.bulk_update(tickets_to_book, [
                 'ticket_status_id', 'user_id', 'registration_id', 'permanant_id',
-                'seat_fees', 'discount', 'discount_reason', 'amount_paid', 'payment_mode'
+                'seat_fees', 'discount', 'discount_reason', 'amount_paid', 'payment_mode', 'booking_date'
             ])
 
         response_data = {
             'message_code': 1000,
-            'message_text': f'{len(tickets_to_book)} ticket(s) booked successfully.',
+            'message_text': f'Success! {len(tickets_to_book)} ticket(s) booked.',
             'message_data': {}
         }
         return Response(response_data, status=status.HTTP_200_OK)
 
     except Exception as e:
-        response_data['message_text'] = f'An unexpected error occurred: {e}'
+        # import traceback
+        # print(traceback.format_exc())
+        response_data['message_text'] = f'Error: {str(e)}'
         return Response(response_data, status=status.HTTP_200_OK)
     
 
@@ -2326,12 +2501,83 @@ def agentbookings(request):
             'message_data': []
         }, status=status.HTTP_200_OK)
 
+# @api_view(['POST'])
+# def yatrabookings(request):
+#     """
+#     Retrieve agent route, yatra, bus-wise tickets for a given YatraRouteId.
+#     """
+
+#     response_data = {
+#         'message_code': 999,
+#         'message_text': 'Failure',
+#         'message_data': []
+#     }
+
+#     try:
+#         body = request.data
+#         yatra_route_id = body.get('YatraRouteId', 0)
+
+#         if not yatra_route_id:
+#             response_data['message_text'] = 'Please provide agent for tickets.'
+#             return Response(response_data, status=status.HTTP_200_OK)
+
+#         # Fetch tickets matching the YatraRouteId and TicketStatusId=2 for 2025
+#         tickets = (
+#             TicketsNew.objects
+#             .filter(TicketYear=2025, TicketStatusId=2, YatraRouteId=yatra_route_id)
+#             .select_related('YatraId__YatraRouteId', 'YatraBusId', 'RegistrationId__AreaId')
+#             .order_by('YatraRouteId', 'YatraId', 'YatraBusId', 'SeatNo')
+#         )
+
+#         if not tickets.exists():
+#             response_data['message_text'] = 'No Tickets'
+#             return Response(response_data, status=status.HTTP_200_OK)
+
+#         ticket_list = []
+#         for t in tickets:
+#             yatra = t.YatraId
+#             bus = t.YatraBusId
+#             reg = t.RegistrationId
+#             area = reg.AreaId
+
+#             ticket_data = {
+#                 "YatraRouteId": str(t.YatraRouteId),
+#                 "YatraId": str(t.YatraId_id),
+#                 "YatraDateTime": DateFormat(localtime(yatra.YatraDateTime)).format('d-m-Y') if yatra.YatraDateTime else None,
+#                 "YatraStartDateTime": DateFormat(localtime(yatra.YatraStartDateTime)).format('d-m-Y H:i') if yatra.YatraStartDateTime else None,
+#                 "YatraFees": str(yatra.YatraFees),
+#                 "YatraBusId": str(bus.id) if bus else None,
+#                 "BusName": bus.BusName if bus else None,
+#                 "Firstname": reg.Firstname if reg else None,
+#                 "Middlename": reg.Middlename if reg else None,
+#                 "Lastname": reg.Lastname if reg else None,
+#                 "MobileNo": reg.MobileNo if reg else None,
+#                 "AlternateMobileNo": reg.AlternateMobileNo if reg else None,
+#                 "BloodGroup": reg.BloodGroup if reg else None,
+#                 "Gender": str(reg.Gender) if reg else None,
+#                 "PhotoFileName": reg.PhotoFileName if reg else None,
+#                 "Address": reg.Address if reg else None,
+#                 "AreaName": area.AreaName if area else None
+#             }
+#             ticket_list.append(ticket_data)
+
+#         response_data['message_code'] = 1000
+#         response_data['message_text'] = 'Agent Route, Yatra, Bus wise Tickets on Date'
+#         response_data['message_data'] = ticket_list
+
+#     except Exception as e:
+#         response_data['message_text'] = f'An error occurred while fetching tickets: {str(e)}'
+
+#     return Response(response_data, status=status.HTTP_200_OK)
+
+
 @api_view(['POST'])
 def yatrabookings(request):
     """
-    Retrieve agent route, yatra, bus-wise tickets for a given YatraRouteId.
+    Revised API: Fetches bookings flexibly.
+    - If only YatraRouteId provided -> Gets ALL bookings for that route (Good for Area Report)
+    - If YatraId/BusId provided -> Filters more specifically
     """
-
     response_data = {
         'message_code': 999,
         'message_text': 'Failure',
@@ -2340,58 +2586,86 @@ def yatrabookings(request):
 
     try:
         body = request.data
-        yatra_route_id = body.get('YatraRouteId', 0)
+        yatra_route_id = body.get('YatraRouteId') or body.get('route_id') # Handle both naming conventions
+        
+        # Optional filters
+        yatra_id = body.get('YatraId') or body.get('yatra_id')
+        yatra_bus_id = body.get('YatraBusId') or body.get('bus_id')
 
         if not yatra_route_id:
-            response_data['message_text'] = 'Please provide agent for tickets.'
+            response_data['message_text'] = 'YatraRouteId is required.'
             return Response(response_data, status=status.HTTP_200_OK)
 
-        # Fetch tickets matching the YatraRouteId and TicketStatusId=2 for 2025
-        tickets = (
-            TicketsNew.objects
-            .filter(TicketYear=2025, TicketStatusId=2, YatraRouteId=yatra_route_id)
-            .select_related('YatraId__YatraRouteId', 'YatraBusId', 'RegistrationId__AreaId')
-            .order_by('YatraRouteId', 'YatraId', 'YatraBusId', 'SeatNo')
-        )
+        # Base Query: Start with Route ID
+        # Note: TicketStatusId=2 means "Booked"
+        tickets = TicketsNew.objects.filter(
+            ticket_year=2025, 
+            ticket_status_id=2, 
+            yatra_route_id=yatra_route_id
+        ).select_related(
+            'yatra_id', 
+            'yatra_bus_id', 
+            'yatra_bus_id__busName',
+            'registration_id', 
+            'registration_id__areaId',
+            'registration_id__bloodGroup'
+        ).order_by('yatra_id', 'yatra_bus_id', 'seat_no')
+
+        # Apply optional filters if they exist
+        if yatra_id:
+            tickets = tickets.filter(yatra_id=yatra_id)
+        
+        if yatra_bus_id:
+            tickets = tickets.filter(yatra_bus_id=yatra_bus_id)
 
         if not tickets.exists():
-            response_data['message_text'] = 'No Tickets'
+            response_data['message_text'] = 'No Tickets Found'
             return Response(response_data, status=status.HTTP_200_OK)
 
         ticket_list = []
         for t in tickets:
-            yatra = t.YatraId
-            bus = t.YatraBusId
-            reg = t.RegistrationId
-            area = reg.AreaId
+            # Safe attribute access
+            yatra = t.yatra_id
+            bus = t.yatra_bus_id
+            reg = t.registration_id
+            area = reg.areaId if reg else None
+            blood = reg.bloodGroup if reg else None
+            
+            # Get Bus Name safely
+            bus_name_str = "Unknown"
+            if bus and bus.busName:
+                bus_name_str = bus.busName.busName
 
             ticket_data = {
-                "YatraRouteId": str(t.YatraRouteId),
-                "YatraId": str(t.YatraId_id),
-                "YatraDateTime": DateFormat(localtime(yatra.YatraDateTime)).format('d-m-Y') if yatra.YatraDateTime else None,
-                "YatraStartDateTime": DateFormat(localtime(yatra.YatraStartDateTime)).format('d-m-Y H:i') if yatra.YatraStartDateTime else None,
-                "YatraFees": str(yatra.YatraFees),
-                "YatraBusId": str(bus.id) if bus else None,
-                "BusName": bus.BusName if bus else None,
-                "Firstname": reg.Firstname if reg else None,
-                "Middlename": reg.Middlename if reg else None,
-                "Lastname": reg.Lastname if reg else None,
-                "MobileNo": reg.MobileNo if reg else None,
-                "AlternateMobileNo": reg.AlternateMobileNo if reg else None,
-                "BloodGroup": reg.BloodGroup if reg else None,
-                "Gender": str(reg.Gender) if reg else None,
-                "PhotoFileName": reg.PhotoFileName if reg else None,
-                "Address": reg.Address if reg else None,
-                "AreaName": area.AreaName if area else None
+                "YatraRouteId": str(t.yatra_route_id_id),
+                "YatraId": str(t.yatra_id_id),
+                "YatraDateTime": yatra.yatraDateTime.strftime('%d-%m-%Y') if yatra and yatra.yatraDateTime else "",
+                "YatraFees": str(yatra.yatraFees) if yatra else "0",
+                "YatraBusId": str(bus.yatraBusId) if bus else "",
+                "BusName": bus_name_str,
+                "SeatNo": str(t.seat_no),
+                
+                # Registration Details
+                "Firstname": reg.firstname if reg else "",
+                "Middlename": reg.middlename if reg else "",
+                "Lastname": reg.lastname if reg else "",
+                "MobileNo": reg.mobileNo if reg else "",
+                "AlternateMobileNo": reg.alternateMobileNo if reg else "",
+                "BloodGroup": blood.bloodGroupName if blood else "",
+                "Gender": str(reg.gender) if reg else "",
+                "AreaName": area.AreaName if area else "Unknown",  # CRITICAL FOR AREA REPORT
+                "Address": reg.address if reg else ""
             }
             ticket_list.append(ticket_data)
 
         response_data['message_code'] = 1000
-        response_data['message_text'] = 'Agent Route, Yatra, Bus wise Tickets on Date'
+        response_data['message_text'] = 'Success'
         response_data['message_data'] = ticket_list
 
     except Exception as e:
-        response_data['message_text'] = f'An error occurred while fetching tickets: {str(e)}'
+        import traceback
+        print(traceback.format_exc())
+        response_data['message_text'] = f'Error: {str(e)}'
 
     return Response(response_data, status=status.HTTP_200_OK)
 
@@ -4563,6 +4837,8 @@ def diwaliregistration(request):
         # --- Data preparation (No changes here) ---
         alt_mobile_no = body.get('userAlternateMobileNo') or None
         aadhar_no = body.get('userAadharNumber') or None
+        dob = body.get('DateOfBirth') or body.get('DateofBirth')
+        gender = body.get('GenderId') or body.get('Gender')
         
         data_to_save = {
             'firstname': first_name,
@@ -4570,16 +4846,14 @@ def diwaliregistration(request):
             'mobileNo': mobile_no,
             'middlename': body.get('userMiddlename', '').strip(),
             'address': body.get('Address', ''),
-            'gender': body.get('GenderId'),
-            'dateOfBirth': body.get('DateofBirth'),
+            'gender': gender,         
+            'dateOfBirth': dob,
             'photoFileName': body.get('PhotoFileName', ''),
             'idProofFileName': body.get('IdProofFileName', ''),
             'voterIdProof': body.get('VoterIdProof', ''),
-            'zonePreference': body.get('ZonePreference', 0),
             'alternateMobileNo': alt_mobile_no,
             'aadharNumber': aadhar_no,
             'age': body.get('Age', 0),
-            'ration_card_no': body.get('RationCardNo'),
             'ration_card_photo': body.get('RationCardPhoto'),
             'parent_id': body.get('ParentId')
         }
@@ -4598,9 +4872,10 @@ def diwaliregistration(request):
 
         if body.get('UserId'):
             try:
-                data_to_save['userId'] = User.objects.get(id=body.get('UserId'))
-            except User.DoesNotExist:
-                response_data['message_text'] = 'User not found.'
+                # TblUsers uses 'UserId' as primary key, NOT 'id'
+                data_to_save['userId'] = TblUsers.objects.get(UserId=body.get('UserId'))
+            except TblUsers.DoesNotExist:
+                response_data['message_text'] = 'User (Agent) not found.'
                 return Response(response_data, status=status.HTTP_200_OK)
 
         # --- Create or Update ---
@@ -4642,12 +4917,90 @@ def diwaliregistration(request):
 
 
 
+# @api_view(['POST'])
+# def check_rationcard(request):
+#     """
+#     Searches for pilgrim registrations based on a search string.
+#     The search is performed on Ration Card No, Mobile No, Firstname, and Lastname.
+#     """
+#     response_data = {
+#         'message_code': 999,
+#         'message_text': 'An error occurred.',
+#         'message_data': []
+#     }
+
+#     try:
+#         search_string = request.data.get('SearchString', '').strip()
+
+#         # --- Validation ---
+#         if not search_string:
+#             response_data['message_text'] = 'Please provide a search string for Diwali Kirana.'
+#             return Response(response_data, status=status.HTTP_200_OK)
+
+#         # --- Build the OR query using Q objects ---
+#         # This is the Django equivalent of your WHERE clause with multiple OR conditions.
+#         # `__icontains` is a case-insensitive "LIKE '%...%'" search.
+#         query = Q(ration_card_no=search_string) | \
+#                 Q(mobileNo=search_string) | \
+#                 Q(firstname__icontains=search_string) | \
+#                 Q(lastname__icontains=search_string)
+
+#         # --- Execute the query ---
+#         # .values() fetches only the specified fields, making it efficient.
+#         registrations = Registrations.objects.filter(query).values()
+
+#         if registrations:
+#             # The .values() method returns keys based on your model's field names (camelCase).
+#             # We need to manually format them to match the desired PascalCase output.
+#             formatted_data = []
+#             for reg in registrations:
+#                 formatted_data.append({
+#                     "RegistrationId": reg.get('registrationId'),
+#                     "Firstname": reg.get('firstname'),
+#                     "Middlename": reg.get('middlename'),
+#                     "Lastname": reg.get('lastname'),
+#                     "MobileNo": reg.get('mobileNo'),
+#                     "AlternateMobileNo": reg.get('alternateMobileNo'),
+#                     "BloodGroup": reg.get('bloodGroup_id'), # ForeignKey returns the ID
+#                     "DateOfBirth": reg.get('dateOfBirth'),
+#                     "ZonePreference": reg.get('zonePreference'),
+#                     "Gender": reg.get('gender'),
+#                     "AadharNumber": reg.get('aadharNumber'),
+#                     "AreaId": reg.get('areaId_id'), # ForeignKey returns the ID
+#                     "Address": reg.get('address'),
+#                     "PhotoFileName": reg.get('photoFileName'),
+#                     "IdProofFileName": reg.get('idProofFileName'),
+#                     "VoterIdProof": reg.get('voterIdProof'),
+#                     "DateOfRegistration": reg.get('dateOfRegistration'),
+#                     "PermanantId": reg.get('permanentId'), # Note: Typo in PHP response ('PermanantId')
+#                     "RationCardNo": reg.get('ration_card_no'),
+#                     "ParentId": reg.get('parent_id'),
+#                     "UserId": reg.get('userId_id'), # ForeignKey returns the ID
+#                     "Age": reg.get('age'), 
+#                 })
+            
+#             response_data['message_code'] = 1000
+#             response_data['message_text'] = 'Record matched'
+#             response_data['message_data'] = formatted_data
+#         else:
+#             response_data['message_text'] = 'No record matching data.'
+#             # `message_data` is already an empty list by default
+
+#     except Exception as e:
+#         response_data['message_text'] = f"An unexpected error occurred: {str(e)}"
+#         # For production, you might want to log the error instead of sending it in the response.
+
+#     return Response(response_data, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
 @api_view(['POST'])
 def check_rationcard(request):
-    """
-    Searches for pilgrim registrations based on a search string.
-    The search is performed on Ration Card No, Mobile No, Firstname, and Lastname.
-    """
     response_data = {
         'message_code': 999,
         'message_text': 'An error occurred.',
@@ -4655,68 +5008,94 @@ def check_rationcard(request):
     }
 
     try:
-        search_string = request.data.get('SearchString', '').strip()
+        search_string = str(request.data.get('SearchString', '')).strip()
+        year_month = str(request.data.get('DiwaliYearMonth', '')).strip() or "2025-10"
 
-        # --- Validation ---
         if not search_string:
             response_data['message_text'] = 'Please provide a search string for Diwali Kirana.'
             return Response(response_data, status=status.HTTP_200_OK)
 
-        # --- Build the OR query using Q objects ---
-        # This is the Django equivalent of your WHERE clause with multiple OR conditions.
-        # `__icontains` is a case-insensitive "LIKE '%...%'" search.
-        query = Q(ration_card_no=search_string) | \
-                Q(mobileNo=search_string) | \
-                Q(firstname__icontains=search_string) | \
-                Q(lastname__icontains=search_string)
+        # -------------------------------
+        # 1) Find registrations from DiwaliKirana by ration card / token / mobile-like search
+        # -------------------------------
+        dk_qs = DiwaliKirana.objects.filter(DiwaliYearMonth=year_month).filter(
+            Q(RationCardNo__icontains=search_string) |
+            Q(TokenNo__iexact=search_string) |
+            Q(TokenQR__iexact=search_string)
+        )
 
-        # --- Execute the query ---
-        # .values() fetches only the specified fields, making it efficient.
-        registrations = Registrations.objects.filter(query).values()
+        reg_ids_from_dk = list(dk_qs.values_list("RegistrationId_id", flat=True))
 
-        if registrations:
-            # The .values() method returns keys based on your model's field names (camelCase).
-            # We need to manually format them to match the desired PascalCase output.
-            formatted_data = []
-            for reg in registrations:
-                formatted_data.append({
-                    "RegistrationId": reg.get('registrationId'),
-                    "Firstname": reg.get('firstname'),
-                    "Middlename": reg.get('middlename'),
-                    "Lastname": reg.get('lastname'),
-                    "MobileNo": reg.get('mobileNo'),
-                    "AlternateMobileNo": reg.get('alternateMobileNo'),
-                    "BloodGroup": reg.get('bloodGroup_id'), # ForeignKey returns the ID
-                    "DateOfBirth": reg.get('dateOfBirth'),
-                    "ZonePreference": reg.get('zonePreference'),
-                    "Gender": reg.get('gender'),
-                    "AadharNumber": reg.get('aadharNumber'),
-                    "AreaId": reg.get('areaId_id'), # ForeignKey returns the ID
-                    "Address": reg.get('address'),
-                    "PhotoFileName": reg.get('photoFileName'),
-                    "IdProofFileName": reg.get('idProofFileName'),
-                    "VoterIdProof": reg.get('voterIdProof'),
-                    "DateOfRegistration": reg.get('dateOfRegistration'),
-                    "PermanantId": reg.get('permanentId'), # Note: Typo in PHP response ('PermanantId')
-                    "RationCardNo": reg.get('ration_card_no'),
-                    "ParentId": reg.get('parent_id'),
-                    "UserId": reg.get('userId_id'), # ForeignKey returns the ID
-                    "Age": reg.get('age'), 
-                })
-            
-            response_data['message_code'] = 1000
-            response_data['message_text'] = 'Record matched'
-            response_data['message_data'] = formatted_data
-        else:
+        # -------------------------------
+        # 2) Find registrations by mobile or name (Registrations table)
+        # -------------------------------
+        reg_qs = Registrations.objects.filter(
+            Q(mobileNo__icontains=search_string) |
+            Q(firstname__icontains=search_string) |
+            Q(lastname__icontains=search_string)
+        )
+
+        # merge both sources
+        final_reg_ids = set(reg_ids_from_dk) | set(reg_qs.values_list("registrationId", flat=True))
+
+        if not final_reg_ids:
             response_data['message_text'] = 'No record matching data.'
-            # `message_data` is already an empty list by default
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        registrations = Registrations.objects.filter(registrationId__in=final_reg_ids)
+
+        # create ration lookup for each registration from DiwaliKirana
+        ration_map = {
+            row["RegistrationId_id"]: row["RationCardNo"]
+            for row in DiwaliKirana.objects.filter(
+                DiwaliYearMonth=year_month,
+                RegistrationId_id__in=final_reg_ids
+            ).values("RegistrationId_id", "RationCardNo")
+        }
+
+        token_map = {
+            row["RegistrationId_id"]: row["TokenNo"]
+            for row in DiwaliKirana.objects.filter(
+                DiwaliYearMonth=year_month,
+                RegistrationId_id__in=final_reg_ids
+            ).values("RegistrationId_id", "TokenNo")
+        }
+
+        formatted_data = []
+        for r in registrations:
+            formatted_data.append({
+                "RegistrationId": r.registrationId,
+                "Firstname": r.firstname,
+                "Middlename": r.middlename,
+                "Lastname": r.lastname,
+                "MobileNo": r.mobileNo,
+                "AlternateMobileNo": r.alternateMobileNo,
+                "BloodGroup": r.bloodGroup_id,
+                "DateOfBirth": r.dateOfBirth,
+                "Gender": r.gender,
+                "AadharNumber": r.aadharNumber,
+                "AreaId": r.areaId_id,
+                "Address": r.address,
+                "PhotoFileName": r.photoFileName,
+                "IdProofFileName": r.idProofFileName,
+                "VoterIdProof": r.voterIdProof,
+                "DateOfRegistration": r.dateOfRegistration,
+                "PermanantId": r.permanentId,
+                "RationCardNo": ration_map.get(r.registrationId, ""),
+                "ParentId": r.parent_id,
+                "UserId": r.userId_id,
+                "Age": r.age,
+                "TokenNo": token_map.get(r.registrationId, "")
+            })
+
+        response_data['message_code'] = 1000
+        response_data['message_text'] = 'Record matched'
+        response_data['message_data'] = formatted_data
+        return Response(response_data, status=status.HTTP_200_OK)
 
     except Exception as e:
         response_data['message_text'] = f"An unexpected error occurred: {str(e)}"
-        # For production, you might want to log the error instead of sending it in the response.
-
-    return Response(response_data, status=status.HTTP_200_OK)
-
+        return Response(response_data, status=status.HTTP_200_OK)
 
 
 
@@ -4830,12 +5209,83 @@ def change_diwali_token(request):
 
 
 
-@api_view(['POST'])
+# @api_view(['POST'])
+# def list_diwalikirana(request):
+#     """
+#     Lists all registrations that have a non-empty Ration Card number.
+#     For each registration, it also retrieves their corresponding Diwali Token number for '2025-10'.
+#     """
+#     response_data = {
+#         'message_code': 999,
+#         'message_text': 'An error occurred.',
+#         'message_data': []
+#     }
+
+#     try:
+#         # --- Step 1: Define a subquery to find the token number ---
+#         # This creates a reusable query that can find a token for an "outer" registration.
+#         # OuterRef('pk') refers to the primary key of the Registrations object in the main query.
+#         token_subquery = DiwaliKirana.objects.filter(
+#             RegistrationId=OuterRef('pk'),
+#             DiwaliYearMonth='2025-10'
+#         ).values('TokenNo')[:1] # [:1] ensures we only get one token if there are duplicates
+
+#         # --- Step 2: Build the main query for Registrations ---
+#         # The .annotate() method adds the result of the subquery as a new field called 'TokenNo'.
+#         registrations_with_tokens = Registrations.objects.filter(
+#             Q(ration_card_no__isnull=False) & ~Q(ration_card_no='')
+#         ).annotate(
+#             TokenNo=Subquery(token_subquery)
+#         )
+
+#         # --- Step 3: Check if any records were found ---
+#         if registrations_with_tokens.exists():
+#             # --- Step 4: Format the data to match the required PascalCase output ---
+#             formatted_data = []
+#             for reg in registrations_with_tokens:
+#                 formatted_data.append({
+#                     "RegistrationId": reg.registrationId,
+#                     "Firstname": reg.firstname,
+#                     "Middlename": reg.middlename,
+#                     "Lastname": reg.lastname,
+#                     "MobileNo": reg.mobileNo,
+#                     "AlternateMobileNo": reg.alternateMobileNo,
+#                     "BloodGroup": reg.bloodGroup_id,
+#                     "DateOfBirth": reg.dateOfBirth,
+#                     "ZonePreference": reg.zonePreference,
+#                     "Gender": reg.gender,
+#                     "AadharNumber": reg.aadharNumber,
+#                     "AreaId": reg.areaId_id,
+#                     "Address": reg.address,
+#                     "PhotoFileName": reg.photoFileName,
+#                     "IdProofFileName": reg.idProofFileName,
+#                     "VoterIdProof": reg.voterIdProof,
+#                     "DateOfRegistration": reg.dateOfRegistration,
+#                     "PermanantId": reg.permanentId,
+#                     "RationCardNo": reg.ration_card_no,
+#                     "RationCardPhoto": reg.ration_card_photo,
+#                     "ParentId": reg.parent_id,
+#                     "UserId": reg.userId_id,
+#                     "TokenNo": reg.TokenNo  # This field comes from our .annotate() step
+#                 })
+
+#             response_data['message_code'] = 1000
+#             response_data['message_text'] = 'Ration Card Registered'
+#             response_data['message_data'] = formatted_data
+#         else:
+#             response_data['message_text'] = 'No Ration Card Data.'
+
+#     except Exception as e:
+#         response_data['message_text'] = f"An unexpected error occurred: {str(e)}"
+
+#     return Response(response_data, status=status.HTTP_200_OK)
+
+
+
+from django.db.models import Q
+
+@api_view(['POST', 'GET'])
 def list_diwalikirana(request):
-    """
-    Lists all registrations that have a non-empty Ration Card number.
-    For each registration, it also retrieves their corresponding Diwali Token number for '2025-10'.
-    """
     response_data = {
         'message_code': 999,
         'message_text': 'An error occurred.',
@@ -4843,71 +5293,199 @@ def list_diwalikirana(request):
     }
 
     try:
-        # --- Step 1: Define a subquery to find the token number ---
-        # This creates a reusable query that can find a token for an "outer" registration.
-        # OuterRef('pk') refers to the primary key of the Registrations object in the main query.
-        token_subquery = DiwaliKirana.objects.filter(
-            RegistrationId=OuterRef('pk'),
-            DiwaliYearMonth='2025-10'
-        ).values('TokenNo')[:1] # [:1] ensures we only get one token if there are duplicates
+        # Get year-month from request or default
+        year_month = request.data.get("DiwaliYearMonth") if request.method == "POST" else request.query_params.get("DiwaliYearMonth")
+        if not year_month:
+            year_month = "2025-10"
 
-        # --- Step 2: Build the main query for Registrations ---
-        # The .annotate() method adds the result of the subquery as a new field called 'TokenNo'.
-        registrations_with_tokens = Registrations.objects.filter(
-            Q(ration_card_no__isnull=False) & ~Q(ration_card_no='')
-        ).annotate(
-            TokenNo=Subquery(token_subquery)
-        )
+        print(f"DEBUG: Searching for Diwali Records with Year: {year_month}")
 
-        # --- Step 3: Check if any records were found ---
-        if registrations_with_tokens.exists():
-            # --- Step 4: Format the data to match the required PascalCase output ---
-            formatted_data = []
-            for reg in registrations_with_tokens:
+        # 1. Fetch Heads from DiwaliKirana Table
+        # FIX: Handle case where is_deleted might be NULL in database
+        diwali_records = DiwaliKirana.objects.filter(
+            Q(is_deleted=False) | Q(is_deleted__isnull=True),
+            DiwaliYearMonth=year_month
+        ).select_related('RegistrationId')
+
+        # DEBUG PRINT: Check how many records found
+        print(f"DEBUG: Found {diwali_records.count()} records in DiwaliKirana table.")
+
+        if not diwali_records.exists():
+            response_data['message_text'] = 'No Diwali Kirana Data found.'
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        formatted_data = []
+        head_ids = []
+        head_info_map = {} 
+
+        # 2. Process Heads (Token Holders)
+        for record in diwali_records:
+            reg = record.RegistrationId
+            
+            # Safety check if Registration link is broken
+            if not reg: 
+                print(f"DEBUG: Record {record.DiwaliKiranaId} has no Registration linked.")
+                continue
+
+            head_ids.append(reg.registrationId)
+            
+            # Map info for family members
+            head_info_map[reg.registrationId] = {
+                'RationCardNo': record.RationCardNo,
+                'TokenNo': record.TokenNo,
+                'TokenQR': record.TokenQR
+            }
+
+            formatted_data.append({
+                "RegistrationId": reg.registrationId,
+                "Firstname": reg.firstname,
+                "Middlename": reg.middlename,
+                "Lastname": reg.lastname,
+                "MobileNo": reg.mobileNo,
+                "AlternateMobileNo": reg.alternateMobileNo,
+                "Address": reg.address,
+                "AreaId": reg.areaId_id,
+                "RationCardNo": record.RationCardNo, # From Diwali Table
+                "TokenNo": record.TokenNo,
+                "TokenQR": record.TokenQR,
+                "ParentId": reg.parent_id,
+                "RationCardPhoto": reg.ration_card_photo,
+                "VoterIdProof": reg.voterIdProof,
+                "Age": reg.age
+            })
+
+        # 3. Fetch Family Members
+        if head_ids:
+            # Find people whose parent_id is one of the Head IDs
+            members = Registrations.objects.filter(
+                Q(is_deleted=False) | Q(is_deleted__isnull=True),
+                parent_id__in=head_ids
+            ).exclude(registrationId__in=head_ids) 
+
+            print(f"DEBUG: Found {members.count()} family members linked to these heads.")
+
+            for m in members:
+                head_info = head_info_map.get(m.parent_id, {})
+                
                 formatted_data.append({
-                    "RegistrationId": reg.registrationId,
-                    "Firstname": reg.firstname,
-                    "Middlename": reg.middlename,
-                    "Lastname": reg.lastname,
-                    "MobileNo": reg.mobileNo,
-                    "AlternateMobileNo": reg.alternateMobileNo,
-                    "BloodGroup": reg.bloodGroup_id,
-                    "DateOfBirth": reg.dateOfBirth,
-                    "ZonePreference": reg.zonePreference,
-                    "Gender": reg.gender,
-                    "AadharNumber": reg.aadharNumber,
-                    "AreaId": reg.areaId_id,
-                    "Address": reg.address,
-                    "PhotoFileName": reg.photoFileName,
-                    "IdProofFileName": reg.idProofFileName,
-                    "VoterIdProof": reg.voterIdProof,
-                    "DateOfRegistration": reg.dateOfRegistration,
-                    "PermanantId": reg.permanentId,
-                    "RationCardNo": reg.ration_card_no,
-                    "RationCardPhoto": reg.ration_card_photo,
-                    "ParentId": reg.parent_id,
-                    "UserId": reg.userId_id,
-                    "TokenNo": reg.TokenNo  # This field comes from our .annotate() step
+                    "RegistrationId": m.registrationId,
+                    "Firstname": m.firstname,
+                    "Middlename": m.middlename,
+                    "Lastname": m.lastname,
+                    "MobileNo": m.mobileNo,
+                    "AlternateMobileNo": m.alternateMobileNo,
+                    "Address": m.address,
+                    "AreaId": m.areaId_id,
+                    "RationCardNo": head_info.get('RationCardNo', ''), # Inherit
+                    "TokenNo": None, 
+                    "TokenQR": head_info.get('TokenQR', ''),
+                    "ParentId": m.parent_id,
+                    "RationCardPhoto": m.ration_card_photo,
+                    "VoterIdProof": m.voterIdProof,
+                    "Age": m.age
                 })
 
-            response_data['message_code'] = 1000
-            response_data['message_text'] = 'Ration Card Registered'
-            response_data['message_data'] = formatted_data
-        else:
-            response_data['message_text'] = 'No Ration Card Data.'
+        response_data['message_code'] = 1000
+        response_data['message_text'] = 'Success'
+        response_data['message_data'] = formatted_data
 
     except Exception as e:
+        import traceback
+        print(traceback.format_exc()) # Print full error to console
         response_data['message_text'] = f"An unexpected error occurred: {str(e)}"
 
     return Response(response_data, status=status.HTTP_200_OK)
 
 
+# @api_view(['POST'])
+# def list_family(request):
+#     """
+#     Finds all family members (registrations sharing the same ration card number)
+#     based on a single member's TokenQR or TokenNo.
+#     """
+#     response_data = {
+#         'message_code': 999,
+#         'message_text': 'An error occurred.',
+#         'message_data': []
+#     }
+
+#     try:
+#         body = request.data
+#         token_qr = body.get('TokenQR', '').strip()
+#         token_no_str = body.get('TokenNo', '')
+
+#         # --- Validation ---
+#         if not token_qr and not token_no_str:
+#             response_data['message_text'] = 'Please provide either TokenQR or TokenNo.'
+#             return Response(response_data, status=status.HTTP_200_OK)
+
+#         # --- Step 1: Find the RationCardNo using the provided token ---
+#         # This is the equivalent of the SQL subquery.
+#         try:
+#             diwali_kirana_entry = None
+#             if token_qr:
+#                 diwali_kirana_entry = DiwaliKirana.objects.get(TokenQR=token_qr)
+#             elif token_no_str:
+#                 token_no = int(token_no_str)
+#                 diwali_kirana_entry = DiwaliKirana.objects.get(TokenNo=token_no)
+            
+#             target_ration_card_no = diwali_kirana_entry.RationCardNo
+        
+#         except DiwaliKirana.DoesNotExist:
+#             response_data['message_text'] = 'No record found for the provided token.'
+#             return Response(response_data, status=status.HTTP_200_OK)
+#         except (ValueError, TypeError):
+#             response_data['message_text'] = 'Invalid TokenNo provided.'
+#             return Response(response_data, status=status.HTTP_200_OK)
+
+#         # --- Step 2: Find all registrations with that RationCardNo ---
+#         # This is the equivalent of the main SQL query with the WHERE ... IN clause.
+#         family_members = Registrations.objects.filter(ration_card_no=target_ration_card_no)
+
+#         if family_members.exists():
+#             # Format the data to match the required PascalCase output
+#             formatted_data = []
+#             for member in family_members:
+#                 formatted_data.append({
+#                     "RegistrationId": member.registrationId,
+#                     "Firstname": member.firstname,
+#                     "Middlename": member.middlename,
+#                     "Lastname": member.lastname,
+#                     "MobileNo": member.mobileNo,
+#                     "AlternateMobileNo": member.alternateMobileNo,
+#                     "BloodGroup": member.bloodGroup_id,
+#                     "DateOfBirth": member.dateOfBirth,
+#                     "ZonePreference": member.zonePreference,
+#                     "Gender": member.gender,
+#                     "AadharNumber": member.aadharNumber,
+#                     "AreaId": member.areaId_id,
+#                     "Address": member.address,
+#                     "PhotoFileName": member.photoFileName,
+#                     "IdProofFileName": member.idProofFileName,
+#                     "VoterIdProof": member.voterIdProof,
+#                     "DateOfRegistration": member.dateOfRegistration,
+#                     "PermanantId": member.permanentId,
+#                     "RationCardNo": member.ration_card_no,
+#                     "ParentId": member.parent_id,
+#                     "UserId": member.userId_id
+#                 })
+
+#             response_data['message_code'] = 1000
+#             response_data['message_text'] = 'Family members for token.'
+#             response_data['message_data'] = formatted_data
+#         else:
+#             response_data['message_text'] = 'No family member data.'
+    
+#     except Exception as e:
+#         response_data['message_text'] = f"An unexpected error occurred: {str(e)}"
+
+#     return Response(response_data, status=status.HTTP_200_OK)
+
+
+
+
 @api_view(['POST'])
 def list_family(request):
-    """
-    Finds all family members (registrations sharing the same ration card number)
-    based on a single member's TokenQR or TokenNo.
-    """
     response_data = {
         'message_code': 999,
         'message_text': 'An error occurred.',
@@ -4915,64 +5493,64 @@ def list_family(request):
     }
 
     try:
-        body = request.data
-        token_qr = body.get('TokenQR', '').strip()
-        token_no_str = body.get('TokenNo', '')
+        token_qr = str(request.data.get('TokenQR', '')).strip()
+        token_no_str = str(request.data.get('TokenNo', '')).strip()
 
-        # --- Validation ---
         if not token_qr and not token_no_str:
             response_data['message_text'] = 'Please provide either TokenQR or TokenNo.'
             return Response(response_data, status=status.HTTP_200_OK)
 
-        # --- Step 1: Find the RationCardNo using the provided token ---
-        # This is the equivalent of the SQL subquery.
+        # 1) Find DiwaliKirana entry by token
         try:
-            diwali_kirana_entry = None
             if token_qr:
-                diwali_kirana_entry = DiwaliKirana.objects.get(TokenQR=token_qr)
-            elif token_no_str:
-                token_no = int(token_no_str)
-                diwali_kirana_entry = DiwaliKirana.objects.get(TokenNo=token_no)
-            
-            target_ration_card_no = diwali_kirana_entry.RationCardNo
-        
+                entry = DiwaliKirana.objects.get(TokenQR=token_qr)
+            else:
+                entry = DiwaliKirana.objects.get(TokenNo=int(token_no_str))
         except DiwaliKirana.DoesNotExist:
             response_data['message_text'] = 'No record found for the provided token.'
             return Response(response_data, status=status.HTTP_200_OK)
-        except (ValueError, TypeError):
+        except ValueError:
             response_data['message_text'] = 'Invalid TokenNo provided.'
             return Response(response_data, status=status.HTTP_200_OK)
 
-        # --- Step 2: Find all registrations with that RationCardNo ---
-        # This is the equivalent of the main SQL query with the WHERE ... IN clause.
-        family_members = Registrations.objects.filter(ration_card_no=target_ration_card_no)
+        ration_card_no = entry.RationCardNo
+        diwali_month = entry.DiwaliYearMonth
+
+        # 2) Get all RegistrationIds that share same RationCardNo (from DiwaliKirana)
+        reg_ids = list(
+            DiwaliKirana.objects.filter(
+                RationCardNo=ration_card_no,
+                DiwaliYearMonth=diwali_month
+            ).values_list('RegistrationId_id', flat=True)
+        )
+
+        # 3) Fetch registrations
+        family_members = Registrations.objects.filter(registrationId__in=reg_ids)
 
         if family_members.exists():
-            # Format the data to match the required PascalCase output
             formatted_data = []
-            for member in family_members:
+            for m in family_members:
                 formatted_data.append({
-                    "RegistrationId": member.registrationId,
-                    "Firstname": member.firstname,
-                    "Middlename": member.middlename,
-                    "Lastname": member.lastname,
-                    "MobileNo": member.mobileNo,
-                    "AlternateMobileNo": member.alternateMobileNo,
-                    "BloodGroup": member.bloodGroup_id,
-                    "DateOfBirth": member.dateOfBirth,
-                    "ZonePreference": member.zonePreference,
-                    "Gender": member.gender,
-                    "AadharNumber": member.aadharNumber,
-                    "AreaId": member.areaId_id,
-                    "Address": member.address,
-                    "PhotoFileName": member.photoFileName,
-                    "IdProofFileName": member.idProofFileName,
-                    "VoterIdProof": member.voterIdProof,
-                    "DateOfRegistration": member.dateOfRegistration,
-                    "PermanantId": member.permanentId,
-                    "RationCardNo": member.ration_card_no,
-                    "ParentId": member.parent_id,
-                    "UserId": member.userId_id
+                    "RegistrationId": m.registrationId,
+                    "Firstname": m.firstname,
+                    "Middlename": m.middlename,
+                    "Lastname": m.lastname,
+                    "MobileNo": m.mobileNo,
+                    "AlternateMobileNo": m.alternateMobileNo,
+                    "BloodGroup": m.bloodGroup_id,
+                    "DateOfBirth": m.dateOfBirth,
+                    "Gender": m.gender,
+                    "AadharNumber": m.aadharNumber,
+                    "AreaId": m.areaId_id,
+                    "Address": m.address,
+                    "PhotoFileName": m.photoFileName,
+                    "IdProofFileName": m.idProofFileName,
+                    "VoterIdProof": m.voterIdProof,
+                    "DateOfRegistration": m.dateOfRegistration,
+                    "PermanantId": m.permanentId,
+                    "RationCardNo": ration_card_no,   # from DiwaliKirana
+                    "ParentId": m.parent_id,
+                    "UserId": m.userId_id
                 })
 
             response_data['message_code'] = 1000
@@ -4980,11 +5558,12 @@ def list_family(request):
             response_data['message_data'] = formatted_data
         else:
             response_data['message_text'] = 'No family member data.'
-    
+
     except Exception as e:
         response_data['message_text'] = f"An unexpected error occurred: {str(e)}"
 
     return Response(response_data, status=status.HTTP_200_OK)
+
 
 
 
