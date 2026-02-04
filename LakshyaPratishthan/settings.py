@@ -148,8 +148,9 @@ USE_TZ = True
 STATIC_URL = "/LakshyaPratishthan/static/"
 
 STATICFILES_DIRS = [
-    BASE_DIR / "LakshyaPratishthan/static",
     # BASE_DIR / "static",
+    BASE_DIR / "LakshyaPratishthan/static",
+
 ]
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')

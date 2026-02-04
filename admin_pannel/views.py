@@ -15,7 +15,7 @@ def login_view(request):
     if request.method == 'POST':
         mobile = request.POST.get('mobile')
         password = request.POST.get('password')
-        api_url = "http://43.205.199.11/LakshyaPratishthan/api/agentlogin/"
+        api_url = "https://kukudku.in/LakshyaPratishthan/api/agentlogin/"
         payload = {"userMobileNo": mobile, "userPassword": password}
         error_message = None
         try:
@@ -51,7 +51,7 @@ def diwali_kirana_list(request):
     """
     Fetches data and sorts it by family before passing it to the template.
     """
-    api_url = "http://43.205.199.11/LakshyaPratishthan/api/list_all_registrations/"
+    api_url = "https://kukudku.in/LakshyaPratishthan/api/list_all_registrations/"
     error_message = None
     sorted_registrations = []
 
@@ -110,7 +110,7 @@ def proxy_bulk_update_view(request):
         data_from_frontend = json.loads(request.body)
         
         # 2. Define the actual backend API endpoint
-        backend_api_url = "http://43.205.199.11/LakshyaPratishthan/api/bulk_update_diwali_kirana/"
+        backend_api_url = "https://kukudku.in/LakshyaPratishthan/api/bulk_update_diwali_kirana/"
 
         # 3. Make the server-to-server request to the backend API
         response = requests.post(backend_api_url, json=data_from_frontend)
@@ -141,7 +141,7 @@ def proxy_add_member_view(request):
     """
     try:
         data_from_frontend = json.loads(request.body)
-        backend_api_url = "http://43.205.199.11/LakshyaPratishthan/api/add_diwali_family_member/"
+        backend_api_url = "https://kukudku.in/LakshyaPratishthan/api/add_diwali_family_member/"
         
         response = requests.post(backend_api_url, json=data_from_frontend)
         response.raise_for_status()
@@ -163,7 +163,7 @@ def proxy_upload_voter_id_view(request):
     It forwards the file and data to the backend API.
     """
     try:
-        backend_api_url = "http://43.205.199.11/LakshyaPratishthan/api/upload_voter_id/"
+        backend_api_url = "https://kukudku.in/LakshyaPratishthan/api/upload_voter_id/"
         
         # The 'requests' library can intelligently forward multipart data
         # by passing the 'files' and 'data' parameters.
@@ -191,7 +191,7 @@ def proxy_delete_member_view(request, reg_id):
 
     try:
         # Construct the URL for the actual backend API endpoint
-        backend_api_url = f"http://43.205.199.11/LakshyaPratishthan/api/delete_diwali_member/{reg_id}/"
+        backend_api_url = f"https://kukudku.in/LakshyaPratishthan/api/delete_diwali_member/{reg_id}/"
         
         # Make the server-to-server POST request
         response = requests.post(backend_api_url)
