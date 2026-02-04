@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'api',
     'mobile_api',
     'active_link',
+    'electionapi',
 ]
 
 MIDDLEWARE = [

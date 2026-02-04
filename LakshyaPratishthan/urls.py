@@ -15,6 +15,8 @@ urlpatterns = [
     # UNIQUE PATH for the api app
     path('LakshyaPratishthan/api/', include('api.urls')),
 
+    path('LakshyaPratishthan/electionapi/', include('electionapi.urls')),
+
     path('LakshyaPratishthan/lakshadmin/', include('admin_pannel.urls')),
 ]
 
