@@ -19,4 +19,19 @@ urlpatterns = [
 
     path('get-voter-calling-data/', views.get_voter_calling_data, name='get_voter_calling_data'),
     path('update-voting-status/', views.update_voting_status, name='update_voting_status'),
+
+    ########  BJP Office Managment ############
+
+    path('office-search-voter/', views.office_search_voter, name='office_search_voter'),
+    path('office-create-record/', views.office_create_record, name='office_create_record'),
+    path('office-record-list/', views.office_record_list, name='office_record_list'),
+
+    path('get-area-list',views.get_area_list,name='get_area_list'),
+    path('office-update-record/', views.office_update_record, name='office_update_record'),
+
+    path('office-upload-docs/', views.office_upload_docs, name='office_upload_docs'),
+
+
+    
+
 ]

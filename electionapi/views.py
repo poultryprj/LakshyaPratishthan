@@ -5,10 +5,15 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Q
-from admin_pannel.models import TblUsers, Registrations, Areas, ElectionManagement,TicketsNew, DiwaliKirana
+from admin_pannel.models import TblUsers, Registrations, Areas, ElectionManagement,TicketsNew, DiwaliKirana,BJPOffice
 
 from django.db.models import Count, Max
 from django.db.models.functions import TruncDate
+
+from django.utils import timezone 
+import os, uuid
+from django.conf import settings
+
 
 # ==========================================
 # 1. AGENT LOGIN API
@@ -910,3 +915,344 @@ def update_voting_status(request):
 
     except Exception as e:
         return Response({"message_code": 999, "message_text": str(e)}, status=status.HTTP_200_OK)    
+    
+
+
+
+
+
+
+    ############  BJP Office Managment ##########
+
+
+@api_view(["POST"])
+def office_search_voter(request):
+    # Get inputs (Frontend sends the same value in both fields)
+    mobile = (request.data.get("mobile") or "").strip()
+    name = (request.data.get("name") or "").strip()
+
+    qs = Registrations.objects.all()
+
+    # LOGIC FIX: Use Q objects to perform an 'OR' search.
+    # This checks if the query matches the Mobile OR the Name.
+    if mobile or name:
+        query = Q()
+        
+        if mobile:
+            query |= Q(mobileNo__icontains=mobile)
+            query |= Q(alternateMobileNo__icontains=mobile)
+        
+        if name:
+            query |= Q(firstname__icontains=name)
+            query |= Q(middlename__icontains=name)
+            query |= Q(lastname__icontains=name)
+            
+        qs = qs.filter(query)
+
+    data = []
+    # Fetch results (limit to 25 to prevent overload)
+    for r in qs.order_by("-registrationId")[:25]:
+        data.append({
+            "RegistrationId": r.registrationId,
+            "Firstname": r.firstname,
+            "Middlename": r.middlename,
+            "Lastname": r.lastname,
+            "MobileNo": r.mobileNo,
+            "AlternateMobileNo": r.alternateMobileNo,
+            "Address": r.address,
+            # Use getattr to safely get the Foreign Key ID without an extra DB call
+            "AreaId": getattr(r, "areaId_id", None), 
+            "AadharNumber": r.aadharNumber,
+            "DateOfBirth": str(r.dateOfBirth) if r.dateOfBirth else None,
+            "VoterID_No": r.voterIdProof if hasattr(r, 'voterIdProof') else "",
+        })
+
+    return Response({
+        "message_code": 1000,
+        "message_text": "Success",
+        "message_data": data
+    })
+
+
+
+@api_view(["POST"])
+def office_create_record(request):
+    try:
+        data = request.data
+        user_id = data.get("caller_id")
+        
+        reg_id = data.get("RegistrationId") # If ID exists, we update. If NULL, we create NEW.
+        
+        v_name = data.get("voter_name", "").strip()
+        v_mobile = data.get("voter_mobile", "").strip()
+        v_area = data.get("area_text", "").strip()
+        v_address = data.get("address_text", "").strip()
+        v_aadhar = data.get("aadhar", "").strip()
+        v_voter_id = data.get("voter_id", "").strip()
+        v_docs = data.get("documents", "").strip() 
+
+        # Find Area Object
+        area_obj = None
+        if v_area:
+            area_obj = Areas.objects.filter(AreaName=v_area).first()
+
+        reg_obj = None
+
+        if reg_id:
+            # --- SCENARIO A: UPDATE EXISTING FAMILY MEMBER ---
+            reg_obj = Registrations.objects.filter(registrationId=reg_id).first()
+            if reg_obj:
+                is_changed = False
+                if v_address and reg_obj.address != v_address:
+                    reg_obj.address = v_address; is_changed = True
+                if v_aadhar and reg_obj.aadharNumber != v_aadhar:
+                    reg_obj.aadharNumber = v_aadhar; is_changed = True
+                if v_voter_id and getattr(reg_obj, 'voterIdProof', '') != v_voter_id:
+                    reg_obj.voterIdProof = v_voter_id; is_changed = True
+                if area_obj and not reg_obj.areaId:
+                    reg_obj.areaId = area_obj; is_changed = True
+                
+                if is_changed: reg_obj.save()
+
+        else:
+            # --- SCENARIO B: CREATE NEW FAMILY MEMBER ---
+            # We do NOT check for duplicate mobile here. 
+            # We allow multiple people with same mobile.
+            reg_obj = Registrations.objects.create(
+                firstname=v_name,
+                mobileNo=v_mobile,
+                address=v_address,
+                aadharNumber=v_aadhar,
+                voterIdProof=v_voter_id,
+                areaId=area_obj,
+                created_by_id=user_id
+            )
+
+        # --- CREATE OFFICE RECORD ---
+        notes = data.get("description", "")
+        if v_docs: notes = f"{notes} (Docs: {v_docs})"
+
+        obj = BJPOffice.objects.create(
+            registration=reg_obj,
+            voter_name=v_name,
+            voter_mobile=v_mobile,
+            record_type=data.get("record_type", "ComplaintRegistration"),
+            complaint_category=data.get("complaint_category", "Other"),
+            complaint_type=data.get("complaint_type", ""),
+            description=notes,
+            priority=data.get("priority", "Normal"),
+            status="Open",
+            handled_by_id=user_id,
+            handled_by_name=data.get("caller_name"),
+            area_text=v_area,
+            address_text=v_address,
+            followup_date=data.get("followup_date") or None,
+            missing_info_notes=v_docs
+        )
+
+        return Response({
+            "message_code": 1000,
+            "message_text": "Saved Successfully",
+            "message_data": {"bjp_office_id": obj.bjp_office_id, "RegistrationId": reg_obj.registrationId}
+        })
+
+    except Exception as e:
+        return Response({"message_code": 999, "message_text": str(e)})
+
+def abs_url(request, url):
+    if not url:
+        return None
+    u = str(url).strip()
+    if u.startswith("http://") or u.startswith("https://"):
+        return u
+    return request.build_absolute_uri(u)  # handles /static/... or /media/...
+
+
+
+@api_view(["POST"])
+def office_record_list(request):
+    # Fix: Ensure we catch mobile numbers properly
+    status_val = request.data.get("status", "")
+    category = request.data.get("complaint_category", "")
+    mobile = request.data.get("mobile", "")
+
+    qs = BJPOffice.objects.all().order_by("-created_on")
+
+    if status_val:
+        qs = qs.filter(status=status_val)
+    if category:
+        qs = qs.filter(complaint_category__icontains=category)
+    if mobile:
+        # Filter by the mobile number stored in the office record OR the linked registration
+        qs = qs.filter(Q(voter_mobile__icontains=mobile) | Q(registration__mobileNo__icontains=mobile))
+
+    data = []
+    for x in qs[:100]: # Limit 100 for speed
+        data.append({
+            "bjp_office_id": x.bjp_office_id,
+            "voter_name": x.voter_name,
+            "voter_mobile": x.voter_mobile,
+            "complaint_category": x.complaint_category,
+            "complaint_type": x.complaint_type,
+            "description": x.description,
+            "priority": x.priority,
+            "status": x.status,
+            "created_on": x.created_on,
+            "personal_aadhar_url": abs_url(request, getattr(x, "personal_aadhar_url", None)),
+            "personal_voting_url": abs_url(request, getattr(x, "personal_voting_url", None)),
+            "personal_ration_url": abs_url(request, getattr(x, "personal_ration_url", None)),
+
+            # ✅ COMPLAINT PHOTOS (ADD THESE)
+            "complaint_photo1_url": abs_url(request, getattr(x, "complaint_photo1_url", None)),
+            "complaint_photo2_url": abs_url(request, getattr(x, "complaint_photo2_url", None)),
+            "complaint_photo3_url": abs_url(request, getattr(x, "complaint_photo3_url", None)),
+        })
+
+    return Response({"message_code": 1000, "message_text": "Success", "message_data": data})
+
+
+
+@api_view(['GET'])
+def get_area_list(request):
+    try:
+        # Fetch active areas, order by name
+        areas = Areas.objects.filter(AreaStatus=1).values('AreaId', 'AreaName').order_by('AreaName')
+        return Response({"message_code": 1000, "data": list(areas)})
+    except Exception as e:
+        return Response({"message_code": 999, "data": []})
+    
+
+
+
+@api_view(["POST"])
+def office_update_record(request):
+    try:
+        data = request.data
+        record_id = data.get("bjp_office_id")
+        new_status = data.get("status")
+        followup_note = data.get("followup_note")
+        
+        obj = BJPOffice.objects.filter(bjp_office_id=record_id).first()
+        if not obj:
+            return Response({"message_code": 999, "message_text": "Record not found"})
+        
+        # Update Status
+        if new_status:
+            obj.status = new_status
+            if new_status == 'Resolved':
+                obj.resolved_date = timezone.now().date()
+        
+        # Append Note
+        if followup_note:
+            current_desc = obj.description or ""
+            timestamp = timezone.now().strftime("%d-%m-%Y")
+            # Append new note clearly
+            obj.description = f"{current_desc}\n\n[Update {timestamp}]: {followup_note}"
+
+        obj.save()
+
+        return Response({"message_code": 1000, "message_text": "Updated Successfully"})
+    except Exception as e:
+        return Response({"message_code": 999, "message_text": str(e)})    
+    
+
+
+
+
+
+
+def _save_to_static_and_get_url(file_obj, subdir):
+    """
+    Saves uploaded file into: BASE_DIR/static/uploads/<subdir>/
+    Returns the STATIC_URL link saved in DB.
+    """
+    if not file_obj:
+        return None
+
+    ext = os.path.splitext(file_obj.name)[1].lower() or ".jpg"
+    filename = f"{uuid.uuid4().hex}{ext}"
+
+    # Physical folder inside your project
+    base_static_dir = os.path.join(settings.BASE_DIR, "staticfiles")
+    upload_dir = os.path.join(base_static_dir, "uploads", "office_docs", subdir)
+    os.makedirs(upload_dir, exist_ok=True)
+
+    full_path = os.path.join(upload_dir, filename)
+
+    with open(full_path, "wb+") as destination:
+        for chunk in file_obj.chunks():
+            destination.write(chunk)
+
+    # URL to store in DB (served by frontend/static)
+    url = f"{settings.STATIC_URL}uploads/office_docs/{subdir}/{filename}"
+    return url
+
+
+@api_view(["POST"])
+def office_upload_docs(request):
+    """
+    multipart/form-data upload
+    - Personal docs: aadhar_img, voting_img, ration_img
+    - Complaint photos: complaint_img_1, complaint_img_2, complaint_img_3
+    Must send at least one identifier:
+      - bjp_office_id (recommended for complaint photos)
+      - or RegistrationId (for personal docs)
+    """
+    try:
+        bjp_office_id = request.data.get("bjp_office_id")
+        reg_id = request.data.get("RegistrationId")
+
+        obj = None
+
+        if bjp_office_id:
+            obj = BJPOffice.objects.filter(bjp_office_id=bjp_office_id).first()
+
+        if not obj and reg_id:
+            # If office record id not given, attach to latest record of that registration
+            obj = BJPOffice.objects.filter(registration__registrationId=reg_id).order_by("-created_on").first()
+
+        if not obj:
+            return Response({"message_code": 999, "message_text": "Record not found for upload", "message_data": []})
+
+        # ---- Personal Docs ----
+        aadhar_file = request.FILES.get("aadhar_img")
+        voting_file = request.FILES.get("voting_img")
+        ration_file = request.FILES.get("ration_img")
+
+        if aadhar_file:
+            obj.personal_aadhar_url = _save_to_static_and_get_url(aadhar_file, "personal/aadhar")
+        if voting_file:
+            obj.personal_voting_url = _save_to_static_and_get_url(voting_file, "personal/voting")
+        if ration_file:
+            obj.personal_ration_url = _save_to_static_and_get_url(ration_file, "personal/ration")
+
+        # ---- Complaint Photos ----
+        c1 = request.FILES.get("complaint_img_1")
+        c2 = request.FILES.get("complaint_img_2")
+        c3 = request.FILES.get("complaint_img_3")
+
+        if c1:
+            obj.complaint_photo1_url = _save_to_static_and_get_url(c1, "complaints/1")
+        if c2:
+            obj.complaint_photo2_url = _save_to_static_and_get_url(c2, "complaints/2")
+        if c3:
+            obj.complaint_photo3_url = _save_to_static_and_get_url(c3, "complaints/3")
+
+        obj.save()
+
+        return Response({
+            "message_code": 1000,
+            "message_text": "Docs Uploaded Successfully",
+            "message_data": {
+                "bjp_office_id": obj.bjp_office_id,
+                "personal_aadhar_url": obj.personal_aadhar_url,
+                "personal_voting_url": obj.personal_voting_url,
+                "personal_ration_url": obj.personal_ration_url,
+                "complaint_photo1_url": obj.complaint_photo1_url,
+                "complaint_photo2_url": obj.complaint_photo2_url,
+                "complaint_photo3_url": obj.complaint_photo3_url,
+            }
+        })
+
+    except Exception as e:
+        return Response({"message_code": 999, "message_text": str(e), "message_data": []})

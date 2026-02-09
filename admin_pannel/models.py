@@ -495,4 +495,63 @@ class ElectionManagement(models.Model):
 
     class Meta:
         db_table = "tblElectionManagement"   
-          
+
+
+
+
+
+class BJPOffice(models.Model):
+    bjp_office_id = models.AutoField(primary_key=True)
+    registration = models.ForeignKey(Registrations,on_delete=models.CASCADE,
+    related_name="bjp_office_records",null=True,blank=True)
+    voter_name = models.CharField(max_length=150, null=True, blank=True)
+    voter_mobile = models.CharField(max_length=15, null=True, blank=True)
+
+    record_type = models.CharField(max_length=30,default="ComplaintRegistration",choices=(("MissingInfoCollect", "Missing Info Collect"),("ComplaintRegistration", "Complaint Registration"),))
+
+    # Complaint data (keep TEXT only to avoid extra tables)
+    complaint_category = models.CharField(max_length=100, null=True, blank=True)
+    complaint_type = models.CharField(max_length=150, null=True, blank=True)
+
+    # Examples you said:
+    # category: Education / Infrastructure / Water / Light / Waste / Personal
+    # type: Admission / Road Renovation / Street Light / Hospital Emergency / Shop Issue etc.
+
+    title = models.CharField(max_length=200, null=True, blank=True)
+    description = models.TextField(null=True, blank=True)
+
+    priority = models.CharField(max_length=20,default="Normal",choices=(("Low","Low"),("Normal","Normal"),("High","High"),("Emergency","Emergency")))
+
+    status = models.CharField(max_length=30,default="Open",
+        choices=(("Open","Open"),("InProgress","In Progress"),("Resolved","Resolved"),("Closed","Closed"),("Rejected","Rejected")))
+
+    # Office handling info
+    handled_by_id = models.IntegerField(null=True, blank=True)
+    handled_by_name = models.CharField(max_length=120, null=True, blank=True)
+
+    # Extra useful fields
+    area_text = models.CharField(max_length=120, null=True, blank=True)
+    address_text = models.TextField(null=True, blank=True)
+    followup_date = models.DateField(null=True, blank=True)
+    resolved_date = models.DateField(null=True, blank=True)
+    resolution_note = models.TextField(null=True, blank=True)
+    missing_info_notes = models.TextField(null=True, blank=True)  
+
+    personal_aadhar_url = models.CharField(max_length=500, null=True, blank=True)
+    personal_voting_url = models.CharField(max_length=500, null=True, blank=True)
+    personal_ration_url = models.CharField(max_length=500, null=True, blank=True)
+
+    complaint_photo1_url = models.CharField(max_length=500, null=True, blank=True)
+    complaint_photo2_url = models.CharField(max_length=500, null=True, blank=True)
+    complaint_photo3_url = models.CharField(max_length=500, null=True, blank=True)
+
+    created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    created_by = models.ForeignKey(TblUsers, on_delete=models.SET_NULL, null=True, blank=True, related_name='BJOOffice_created_by')
+    last_modified_on = models.DateTimeField(auto_now=True, null=True, blank=True)
+    last_modified_by = models.ForeignKey(TblUsers, on_delete=models.SET_NULL, null=True, blank=True, related_name='BJOOffice_modified_by')
+    is_deleted = models.BooleanField(default=False, null=True, blank=True)
+    deleted_by = models.ForeignKey(TblUsers, on_delete=models.SET_NULL, null=True, blank=True, related_name='BJOOffice_deleted_by')
+
+
+    class Meta:
+        db_table = "BJPOffice" 

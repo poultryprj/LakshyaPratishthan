@@ -87,27 +87,27 @@ WSGI_APPLICATION = 'LakshyaPratishthan.wsgi.application'
 #     }
 # }
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': 'LakshyaPratishthan',
-#         'USER': 'postgres',
-#         'PASSWORD': '7777',
-#         'HOST': '127.0.0.1',
-#         'PORT': '5432',
-#     }
-# }
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'LakshyaPratishthan_db',
+        'NAME': 'Lakshya_testing',
         'USER': 'postgres',
         'PASSWORD': 'lakshya1812',
         'HOST': '13.205.166.167',
         'PORT': '5432',
     }
 }
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'LakshyaPratishthan_db',
+#         'USER': 'postgres',
+#         'PASSWORD': 'lakshya1812',
+#         'HOST': '13.205.166.167',
+#         'PORT': '5432',
+#     }
+# }
 
 
 # Password validation
@@ -147,17 +147,19 @@ USE_TZ = True
 # STATIC_URL = "/static/"
 STATIC_URL = "/LakshyaPratishthan/static/"
 
+
 STATICFILES_DIRS = [
     # BASE_DIR / "static",
     BASE_DIR / "LakshyaPratishthan/static",
-
 ]
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-# Media settings
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')  
-MEDIA_URL = '/LakshyaPratishthan/media/' 
+
+
+
+# MEDIA_ROOT = os.path.join(BASE_DIR, 'media')  
+# MEDIA_URL = '/LakshyaPratishthan/media/' 
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
