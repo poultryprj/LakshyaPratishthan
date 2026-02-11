@@ -15,4 +15,9 @@ urlpatterns =[
 
     path('diwali_kirana/delete/<int:reg_id>/', views.proxy_delete_member_view, name='proxy_delete_member'),
 
+
+
+    path('office-complaints/', views.complaint_dashboard, name='complaint_dashboard'),
+    path('office-update-direct/', views.update_complaint_direct, name='update_complaint_direct'),
+
 ]

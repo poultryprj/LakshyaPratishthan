@@ -9,9 +9,16 @@
                     <a href="{% url 'Index' %}"><i class="fas fa-house-user"></i> <span>Dashboard</span></a>
                 </li>  
 
-                <li class="{% active_link 'diwali_kirana_list' %}">
+                <!-- <li class="{% active_link 'diwali_kirana_list' %}">
                     <a href="{% url 'diwali_kirana_list' %}"><i class="fas fa-gift"></i> <span>Registration List</span></a>
-                </li>  
+                </li>   -->
+
+                <li class="{% if request.resolver_match.url_name == 'complaint_dashboard' %}active{% endif %}">
+                        <a href="{% url 'complaint_dashboard' %}">
+                            <i class="fas fa-headset"></i> 
+                            <span>Complaint Dashboard</span>
+                        </a>
+                </li>
             </ul>
         </div>
     </div>
