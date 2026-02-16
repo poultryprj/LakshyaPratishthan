@@ -2,67 +2,50 @@
 <div class="header">
     <div class="header-left">
         <a href="{% url 'Index' %}" class="logo text-decoration-none text-body-secondary">
-    <h3>
-        <span style="display:flex;align-items:center;gap:10px;">
-            
-            <!-- Circular Logo -->
-            <span style="
-                width:45px;
-                height:45px;
-                border-radius:50%;
-                overflow:hidden;
-                display:inline-block;
-                border:2px solid #ddd;
-            ">
-                <img src="{% static 'assets/img/kukuku.png' %}" 
-                     alt="Logo"
-                     style="width:100%;height:100%;object-fit:cover;">
-            </span>
-
-            <!-- Marathi Name -->
-            लक्ष प्रतिष्ठान
-
-        </span>
-    </h3>
-</a>
-
+            <h3>
+                <span style="display:flex;align-items:center;gap:10px;">
+                    <span style="width:45px;height:45px;border-radius:50%;overflow:hidden;display:inline-block;border:2px solid #ddd;">
+                        <img src="{% static 'assets/img/kukuku.png' %}" alt="Logo" style="width:100%;height:100%;object-fit:cover;">
+                    </span>
+                    लक्ष प्रतिष्ठान
+                </span>
+            </h3>
+        </a>
         <a href="" class="logo logo-small">
             <img src="{% static 'assets/img/kukuku.png' %}" alt="Logo" width="30" height="30">
         </a>
     </div>
+    
     <a href="javascript:void(0);" id="toggle_btn">
         <i class="fas fa-align-left"></i>
     </a>
+
+    <!-- WELCOME SECTION UPDATED -->
     <div class="top-nav-search mt-3" style="color: antiquewhite;">
-        <h4><strong>Welcome</strong><span> {{request.user.first_name}} {{request.user.first_last}}!</span></h4>
+        <h4><strong>Welcome</strong><span> {{ request.session.user_name }}!</span></h4>
     </div>
+
     <a class="mobile_btn" id="mobile_btn">
         <i class="fas fa-bars"></i>
     </a>
+
     <ul class="nav user-menu">
-       
         <li class="nav-item dropdown has-arrow">
             <a href="#" class="dropdown-toggle nav-link" data-toggle="dropdown">
                 <span class="user-img">
-                    
-                    <img class="rounded-circle" src="{% static 'assets\img\profiles\shopkeeper.png' %}" width="31"
-                        alt="{{request.user}}">
-                    </span>
+                    <img class="rounded-circle" src="{% static 'assets/img/profiles/shopkeeper.png' %}" width="31" alt="User">
+                </span>
             </a>
             <div class="dropdown-menu">
                 <div class="user-header">
                     <div class="avatar avatar-sm">
-                        <img src="{% static 'assets\img\profiles\shopkeeper.png' %}" alt="User Image" class="avatar-img rounded-circle">
-                        
+                        <img src="{% static 'assets/img/profiles/shopkeeper.png' %}" alt="User Image" class="avatar-img rounded-circle">
                     </div>
                     <div class="user-text">
-                        <h6 class='my-2'>{{request.user.first_name}} {{request.user.first_last}}</h6>
-                       
-                
+                        <!-- DROPDOWN NAME UPDATED -->
+                        <h6 class='my-2'>{{ request.session.user_name }}</h6>
                     </div>
                 </div>
-                <!-- <a class="dropdown-item" href="">My Profile</a>
-                <a class="dropdown-item" href="">Inbox</a> -->
                 <a class="dropdown-item" href="{% url 'logout' %}">Logout</a>
             </div>
         </li>

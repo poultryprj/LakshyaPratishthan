@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<!-- ✅ Added SweetAlert2 CSS -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<div class="content container-fluid">
+    
+    <!-- ✅ Page Header -->
+    <div class="page-header">
+        <div class="row align-items-center">
+            <div class="col">
+                <h3 class="page-title">User Master</h3>
+                <ul class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'Index' %}">Dashboard</a></li>
+                    <li class="breadcrumb-item active">User Master</li>
+                </ul>
+            </div>
+            
+            <!-- ✅ Search Box -->
+            <div class="col-md-4">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                    <input type="text" id="userSearchInput" class="form-control border-start-0 ps-0" placeholder="Search by Name or Mobile...">
+                </div>
+            </div>
+
+            <div class="col-auto float-end ms-auto">
+                <button class="btn btn-primary" id="addNewUserBtn">
+                    <i class="fas fa-plus"></i> Add New User
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {% include "includes/message.html" %}
+
+    <div class="row">
+        <div class="col-sm-12">
+            <div class="card card-table border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-center mb-0" id="userListTable">
+                            <thead>
+                                <tr>
+                                    <th>Sr. No.</th>
+                                    <th>Name</th>
+                                    <th>Mobile</th>
+                                    <th>Role</th>
+                                    <th>Status</th>
+                                    <th class="text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="userTableBody">
+                                {% for user in users %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>
+                                        <h2 class="table-avatar">
+                                            <a href="#" class="text-dark fw-bold">{{ user.UserFirstname }} {{ user.UserLastname }}</a>
+                                        </h2>
+                                    </td>
+                                    <td>{{ user.UserMobileNo }}</td>
+                                    <td>
+                                        {% if user.UserRole == 1 %}
+                                            <span class="badge badge-primary">Admin</span>
+                                        {% else %}
+                                            <span class="badge badge-info">Operator</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if user.UserStatus == 1 %}
+                                            <span class="badge badge-success">Active</span>
+                                        {% else %}
+                                            <span class="badge badge-danger">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        <button class="btn btn-sm btn-primary editUserBtn" 
+                                            data-id="{{ user.UserId }}"
+                                            data-fname="{{ user.UserFirstname }}"
+                                            data-lname="{{ user.UserLastname }}"
+                                            data-mobile="{{ user.UserMobileNo }}"
+                                            data-role="{{ user.UserRole }}"
+                                            data-status="{{ user.UserStatus }}">
+                                            <i class="fas fa-edit text-white"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ✅ User Modal -->
+<div class="modal fade" id="userModal" tabindex="-1" aria-labelledby="modalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title fw-bold" id="modalTitle">User Form</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="userForm">
+                    <input type="hidden" id="userId">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="fw-bold small">First Name</label>
+                            <input type="text" id="firstName" class="form-control" placeholder="Enter first name" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="fw-bold small">Last Name</label>
+                            <input type="text" id="lastName" class="form-control" placeholder="Enter last name" required>
+                        </div>
+                        <div class="col-md-12 mb-3">
+                            <label class="fw-bold small">Mobile Number</label>
+                            <input type="text" id="mobile" class="form-control" maxlength="10" placeholder="Enter 10 digit mobile" required>
+                        </div>
+                        <div class="col-md-12 mb-3">
+                            <label class="fw-bold small">Login PIN (6 Digits)</label>
+                            <input type="password" id="pin" class="form-control" maxlength="6" placeholder="******">
+                            <small class="text-muted">Required for new; Leave blank for existing.</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="fw-bold small">Role</label>
+                            <select id="roleId" class="form-control">
+                                <option value="1">Admin</option>
+                                <option value="2">Operator</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="fw-bold small">Status</label>
+                            <select id="status" class="form-control">
+                                <option value="1">Active</option>
+                                <option value="0">Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer bg-light border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveBtn">Save User Data</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    
+    // ✅ Search Logic
+    $("#userSearchInput").on("keyup", function() {
+        var value = $(this).val().toLowerCase();
+        $("#userTableBody tr").filter(function() {
+            $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+        });
+    });
+
+    var myModal = new bootstrap.Modal(document.getElementById('userModal'));
+
+    $('#addNewUserBtn').on('click', function() {
+        $('#userForm')[0].reset();
+        $('#userId').val('');
+        $('#modalTitle').text('Add New User');
+        myModal.show();
+    });
+
+    $(document).on('click', '.editUserBtn', function() {
+        var btn = $(this);
+        $('#userId').val(btn.data('id'));
+        $('#firstName').val(btn.data('fname'));
+        $('#lastName').val(btn.data('lname'));
+        $('#mobile').val(btn.data('mobile'));
+        $('#roleId').val(btn.data('role'));
+        $('#status').val(btn.data('status'));
+        $('#modalTitle').text('Edit User Account');
+        myModal.show();
+    });
+
+    // ✅ Enhanced Save Logic with SweetAlert2
+    $('#saveBtn').on('click', function() {
+        const uId = $('#userId').val();
+        
+        // Basic Validation
+        if(!$('#firstName').val() || !$('#mobile').val()){
+            Swal.fire('Warning', 'First Name and Mobile are required!', 'warning');
+            return;
+        }
+
+        let formData = new FormData();
+        formData.append('action', uId ? 'update_user' : 'add_user');
+        formData.append('userId', uId);
+        formData.append('firstName', $('#firstName').val());
+        formData.append('lastName', $('#lastName').val());
+        formData.append('mobile', $('#mobile').val());
+        formData.append('pin', $('#pin').val());
+        formData.append('roleId', $('#roleId').val());
+        formData.append('status', $('#status').val());
+
+        // Show Loading
+        Swal.fire({
+            title: 'Processing...',
+            text: 'Please wait while we update the records.',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading(); }
+        });
+
+        $.ajax({
+            url: "{% url 'user_master_api' %}",
+            type: "POST",
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(data) {
+                if (data.message_code === 1000) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success!',
+                        text: data.message_text,
+                        timer: 1500,
+                        showConfirmButton: false
+                    }).then(() => {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Failed',
+                        text: data.message_text
+                    });
+                }
+            },
+            error: function() {
+                Swal.fire('Error', 'Something went wrong with the server connection.', 'error');
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

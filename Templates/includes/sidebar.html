@@ -9,6 +9,13 @@
                     <a href="{% url 'Index' %}"><i class="fas fa-house-user"></i> <span>Dashboard</span></a>
                 </li>  
 
+                <li class="{% if request.resolver_match.url_name == 'user_master' %}active{% endif %}">
+                    <a href="{% url 'user_master' %}">
+                        <i class="fas fa-user-shield"></i> 
+                        <span>User Master</span>
+                    </a>
+                </li>
+
                 <!-- <li class="{% active_link 'diwali_kirana_list' %}">
                     <a href="{% url 'diwali_kirana_list' %}"><i class="fas fa-gift"></i> <span>Registration List</span></a>
                 </li>   -->
@@ -19,6 +26,7 @@
                             <span>Complaint Dashboard</span>
                         </a>
                 </li>
+
             </ul>
         </div>
     </div>

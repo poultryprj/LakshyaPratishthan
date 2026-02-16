@@ -14,7 +14,34 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import api_view
 
-from .models import BJPOffice, SMSMaster, SMSTransaction
+from .models import BJPOffice, SMSMaster, SMSTransaction,TblUsers
+
+
+
+# def login_view(request):
+#     if 'user_id' in request.session:
+#         return redirect('Index')
+#     if request.method == 'POST':
+#         mobile = request.POST.get('mobile')
+#         password = request.POST.get('password')
+#         api_url = "https://kukudku.in/LakshyaPratishthan/api/agentlogin/"
+#         payload = {"userMobileNo": mobile, "userPassword": password}
+#         error_message = None
+#         try:
+#             response = requests.post(api_url, json=payload, timeout=10)
+#             response.raise_for_status()
+#             data = response.json()
+#             if data.get('message_code') == 1000 and data.get('message_data'):
+#                 user_info = data['message_data'][0]
+#                 request.session['user_id'] = user_info.get('UserId')
+#                 request.session['user_name'] = user_info.get('UserFirstname')
+#                 return redirect('Index')
+#             else:
+#                 error_message = data.get('message_text', 'An unknown error occurred.')
+#         except requests.exceptions.RequestException as e:
+#             error_message = f"Could not connect to the login service. Please try again later."
+#         return render(request, 'login.html', {'error': error_message})
+#     return render(request, 'login.html')
 
 
 
@@ -24,24 +51,159 @@ def login_view(request):
     if request.method == 'POST':
         mobile = request.POST.get('mobile')
         password = request.POST.get('password')
-        api_url = "https://kukudku.in/LakshyaPratishthan/api/agentlogin/"
+        api_url = "http://127.0.0.1:8000/LakshyaPratishthan/api/agentlogin/"
         payload = {"userMobileNo": mobile, "userPassword": password}
-        error_message = None
+        
         try:
             response = requests.post(api_url, json=payload, timeout=10)
-            response.raise_for_status()
             data = response.json()
-            if data.get('message_code') == 1000 and data.get('message_data'):
+            
+            # NORMAL LOGIN
+            if data.get('message_code') == 1000:
                 user_info = data['message_data'][0]
                 request.session['user_id'] = user_info.get('UserId')
                 request.session['user_name'] = user_info.get('UserFirstname')
                 return redirect('Index')
+            
+            # 🔴 HANDLE EXPIRED PASSWORD
+            elif data.get('message_code') == 1001:
+                user_info = data['message_data'][0]
+                request.session['uid_to_change'] = user_info.get('UserId') # Store ID for next view
+                return redirect('force_password_change')
+            
             else:
-                error_message = data.get('message_text', 'An unknown error occurred.')
-        except requests.exceptions.RequestException as e:
-            error_message = f"Could not connect to the login service. Please try again later."
+                error_message = data.get('message_text', 'Invalid Credentials.')
+        except Exception:
+            error_message = "Could not connect to service."
         return render(request, 'login.html', {'error': error_message})
     return render(request, 'login.html')
+
+
+
+
+
+def force_password_change(request):
+    # 1. Get User ID from session
+    user_id = request.session.get('uid_to_change')
+    print(f"DEBUG: Attempting to change PIN for UserId: {user_id}") # Check terminal
+
+    if not user_id:
+        return redirect('login')
+
+    if request.method == "POST":
+        new_pass = request.POST.get('new_pass')
+        confirm_pass = request.POST.get('confirm_pass')
+
+        print(f"DEBUG: Received New PIN: {new_pass}, Confirm PIN: {confirm_pass}")
+
+        # Basic Validations
+        if not new_pass or not confirm_pass:
+            messages.error(request, "PIN fields cannot be empty.")
+            return redirect('force_password_change')
+
+        if len(new_pass) != 6 or not new_pass.isdigit():
+            messages.error(request, "New PIN must be exactly 6 digits.")
+            return redirect('force_password_change')
+
+        if new_pass != confirm_pass:
+            messages.error(request, "PINs do not match.")
+            return redirect('force_password_change')
+
+        # 2. Update Database
+        try:
+            # Ensure user_id is integer
+            user = TblUsers.objects.get(UserId=int(user_id))
+
+            # Prevent same PIN reuse
+            if str(user.UserLoginPin) == str(new_pass):
+                messages.error(request, "New PIN cannot be the same as your old PIN.")
+                return redirect('force_password_change')
+
+            # ✅ FORCE UPDATE
+            user.UserLoginPin = int(new_pass)
+            user.password_updated_at = timezone.now()
+            user.save()
+            
+            print(f"DEBUG: Successfully saved PIN {new_pass} for User {user.UserFirstname}")
+
+            # Clean up session
+            del request.session['uid_to_change']
+
+            messages.success(request, "PIN updated successfully! Please login with your new 6-digit PIN.")
+            return redirect('login')
+
+        except TblUsers.DoesNotExist:
+            print(f"DEBUG: User ID {user_id} not found in database!")
+            return redirect('login')
+        except Exception as e:
+            print(f"DEBUG: Error saving to database: {str(e)}")
+            messages.error(request, f"Database Error: {str(e)}")
+            return redirect('force_password_change')
+
+    # IMPORTANT: Use the correct filename you created
+    return render(request, 'change_pin.html')
+
+
+
+def user_master(request):
+    """View to display the user list"""
+    if 'user_id' not in request.session:
+        return redirect('login')
+    
+    users = TblUsers.objects.all().order_by('-UserId')
+    return render(request, "user_master.html", {"users": users})
+
+@csrf_exempt
+def user_master_api(request):
+    """API for Add/Update Actions"""
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        u_id = request.POST.get('userId')
+        
+        try:
+            if action in ['add_user', 'update_user']:
+                first_name = request.POST.get('firstName')
+                last_name = request.POST.get('lastName')
+                mobile = request.POST.get('mobile')
+                pin = request.POST.get('pin')
+                role = int(request.POST.get('roleId', 2)) # Default to Operator
+                status = int(request.POST.get('status', 1))
+
+                if action == 'add_user':
+                    # Create New
+                    user = TblUsers.objects.create(
+                        UserFirstname=first_name,
+                        UserLastname=last_name,
+                        UserMobileNo=mobile,
+                        UserLoginPin=pin,
+                        UserRole=role,
+                        UserStatus=status,
+                        password_updated_at=timezone.now()
+                    )
+                    msg = "User created successfully."
+                else:
+                    # Update Existing
+                    user = TblUsers.objects.get(UserId=u_id)
+                    user.UserFirstname = first_name
+                    user.UserLastname = last_name
+                    user.UserMobileNo = mobile
+                    user.UserRole = role
+                    user.UserStatus = status
+                    if pin: # Only update PIN if provided
+                        user.UserLoginPin = pin
+                        user.password_updated_at = timezone.now()
+                    user.save()
+                    msg = "User updated successfully."
+
+                return JsonResponse({"message_code": 1000, "message_text": msg})
+
+            return JsonResponse({"message_code": 999, "message_text": "Invalid Action"})
+
+        except Exception as e:
+            return JsonResponse({"message_code": 999, "message_text": str(e)})
+
+    return JsonResponse({"message_code": 999, "message_text": "Invalid Request"})
+
 
 
 def logout_view(request):
@@ -51,12 +213,17 @@ def logout_view(request):
 
 
 def Index(request):
+    if 'user_id' not in request.session:
+        return redirect('login')
 
     return render(request, 'index.html', context={})
 
 
 
 def diwali_kirana_list(request):
+    if 'user_id' not in request.session:
+        return redirect('login')
+    
     """
     Fetches data and sorts it by family before passing it to the template.
     """
@@ -110,6 +277,8 @@ def diwali_kirana_list(request):
 
 
 def proxy_bulk_update_view(request):
+    if 'user_id' not in request.session:
+        return redirect('login')
     """
     This view receives the grid data from the browser,
     forwards it to the backend API, and returns the API's response.
@@ -144,6 +313,8 @@ def proxy_bulk_update_view(request):
 # NEW PROXY VIEW for Adding a Member
 
 def proxy_add_member_view(request):
+    if 'user_id' not in request.session:
+        return redirect('login')
     """
     This view receives the new member data from the browser,
     forwards it to the backend API, and returns the API's response.
@@ -191,6 +362,8 @@ def proxy_upload_voter_id_view(request):
     
 
 def proxy_delete_member_view(request, reg_id):
+    if 'user_id' not in request.session:
+        return redirect('login')
     """
     This proxy view forwards a delete request for a specific registration ID
     to the main backend API.
@@ -331,6 +504,9 @@ from django.utils import timezone
 
 
 def complaint_dashboard(request):
+    if 'user_id' not in request.session:
+        return redirect('login')
+    
     status_filter = request.GET.get('status', '').strip()
     search_filter = request.GET.get('mobile', '').strip()
 
@@ -448,6 +624,8 @@ def log_sms_transaction(mobile: str, message: str, template_obj: SMSMaster | Non
 
 @api_view(['POST']) 
 def update_complaint_direct(request):
+    if 'user_id' not in request.session:
+        return redirect('login')
     """
     Expected JSON:
     {

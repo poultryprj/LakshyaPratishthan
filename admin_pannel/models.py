@@ -13,6 +13,7 @@ class TblUsers(models.Model):
     UserLoginPin = models.IntegerField()
     UserStatus = models.IntegerField(default=1)  # 1=Active, 0=Inactive
     UserRole = models.IntegerField(null=True, blank=True)
+    password_updated_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
 
     class Meta:
         db_table = "tblUsers"   

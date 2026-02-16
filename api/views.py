@@ -48,7 +48,7 @@ import io
 import base64
 
 
-
+from django.views.decorators.csrf import csrf_exempt
 
 @api_view(['POST'])
 def insertarea(request):
@@ -651,77 +651,145 @@ def deleteuser(request):
 
 
 
+# @api_view(['POST'])
+# def agentlogin(request):
+#     try:
+#         mobile_no = str(request.data.get('userMobileNo', '')).strip()
+#         password = str(request.data.get('userPassword', '')).strip()
+
+#         # Validation
+#         if not mobile_no:
+#             return Response({
+#                 'message_code': 999,
+#                 'message_text': 'Please provide your mobile no. for login.',
+#                 'message_data': []
+#             }, status=status.HTTP_200_OK)
+
+#         if not password:
+#             return Response({
+#                 'message_code': 999,
+#                 'message_text': 'Please provide your password/pin for login.',
+#                 'message_data': []
+#             }, status=status.HTTP_200_OK)
+
+#         # Fetch from TblUsers using UserMobileNo
+#         user = TblUsers.objects.filter(UserMobileNo=mobile_no).first()
+#         if not user:
+#             return Response({
+#                 'message_code': 999,
+#                 'message_text': 'Mobile no and Password/pin not valid.',
+#                 'message_data': []
+#             }, status=status.HTTP_200_OK)
+
+#         # Compare pin (TblUsers.UserLoginPin is IntegerField)
+#         if str(user.UserLoginPin) != str(password):
+#             return Response({
+#                 'message_code': 999,
+#                 'message_text': 'Mobile no and Password/pin not valid.',
+#                 'message_data': []
+#             }, status=status.HTTP_200_OK)
+
+#         # Active status check
+#         if int(user.UserStatus or 0) != 1:
+#             return Response({
+#                 'message_code': 999,
+#                 'message_text': 'Your login is not active.',
+#                 'message_data': []
+#             }, status=status.HTTP_200_OK)
+
+#         # Success response (PHP-style)
+#         user_data = [{
+#             "UserId": str(user.UserId),
+#             "UserFirstname": user.UserFirstname,
+#             "UserLastname": user.UserLastname or "",
+#             "UserMobileNo": user.UserMobileNo,
+#             "UserLoginPin": "",  # hide pin
+#             "UserStatus": str(user.UserStatus),
+#             "UserRole": str(user.UserRole or 0)
+#         }]
+
+#         return Response({
+#             'message_code': 1000,
+#             'message_text': 'Success',
+#             'message_data': user_data
+#         }, status=status.HTTP_200_OK)
+
+#     except Exception as e:
+#         return Response({
+#             'message_code': 999,
+#             'message_text': f'Failure: {str(e)}',
+#             'message_data': []
+#         }, status=status.HTTP_200_OK)
+
+
+
+
+
+from django.utils import timezone
+from datetime import timedelta
+@csrf_exempt 
 @api_view(['POST'])
 def agentlogin(request):
     try:
         mobile_no = str(request.data.get('userMobileNo', '')).strip()
         password = str(request.data.get('userPassword', '')).strip()
 
-        # Validation
-        if not mobile_no:
-            return Response({
-                'message_code': 999,
-                'message_text': 'Please provide your mobile no. for login.',
-                'message_data': []
-            }, status=status.HTTP_200_OK)
+        # ... (Keep your validation code here) ...
 
-        if not password:
-            return Response({
-                'message_code': 999,
-                'message_text': 'Please provide your password/pin for login.',
-                'message_data': []
-            }, status=status.HTTP_200_OK)
-
-        # Fetch from TblUsers using UserMobileNo
         user = TblUsers.objects.filter(UserMobileNo=mobile_no).first()
-        if not user:
-            return Response({
-                'message_code': 999,
-                'message_text': 'Mobile no and Password/pin not valid.',
-                'message_data': []
-            }, status=status.HTTP_200_OK)
+        if not user or str(user.UserLoginPin) != str(password):
+            return Response({'message_code': 999, 'message_text': 'Invalid credentials.', 'message_data': []})
 
-        # Compare pin (TblUsers.UserLoginPin is IntegerField)
-        if str(user.UserLoginPin) != str(password):
-            return Response({
-                'message_code': 999,
-                'message_text': 'Mobile no and Password/pin not valid.',
-                'message_data': []
-            }, status=status.HTTP_200_OK)
-
-        # Active status check
         if int(user.UserStatus or 0) != 1:
-            return Response({
-                'message_code': 999,
-                'message_text': 'Your login is not active.',
-                'message_data': []
-            }, status=status.HTTP_200_OK)
+            return Response({'message_code': 999, 'message_text': 'Your login is not active.', 'message_data': []})
 
-        # Success response (PHP-style)
+        # Success Data
         user_data = [{
             "UserId": str(user.UserId),
             "UserFirstname": user.UserFirstname,
-            "UserLastname": user.UserLastname or "",
             "UserMobileNo": user.UserMobileNo,
-            "UserLoginPin": "",  # hide pin
-            "UserStatus": str(user.UserStatus),
             "UserRole": str(user.UserRole or 0)
         }]
 
-        return Response({
-            'message_code': 1000,
-            'message_text': 'Success',
-            'message_data': user_data
-        }, status=status.HTTP_200_OK)
+        # 🔴 SECURITY LOGIC: Check if 60 days have passed
+        if user.password_updated_at:
+            expiry_date = user.password_updated_at + timedelta(days=60)
+            if timezone.now() > expiry_date:
+                return Response({
+                    'message_code': 1001, # 1001 means "Password Expired"
+                    'message_text': 'Your password is older than 60 days.',
+                    'message_data': user_data
+                }, status=status.HTTP_200_OK)
+        else:
+            # Force change if field is NULL
+            return Response({'message_code': 1001, 'message_text': 'Security Update required.', 'message_data': user_data})
+
+        return Response({'message_code': 1000, 'message_text': 'Success', 'message_data': user_data})
 
     except Exception as e:
-        return Response({
-            'message_code': 999,
-            'message_text': f'Failure: {str(e)}',
-            'message_data': []
-        }, status=status.HTTP_200_OK)
+        return Response({'message_code': 999, 'message_text': str(e), 'message_data': []})
 
+@csrf_exempt 
+@api_view(['POST'])
+def update_pin_api(request):
+    try:
+        user_id = request.data.get('user_id')
+        new_pin = request.data.get('new_pin')
 
+        if not user_id or not new_pin:
+            return Response({'message_code': 999, 'message_text': 'Missing data.'})
+
+        user = TblUsers.objects.filter(UserId=user_id).first()
+        if user:
+            user.UserLoginPin = int(new_pin)
+            user.password_updated_at = timezone.now()
+            user.save()
+            return Response({'message_code': 1000, 'message_text': 'PIN updated successfully.'})
+        
+        return Response({'message_code': 999, 'message_text': 'User not found.'})
+    except Exception as e:
+        return Response({'message_code': 999, 'message_text': str(e)})
+        
 
 @api_view(['POST'])
 def searchregistrations(request):

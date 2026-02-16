@@ -65,11 +65,34 @@
         $(".alert-dismissible").fadeTo(3000, 1000).slideUp(1000, function () {
             $(".alert-dismissible").alert('close');
         });
-
-
-      
-    
     </script>
-</body>
 
+    
+<script>
+(function () {
+  let logoutTimer;
+  const IDLE_MS = 15 * 60 * 1000; // ✅ 15 minute
+
+  function logoutNow() {
+    alert("Session expired. You will be logged out.");
+    window.location.href = "{% url 'logout' %}";
+  }
+
+  function resetTimer() {
+    clearTimeout(logoutTimer);
+    logoutTimer = setTimeout(logoutNow, IDLE_MS);
+  }
+
+  const events = ["mousemove","mousedown","click","keypress","scroll","touchstart","touchmove"];
+  events.forEach(evt => window.addEventListener(evt, resetTimer, { passive: true }));
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) resetTimer();
+  });
+
+  resetTimer();
+})();
+</script>
+
+</body>
 </html>

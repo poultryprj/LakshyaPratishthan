@@ -4,7 +4,7 @@ from . import views
 urlpatterns = [
 
     path("agentlogin/", views.agentlogin, name="agentlogin"),
-    
+    path("update-pin/", views.update_pin_api, name="update_pin_api"),
     path("insertarea/",views.insertarea, name="insertarea"),
     path("listarea/", views.listarea, name="listarea"),
     path("listareaall/", views.listareaall, name="listareaall"),

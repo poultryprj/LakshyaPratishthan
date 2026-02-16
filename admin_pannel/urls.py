@@ -4,6 +4,9 @@ from . import views
 urlpatterns =[
 
     path('', views.login_view, name='login'),
+    path('force_password_change/', views.force_password_change, name='force_password_change'),
+    path('user_master/', views.user_master, name='user_master'),
+    path('user_master_api/', views.user_master_api, name='user_master_api'),
     path('logout/', views.logout_view, name='logout'), 
     path('Index/' , views.Index, name='Index'), 
     path('diwali_kirana/', views.diwali_kirana_list, name='diwali_kirana_list'),
