@@ -51,7 +51,7 @@ def login_view(request):
     if request.method == 'POST':
         mobile = request.POST.get('mobile')
         password = request.POST.get('password')
-        api_url = "http://127.0.0.1:8000/LakshyaPratishthan/api/agentlogin/"
+        api_url = "https://kukudku.in/LakshyaPratishthan/api/agentlogin/"
         payload = {"userMobileNo": mobile, "userPassword": password}
         
         try:
