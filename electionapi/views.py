@@ -5,7 +5,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Q
-from admin_pannel.models import TblUsers, Registrations, Areas, ElectionManagement,TicketsNew, DiwaliKirana,BJPOffice
+from admin_pannel.models import TblUsers, Registrations, Areas, ElectionManagement,TicketsNew, DiwaliKirana,BJPOffice,CounselorCalendar
 
 from django.db.models import Count, Max
 from django.db.models.functions import TruncDate
@@ -460,7 +460,9 @@ def get_excel_data(request):
                 "BoothAddress": election.BoothAddress if election else "",
                 "AssemblyNo": election.AssemblyNo if election else "",
                 "YadiNo": election.YadiNo if election else "",
-                "SrNo": election.SrNo if election else ""
+                "SrNo": election.SrNo if election else "",
+                "IsExcelUpdated": bool(getattr(r, "is_excel_updated", False)),
+
             })
 
         return Response({
@@ -511,7 +513,9 @@ def save_excel_data(request):
                     reg_fields['areaId'] = area_obj
             # -----------------------------------
 
-            reg_fields = {k: v for k, v in reg_fields.items() if v is not None}
+            reg_fields = {k: v for k, v in reg_fields.items() if v not in [None, ""]}
+
+            # reg_fields = {k: v for k, v in reg_fields.items() if v is not None}
 
             # --- Prepare Election Data (Clean Integers Here) ---
             election_fields = {
@@ -525,11 +529,14 @@ def save_excel_data(request):
             # (Unless you want to allow clearing fields, then keep None)
             election_fields = {k: v for k, v in election_fields.items() if v is not None}
 
-            # --- UPDATE ---
             if reg_id:
-                # 1. Update Registration
+                # 1) Update Registration (✅ actual fields + green flag)
                 if reg_fields:
+                    reg_fields["is_excel_updated"] = True
                     Registrations.objects.filter(registrationId=reg_id).update(**reg_fields)
+                else:
+                    # even if only election changes, still mark green
+                    Registrations.objects.filter(registrationId=reg_id).update(is_excel_updated=True)
                 
                 # 2. Update Election
                 if election_fields:
@@ -554,8 +561,13 @@ def save_excel_data(request):
             # --- INSERT ---
             else:
                 if not reg_fields.get('firstname'): continue
-                
+
                 new_reg = Registrations.objects.create(**reg_fields)
+                new_reg.is_excel_updated = True
+                new_reg.save(update_fields=["is_excel_updated"])
+
+                
+                # new_reg = Registrations.objects.create(**reg_fields)
                 
                 new_election = ElectionManagement(
                     RegistrationId=new_reg,
@@ -1069,25 +1081,34 @@ def abs_url(request, url):
 
 
 
+
 @api_view(["POST"])
 def office_record_list(request):
-    # Fix: Ensure we catch mobile numbers properly
-    status_val = request.data.get("status", "")
-    category = request.data.get("complaint_category", "")
-    mobile = request.data.get("mobile", "")
+    status_val = (request.data.get("status") or "").strip()
+    category   = (request.data.get("complaint_category") or "").strip()
+    mobile     = (request.data.get("mobile") or "").strip()
+    record_type = (request.data.get("record_type") or "").strip()
 
-    qs = BJPOffice.objects.all().order_by("-created_on")
+    if record_type.upper() == "MASTER":
+        qs = BJPOffice.objects.filter(record_type="MASTER").order_by("-created_on")
+    else:
+        qs = BJPOffice.objects.exclude(record_type="MASTER").order_by("-created_on")
+
+        # If you want other record_types filter like ComplaintRegistration, MissingInfoCollect
+        if record_type:
+            qs = qs.filter(record_type=record_type)
 
     if status_val:
         qs = qs.filter(status=status_val)
+
     if category:
         qs = qs.filter(complaint_category__icontains=category)
+
     if mobile:
-        # Filter by the mobile number stored in the office record OR the linked registration
         qs = qs.filter(Q(voter_mobile__icontains=mobile) | Q(registration__mobileNo__icontains=mobile))
 
     data = []
-    for x in qs[:100]: # Limit 100 for speed
+    for x in qs[:100]:
         data.append({
             "bjp_office_id": x.bjp_office_id,
             "voter_name": x.voter_name,
@@ -1098,11 +1119,11 @@ def office_record_list(request):
             "priority": x.priority,
             "status": x.status,
             "created_on": x.created_on,
+
             "personal_aadhar_url": abs_url(request, getattr(x, "personal_aadhar_url", None)),
             "personal_voting_url": abs_url(request, getattr(x, "personal_voting_url", None)),
             "personal_ration_url": abs_url(request, getattr(x, "personal_ration_url", None)),
 
-            # ✅ COMPLAINT PHOTOS (ADD THESE)
             "complaint_photo1_url": abs_url(request, getattr(x, "complaint_photo1_url", None)),
             "complaint_photo2_url": abs_url(request, getattr(x, "complaint_photo2_url", None)),
             "complaint_photo3_url": abs_url(request, getattr(x, "complaint_photo3_url", None)),
@@ -1256,3 +1277,145 @@ def office_upload_docs(request):
 
     except Exception as e:
         return Response({"message_code": 999, "message_text": str(e), "message_data": []})
+
+
+
+
+def get_priority_color(priority):
+    if priority == "Urgent":
+        return "#ef4444"
+    elif priority == "High":
+        return "#f59e0b"
+    elif priority == "Normal":
+        return "#3b82f6"
+    return "#10b981"
+
+@api_view(["POST"])
+def api_calendar_list(request):
+    """
+    Fetches events filtered optionally by a calendar date-range.
+    """
+    start_date_str = request.data.get("start")
+    end_date_str = request.data.get("end")
+    
+    qs = CounselorCalendar.objects.filter(is_deleted=False).exclude(status="Cancelled")
+    
+    if start_date_str and end_date_str:
+        # Standard Python datetime module syntax
+        start_date = datetime.datetime.fromisoformat(start_date_str.replace('Z', '+00:00'))
+        end_date = datetime.datetime.fromisoformat(end_date_str.replace('Z', '+00:00'))
+        qs = qs.filter(start_time__gte=start_date, start_time__lte=end_date)
+        
+    data = []
+    for e in qs:
+        data.append({
+            "id": e.calendar_id,
+            "title": e.title or "",
+            "description": e.description or "",
+            "start": e.start_time.isoformat() if e.start_time else None,
+            "end": e.end_time.isoformat() if e.end_time else None,
+            "location_name": e.location_name or "",
+            "address": e.address or "",
+            "google_maps_link": e.google_maps_link or "",
+            "priority": e.priority,
+            "status": e.status,
+            "color": get_priority_color(e.priority)
+        })
+    return Response({"message_code": 1000, "message_data": data})
+
+@api_view(["POST"])
+def api_calendar_create(request):
+    """
+    Saves a new calendar schedule.
+    """
+    try:
+        data = request.data
+        user_id = data.get("caller_id")
+        
+        user_obj = TblUsers.objects.filter(UserId=user_id).first() if user_id else None
+        
+        # Explicitly call the datetime class inside the datetime module
+        start_time = datetime.datetime.fromisoformat(data.get("start_time"))
+        end_time = datetime.datetime.fromisoformat(data.get("end_time"))
+        
+        event = CounselorCalendar.objects.create(
+            title=data.get("title", "").strip(),
+            description=data.get("description", "").strip(),
+            start_time=start_time,
+            end_time=end_time,
+            location_name=data.get("location_name", "").strip(),
+            address=data.get("address", "").strip(),
+            google_maps_link=data.get("google_maps_link", "").strip(),
+            priority=data.get("priority", "Normal"),
+            status="Scheduled",
+            created_by=user_obj
+        )
+        
+        return Response({
+            "message_code": 1000, 
+            "message_text": "Event added to Calendar successfully.",
+            "calendar_id": event.calendar_id
+        })
+    except Exception as e:
+        return Response({"message_code": 999, "message_text": str(e)})
+
+@api_view(["GET"])
+def api_calendar_today(request):
+    """
+    Retrieves events starting within the current local calendar day.
+    """
+    today = timezone.localtime(timezone.now()).date()
+    
+    # Access time classes directly from the datetime module
+    start_of_day = timezone.make_aware(datetime.datetime.combine(today, datetime.time.min))
+    end_of_day = timezone.make_aware(datetime.datetime.combine(today, datetime.time.max))
+    
+    todays_events = CounselorCalendar.objects.filter(
+        start_time__range=(start_of_day, end_of_day),
+        is_deleted=False
+    ).exclude(status="Cancelled").order_by("start_time")
+    
+    data = []
+    for e in todays_events:
+        data.append({
+            "id": e.calendar_id,
+            "title": e.title or "",
+            "start": e.start_time.strftime("%I:%M %p") if e.start_time else "",
+            "location": e.location_name or "TBD",
+            "address": e.address or "",
+            "google_maps_link": e.google_maps_link or "",
+            "priority": e.priority
+        })
+        
+    return Response({"message_code": 1000, "message_data": data})
+
+
+
+
+# views.py (LakshPratishthan Backend)
+
+@api_view(["POST"])
+def api_calendar_update_status(request):
+    """
+    Updates the status of a specific calendar engagement.
+    """
+    try:
+        data = request.data
+        calendar_id = data.get("calendar_id")
+        new_status = data.get("status")
+        
+        # database मधून तो रेकॉर्ड शोधणे
+        event = CounselorCalendar.objects.filter(calendar_id=calendar_id).first()
+        if not event:
+            return Response({"message_code": 999, "message_text": "Event not found."})
+            
+        # स्टेटस अपडेट करून सेव्ह करणे
+        event.status = new_status
+        event.save()
+        
+        return Response({
+            "message_code": 1000,
+            "message_text": "Status updated successfully."
+        })
+    except Exception as e:
+        return Response({"message_code": 999, "message_text": str(e)})

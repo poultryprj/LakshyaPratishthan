@@ -18,11 +18,37 @@
                 </ul>
             </div>
             
-            <!-- ✅ Search Box -->
-            <div class="col-md-4">
-                <div class="input-group">
-                    <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
-                    <input type="text" id="userSearchInput" class="form-control border-start-0 ps-0" placeholder="Search by Name or Mobile...">
+            <!-- ✅ Search + Role Filter + Status Filter -->
+            <div class="col-md-6">
+                <div class="row">
+                    <!-- Search -->
+                    <div class="col-md-6">
+                        <div class="input-group">
+                            <span class="input-group-text bg-white border-end-0">
+                                <i class="fas fa-search text-muted"></i>
+                            </span>
+                            <input type="text" id="userSearchInput" class="form-control border-start-0 ps-0"
+                                   placeholder="Search by Name or Mobile...">
+                        </div>
+                    </div>
+
+                    <!-- Role Filter -->
+                    <div class="col-md-3">
+                        <select id="roleFilter" class="form-control">
+                            <option value="">All Roles</option>
+                            <option value="Admin">Admin</option>
+                            <option value="Operator">Operator</option>
+                        </select>
+                    </div>
+
+                    <!-- Status Filter -->
+                    <div class="col-md-3">
+                        <select id="statusFilter" class="form-control">
+                            <option value="">All Status</option>
+                            <option value="Active">Active</option>
+                            <option value="Inactive">Inactive</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -54,7 +80,9 @@
                             </thead>
                             <tbody id="userTableBody">
                                 {% for user in users %}
-                                <tr>
+                                <tr
+                                    data-role="{% if user.UserRole == 1 %}Admin{% else %}Operator{% endif %}"
+                                    data-status="{% if user.UserStatus == 1 %}Active{% else %}Inactive{% endif %}">
                                     <td>{{ forloop.counter }}</td>
                                     <td>
                                         <h2 class="table-avatar">
@@ -156,14 +184,32 @@
 
 <script>
 $(document).ready(function() {
-    
-    // ✅ Search Logic
-    $("#userSearchInput").on("keyup", function() {
-        var value = $(this).val().toLowerCase();
-        $("#userTableBody tr").filter(function() {
-            $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+
+    // ✅ Combined Search + Filters
+    function applyFilters() {
+        const search = $("#userSearchInput").val().toLowerCase();
+        const role = $("#roleFilter").val();
+        const status = $("#statusFilter").val();
+
+        $("#userTableBody tr").each(function() {
+            const row = $(this);
+            const text = row.text().toLowerCase();
+            const rowRole = row.data("role");
+            const rowStatus = row.data("status");
+
+            let show = true;
+
+            if (search && text.indexOf(search) === -1) show = false;
+            if (role && rowRole !== role) show = false;
+            if (status && rowStatus !== status) show = false;
+
+            row.toggle(show);
         });
-    });
+    }
+
+    $("#userSearchInput").on("keyup", applyFilters);
+    $("#roleFilter").on("change", applyFilters);
+    $("#statusFilter").on("change", applyFilters);
 
     var myModal = new bootstrap.Modal(document.getElementById('userModal'));
 
@@ -186,11 +232,10 @@ $(document).ready(function() {
         myModal.show();
     });
 
-    // ✅ Enhanced Save Logic with SweetAlert2
+    // ✅ Save Logic (unchanged)
     $('#saveBtn').on('click', function() {
         const uId = $('#userId').val();
         
-        // Basic Validation
         if(!$('#firstName').val() || !$('#mobile').val()){
             Swal.fire('Warning', 'First Name and Mobile are required!', 'warning');
             return;
@@ -206,7 +251,6 @@ $(document).ready(function() {
         formData.append('roleId', $('#roleId').val());
         formData.append('status', $('#status').val());
 
-        // Show Loading
         Swal.fire({
             title: 'Processing...',
             text: 'Please wait while we update the records.',
@@ -244,6 +288,7 @@ $(document).ready(function() {
             }
         });
     });
+
 });
 </script>
 {% endblock %}

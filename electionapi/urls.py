@@ -32,6 +32,12 @@ urlpatterns = [
     path('office-upload-docs/', views.office_upload_docs, name='office_upload_docs'),
 
 
+    path('api-calendar-list/', views.api_calendar_list, name='api_calendar_list'),
+    path('api-calendar-create/', views.api_calendar_create, name='api_calendar_create'),
+    path('api-calendar-today/', views.api_calendar_today, name='api_calendar_today'),
+    path('api-calendar-update-status/', views.api_calendar_update_status, name='api_calendar_update_status'),
+
+
     
 
 ]

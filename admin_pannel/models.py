@@ -172,6 +172,8 @@ class Registrations(models.Model):
     ration_card_photo = models.CharField(max_length=200, null=True, blank=True, db_column='RationCardPhoto')
     parent_id = models.IntegerField(null=True, blank=True, default=0, db_column='ParentId')
 
+    is_excel_updated = models.BooleanField(default=False, null=True, blank=True)
+
     # event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='registrations', null=True)
 
     created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
@@ -508,7 +510,7 @@ class BJPOffice(models.Model):
     voter_name = models.CharField(max_length=150, null=True, blank=True)
     voter_mobile = models.CharField(max_length=15, null=True, blank=True)
 
-    record_type = models.CharField(max_length=30,default="ComplaintRegistration",choices=(("MissingInfoCollect", "Missing Info Collect"),("ComplaintRegistration", "Complaint Registration"),))
+    record_type = models.CharField(max_length=30,default="ComplaintRegistration",choices=(("MissingInfoCollect", "Missing Info Collect"),("ComplaintRegistration", "Complaint Registration"), ("MASTER", "MASTER"),))
 
     # Complaint data (keep TEXT only to avoid extra tables)
     complaint_category = models.CharField(max_length=100, null=True, blank=True)
@@ -556,3 +558,39 @@ class BJPOffice(models.Model):
 
     class Meta:
         db_table = "BJPOffice" 
+
+
+
+class CounselorCalendar(models.Model):
+    calendar_id = models.AutoField(primary_key=True)
+    title = models.CharField(max_length=255, null=True, blank=True)
+    description = models.TextField(null=True, blank=True)
+    start_time = models.DateTimeField(null=True, blank=True)
+    end_time = models.DateTimeField(null=True, blank=True)
+    
+    # Ensure these are written with underscores (snake_case):
+    location_name = models.CharField(max_length=255, null=True, blank=True)
+    address = models.TextField(null=True, blank=True)
+    google_maps_link = models.CharField(max_length=1000, null=True, blank=True)
+    
+    priority = models.CharField(
+        max_length=20, 
+        default="Normal", 
+        choices=(("Low", "Low"), ("Normal", "Normal"), ("High", "High"), ("Urgent", "Urgent"))
+    )
+    status = models.CharField(
+        max_length=30, 
+        default="Scheduled", 
+        choices=(("Scheduled", "Scheduled"), ("Completed", "Completed"), ("Cancelled", "Cancelled"))
+    )
+    
+    # Audit Trail
+    created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    created_by = models.ForeignKey(TblUsers, on_delete=models.SET_NULL, null=True, blank=True, related_name='Calendar_created_by')
+    last_modified_on = models.DateTimeField(auto_now=True, null=True, blank=True)
+    last_modified_by = models.ForeignKey(TblUsers, on_delete=models.SET_NULL, null=True, blank=True, related_name='Calendar_modified_by')
+    is_deleted = models.BooleanField(default=False, null=True, blank=True)
+    deleted_by = models.ForeignKey(TblUsers, on_delete=models.SET_NULL, null=True, blank=True, related_name='Calendar_deleted_by')
+
+    class Meta:
+        db_table = "tblCounselorCalendar"

@@ -510,7 +510,11 @@ def complaint_dashboard(request):
     status_filter = request.GET.get('status', '').strip()
     search_filter = request.GET.get('mobile', '').strip()
 
-    complaints_qs = BJPOffice.objects.filter(is_deleted=False).order_by('-created_on')
+    # complaints_qs = BJPOffice.objects.filter(is_deleted=False).order_by('-created_on')
+
+    complaints_qs = BJPOffice.objects.filter(
+    is_deleted=False,record_type="ComplaintRegistration").order_by('-created_on')
+
 
     if status_filter:
         complaints_qs = complaints_qs.filter(status=status_filter)

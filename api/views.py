@@ -1364,10 +1364,17 @@ def CheckTicketsForReg(request):
 
 #     return Response(response_data, status=status.HTTP_200_OK)
 
+# Backend views.py मधील getpilgrimcard फंक्शन या नवीन कोडने रिप्लेस करा:
+# Backend views.py मधील getpilgrimcard फंक्शन या नवीन प्रिमियम कोडने रिप्लेस करा:
+# Backend views.py मधील getpilgrimcard फंक्शन या अंतिम प्रिमियम कोडने रिप्लेस करा:
+# Backend views.py मधील getpilgrimcard फंक्शन या त्रुटीरहित प्रिमियम कोडने रिप्लेस करा:
+from PIL import Image, ImageDraw, ImageFont, ImageOps
+
 @api_view(['POST'])
 def getpilgrimcard(request):
     """
-    Generates a pilgrim ID card image based on a RegistrationId.
+    Generates a pocket-sized Ultra-HD (1350 x 795 px) premium Pilgrim ID Card/Ticket.
+    Features optimized high-speed exact path checking for instant generation.
     """
     response_data = {
         'message_code': 999,
@@ -1383,145 +1390,216 @@ def getpilgrimcard(request):
             response_data['message_text'] = 'Please provide the registration Id.'
             return Response(response_data, status=status.HTTP_200_OK)
 
-        # --- Fetch registration ---
+        # १. नोंदणीकृत प्रवाशाची माहिती डेटाबेसमधून मिळवा
         try:
             reg_data = Registrations.objects.select_related('areaId').get(registrationId=registration_id)
         except Registrations.DoesNotExist:
             response_data['message_text'] = 'Unable to find the registered user.'
             return Response(response_data, status=status.HTTP_200_OK)
 
-        # --- Fetch Yatra/Ticket Details ---
-        # ***** CHANGE #1: DEEPER PRE-FETCHING OF RELATED MODELS *****
-        # We now pre-fetch not just YatraBuses, but also the BusNames model it links to.
-        # This assumes the ForeignKey field in your YatraBuses model pointing to BusNames is called `busName`.
-        # If it's named something else (like 'bus_name_id'), change 'yatra_bus_id__busName' accordingly.
+        # २. प्रवाशाच्या प्रवासाची माहिती मिळवा
         yatra_details = TicketsNew.objects.filter(
             registration_id=registration_id,
             ticket_status_id=2
         ).select_related(
             'yatra_route_id', 
-            'yatra_bus_id__busName',  # This follows the link from YatraBuses to BusNames
+            'yatra_bus_id__busName',
             'yatra_id'
         ).order_by('yatra_id__yatraStartDateTime')
 
-        # --- Image generation ---
-        WHITE = (255, 255, 255)
-        BLACK = (0, 0, 0)
-        RED = (219, 70, 20)
-        BLUE = (66, 135, 245)
+        # ३. FULL HD प्रिमियम इमेज साईझ (1350 x 795 Pixels - 3x Resolution)
+        IMG_WIDTH = 1350
+        IMG_HEIGHT = 795
+        
+        COLOR_BG = (255, 255, 255) 
+        COLOR_HEADER = (15, 23, 42) 
+        COLOR_TEXT_DARK = (30, 41, 59) 
+        COLOR_TEXT_MUTED = (100, 116, 139) 
+        COLOR_TEAL = (13, 148, 136) 
+        COLOR_BORDER = (226, 232, 240) 
 
-        try:
-            font = ImageFont.load_default()
-        except IOError:
-            font = ImageFont.load_default()
-
-        image = Image.new('RGB', (252, 144), WHITE)
+        image = Image.new('RGB', (IMG_WIDTH, IMG_HEIGHT), COLOR_BG)
         draw = ImageDraw.Draw(image)
 
-        draw.rectangle((2, 2, 250, 142), outline=BLACK)
-        draw.line((78, 2, 78, 120), fill=BLACK)
-        draw.line((2, 78, 78, 78), fill=BLACK)
+        # कार्ड बाहेरील बॉर्डर (width=6)
+        draw.rounded_rectangle((9, 9, IMG_WIDTH - 9, IMG_HEIGHT - 9), radius=36, outline=COLOR_BORDER, width=6)
 
-        # --- Profile picture --- (No change here)
-        profile_pic_path = os.path.join(settings.BASE_DIR, 'path/to/default/profile.png')
-        if reg_data.photoFileName:
-            user_pic_path = os.path.join(settings.MEDIA_ROOT, str(reg_data.photoFileName))
-            if os.path.exists(user_pic_path):
-                profile_pic_path = user_pic_path
-
+        # हेडर बेल्ट (Header)
+        draw.rounded_rectangle((15, 15, IMG_WIDTH - 15, 156), radius=30, fill=COLOR_HEADER)
+        
+        # FULL HD फॉन्ट सेटिंग्स
         try:
-            profile_img = Image.open(profile_pic_path)
+            font_title = ImageFont.truetype("arial.ttf", 45)
+            font_subtitle = ImageFont.truetype("arial.ttf", 24)
+            font_bold = ImageFont.truetype("arial.ttf", 33)
+            font_regular = ImageFont.truetype("arial.ttf", 27)
+            font_small = ImageFont.truetype("arial.ttf", 24)
         except IOError:
-            profile_img = Image.new('RGB', (74, 74), (200, 200, 200))
+            font_title = ImageFont.load_default()
+            font_subtitle = ImageFont.load_default()
+            font_bold = ImageFont.load_default()
+            font_regular = ImageFont.load_default()
+            font_small = ImageFont.load_default()
 
-        profile_img = profile_img.resize((74, 74))
-        image.paste(profile_img, (3, 3))
+        # हेडर टेक्स्ट
+        draw.text((54, 33), "LAKSHYA PRATISHTHAN", fill=(255, 255, 255), font=font_title)
+        draw.text((54, 99), "OFFICIAL JOURNEY PASS  •  VERIFIED PILGRIM CARD", fill=COLOR_TEAL, font=font_subtitle)
 
-        # --- Draw Pilgrim Details --- (No change here)
-        y = 82
-        draw.text((4, y), str(reg_data.firstname), fill=RED, font=font)
-        y += 10
-        draw.text((4, y), str(reg_data.lastname), fill=RED, font=font)
-        y += 10
-        draw.text((4, y), str(reg_data.mobileNo), fill=BLACK, font=font)
-        if reg_data.alternateMobileNo:
-            y += 10
-            draw.text((4, y), str(reg_data.alternateMobileNo), fill=BLACK, font=font)
-        if reg_data.address:
-            y += 10
-            draw.text((4, y), str(reg_data.address)[:15], fill=BLACK, font=font)
-        if reg_data.areaId:
-            y += 10
-            draw.text((4, y), str(reg_data.areaId.AreaName)[:15], fill=BLACK, font=font)
+        # ४. प्रोफाइल फोटो फ्रेम (Left Column) - 🔴 दुरुस्ती: width=3
+        profile_rect = (45, 195, 315, 465)
+        draw.rounded_rectangle(profile_rect, radius=24, outline=COLOR_BORDER, width=3)
 
-        # --- Draw Yatra Details ---
+        # 🔴 हाय-स्पीड डायरेक्ट पाथ चेकिंग (instant file find)
+        profile_img = None
+        photo_url = str(reg_data.photoFileName or '')
+        filename = photo_url.split('/')[-1] if photo_url else ''
+
+        if filename:
+            # थेट फाईल तपासणीचे प्रिमियम वेगवान पाथ्स
+            exact_paths = [
+                os.path.abspath(os.path.join(settings.BASE_DIR, '..', 'Yatra_darshan', 'staticfiles', 'assets', 'profile', filename)),
+                os.path.abspath(os.path.join(settings.BASE_DIR, '..', 'Yatra_darshan', 'static', 'assets', 'profile', filename)),
+                os.path.abspath(os.path.join(settings.BASE_DIR, 'staticfiles', 'assets', 'profile', filename)),
+                os.path.abspath(os.path.join(settings.BASE_DIR, 'static', 'assets', 'profile', filename)),
+            ]
+            
+            for path in exact_paths:
+                if os.path.exists(path):
+                    try:
+                        profile_img = Image.open(path)
+                        break
+                    except Exception:
+                        pass
+
+            # जर डायरेक्ट पाथवर फोटो मिळाला नाही, तरच फोल्डर सर्च करा
+            if not profile_img:
+                search_roots = [settings.BASE_DIR, os.path.dirname(settings.BASE_DIR)]
+                for s_root in search_roots:
+                    if profile_img:
+                        break
+                    for root, dirs, files in os.walk(s_root):
+                        if filename in files:
+                            file_path = os.path.join(root, filename)
+                            try:
+                                profile_img = Image.open(file_path)
+                                break
+                            except Exception:
+                                pass
+
+            # जर स्थानिक पातळीवर कुठेच मिळाला नाही, तर शेवटी नेटवर्कवरून मिळवा
+            if not profile_img and photo_url.startswith('http'):
+                urls_to_try = [
+                    photo_url,
+                    photo_url.replace('/Yatra_darshan/static/', '/static/'),
+                    photo_url.replace('/Yatra_darshan/static/', '/media/')
+                ]
+                for url in urls_to_try:
+                    try:
+                        import requests
+                        from io import BytesIO
+                        photo_response = requests.get(url, timeout=3, verify=False)
+                        if photo_response.status_code == 200:
+                            profile_img = Image.open(BytesIO(photo_response.content))
+                            break
+                    except Exception:
+                        pass
+
+        # क्रॉप आणि फिटमेंट (264 x 264 px)
+        if profile_img:
+            try:
+                profile_img = ImageOps.fit(profile_img, (264, 264), Image.Resampling.LANCZOS)
+            except Exception:
+                profile_img = profile_img.resize((264, 264))
+        else:
+            profile_img = Image.new('RGB', (264, 264), (241, 245, 249))
+            p_draw = ImageDraw.Draw(profile_img)
+            p_draw.ellipse((87, 45, 177, 135), fill=(203, 213, 225))
+            p_draw.ellipse((45, 150, 219, 240), fill=(203, 213, 225))
+
+        # फोटो फ्रेममध्ये पेस्ट करा
+        image.paste(profile_img, (48, 198))
+
+        # ५. प्रवाशाची माहिती (Metadata)
+        text_y_start = 492
+        p_name = f"{reg_data.firstname or ''} {reg_data.lastname or ''}".strip().upper()
+        draw.text((45, text_y_start), p_name[:18], fill=COLOR_TEXT_DARK, font=font_bold)
+        
+        draw.text((45, text_y_start + 54), "Mobile:", fill=COLOR_TEXT_MUTED, font=font_small)
+        draw.text((45, text_y_start + 84), str(reg_data.mobileNo or '-'), fill=COLOR_TEXT_DARK, font=font_regular)
+        
+        draw.text((45, text_y_start + 144), "Area:", fill=COLOR_TEXT_MUTED, font=font_small)
+        draw.text((45, text_y_start + 174), str(reg_data.areaId.AreaName if reg_data.areaId else '-').upper()[:18], fill=COLOR_TEXT_DARK, font=font_regular)
+
+        # उभी विभाजक रेषा (width=3)
+        draw.line((375, 195, 375, 735), fill=COLOR_BORDER, width=3)
+
+        # ६. उजव्या बाजूला प्रवासाची माहिती (Journey details)
+        journey_x = 405
+        draw.text((journey_x, 195), "JOURNEY DETAILS", fill=COLOR_HEADER, font=font_bold)
+        
         if yatra_details.exists():
-            draw.line((160, 3, 160, 120), fill=BLUE)
-            draw.line((220, 3, 220, 120), fill=BLUE)
-            draw.text((83, 4), "Yatra", fill=RED, font=font)
-            draw.text((162, 4), "Dep.", fill=RED, font=font)
-            draw.text((222, 4), "BusNo", fill=RED, font=font)
-            
-            y_line = 13
-            draw.line((79, y_line, 250, y_line), fill=BLUE)
-            draw.line((79, 120, 250, 120), fill=BLUE)
-            y = y_line + 2
-            
-            for ticket in yatra_details:
-                if y > 110: break
+            y_offset = 252
+            for ticket in yatra_details[:1]:
+                # प्रवासी कार्ड बॅकग्राउंड पट्टी
+                draw.rounded_rectangle((journey_x, y_offset, IMG_WIDTH - 375, y_offset + 156), radius=18, fill=(248, 250, 252))
+                draw.rounded_rectangle((journey_x, y_offset, IMG_WIDTH - 375, y_offset + 156), radius=18, outline=COLOR_BORDER, width=3)
                 
-                # Draw Yatra Name (no change)
-                if ticket.yatra_route_id and hasattr(ticket.yatra_route_id, 'yatraRoutename'):
-                    draw.text((83, y), str(ticket.yatra_route_id.yatraRoutename)[:12], fill=BLACK, font=font)
+                # यात्रा मार्ग नाव
+                yatra_route_name = str(ticket.yatra_route_id.yatraRoutename if ticket.yatra_route_id else 'DARSHAN YATRA').upper()
+                draw.text((journey_x + 30, y_offset + 18), yatra_route_name[:24], fill=COLOR_TEAL, font=font_bold)
                 
-                # Draw Departure (no change)
+                # प्रस्थान तारीख
+                dep_str = "N/A"
                 if ticket.yatra_id and ticket.yatra_id.yatraStartDateTime:
-                    dep_str = ticket.yatra_id.yatraStartDateTime.strftime("%d@%H:%M")
-                    draw.text((162, y), dep_str, fill=BLACK, font=font)
-                
-                # ***** CHANGE #2: CORRECTLY ACCESS THE BUS NAME AND SEAT NUMBER *****
-                bus_name = ""
-                # This new path follows the chain: Ticket -> YatraBus -> BusName -> busName (the string)
-                if ticket.yatra_bus_id and ticket.yatra_bus_id.busName:
-                    bus_name = str(ticket.yatra_bus_id.busName.busName)
-                
-                seat_number = ""
-                if ticket.seat_no is not None:
-                    seat_number = str(ticket.seat_no)
+                    dep_str = ticket.yatra_id.yatraStartDateTime.strftime("%d-%m-%Y  at  %H:%M")
+                draw.text((journey_x + 30, y_offset + 60), f"DEP: {dep_str}", fill=COLOR_TEXT_DARK, font=font_regular)
 
-                # Combine them, handling cases where one or both are empty
-                if bus_name and seat_number:
-                    bus_seat_str = f"{bus_name}-{seat_number}"
-                else:
-                    bus_seat_str = bus_name or seat_number # Show whichever one is available
+                # बस आणि सीट क्रमांक
+                bus_name = str(ticket.yatra_bus_id.busName.busName if (ticket.yatra_bus_id and ticket.yatra_bus_id.busName) else 'N/A')
+                seat_no = str(ticket.seat_no if ticket.seat_no is not None else '-')
+                bus_seat_str = f"BUS: {bus_name}   |   SEAT: {seat_no}"
+                draw.text((journey_x + 30, y_offset + 102), bus_seat_str, fill=COLOR_TEXT_MUTED, font=font_bold)
+        else:
+            draw.text((journey_x, 330), "NO ACTIVE BOOKINGS FOUND.", fill=COLOR_TEXT_MUTED, font=font_regular)
 
-                draw.text((222, y), bus_seat_str, fill=BLACK, font=font)
-                
-                y += 10
-                draw.line((79, y, 250, y), fill=BLUE)
-                y += 2
+        # ७. युनिक QR कोड जनरेशन (270 x 270 px)
+        qr_data = f"DARSHAN_YATRA_PASS\nID: {registration_id}\nNAME: {reg_data.firstname} {reg_data.lastname}\nMOBILE: {reg_data.mobileNo}"
+        qr = qrcode.QRCode(version=1, box_size=6, border=1)
+        qr.add_data(qr_data)
+        qr.make(fit=True)
+        qr_img = qr.make_image(fill_color="black", back_color="white")
+        
+        qr_img = qr_img.resize((270, 270))
+        image.paste(qr_img, (IMG_WIDTH - 315, 195))
+        
+        # QR कोड मधील माहिती
+        draw.text((IMG_WIDTH - 315, 480), "SCAN TO VERIFY", fill=COLOR_TEXT_MUTED, font=font_small)
+        draw.text((IMG_WIDTH - 315, 510), "Lakshya Pratishthan", fill=COLOR_TEAL, font=font_small)
 
-        # --- Save Image --- (No change here)
+        # ८. इमेज सेव्ह करा
         cards_dir = os.path.join(settings.MEDIA_ROOT, 'cards')
         os.makedirs(cards_dir, exist_ok=True)
         card_filename = f"{registration_id}.png"
         output_path = os.path.join(cards_dir, card_filename)
-        image.save(output_path)
+        
+        image.save(output_path, "PNG", dpi=(300, 300))
 
+        # ९. फ्रंटएंडला पाथ पाठवा
         card_url = f"{settings.MEDIA_URL}cards/{card_filename}"
         if not card_url.startswith('/'):
             card_url = '/' + card_url
 
         response_data['message_code'] = 1000
-        response_data['message_text'] = 'Card Printed'
+        response_data['message_text'] = 'Card Printed Successfully'
         response_data['message_data'] = card_url
 
     except Exception as e:
-        print(f"Error in getpilgrimcard: {str(e)}")
-        response_data['message_text'] = f'An error occurred while generating the pilgrim card: {e}'
+        import traceback
+        print("Error in getpilgrimcard:", str(e))
+        traceback.print_exc()
+        response_data['message_text'] = f'An error occurred: {str(e)}'
 
     return Response(response_data, status=status.HTTP_200_OK)
-
 
 # @api_view(['POST'])
 # def insertblanktickets(request):
@@ -1906,9 +1984,9 @@ def insertblanktickets(request):
 @api_view(['POST'])
 def inserttickets(request):
     """
-    (Robust Version)
-    Books tickets and AUTOMATICALLY CREATES missing seats if they don't exist.
-    Prevents "Seats not found" error permanently.
+    (Optimized Concurrency-Safe Version)
+    Books tickets using database row-level locking (select_for_update)
+    to prevent double-booking and race conditions.
     """
     response_data = { 'message_code': 999, 'message_text': 'Failure', 'message_data': {} }
 
@@ -1921,15 +1999,14 @@ def inserttickets(request):
             response_data['message_text'] = 'UserId and a list of Bookings are required.'
             return Response(response_data, status=status.HTTP_200_OK)
 
-        # --- Step 1: Validate User ---
+        # १. एजंट युझरची वैधता तपासा
         try:
             user_obj = TblUsers.objects.get(UserId=user_id)
         except TblUsers.DoesNotExist:
             response_data['message_text'] = f"Agent User ID {user_id} not found."
             return Response(response_data, status=status.HTTP_200_OK)
 
-        # --- Step 2: AUTO-HEAL (Ensure all requested seats exist) ---
-        # This loop fixes the "Seats not found" error by creating them on the fly
+        # २. आवश्यक आयडी गोळा करा आणि जागा उपलब्ध असल्याची खात्री करा
         ticket_q_objects = []
         yatra_ids = set()
         reg_ids = set()
@@ -1939,7 +2016,6 @@ def inserttickets(request):
             yatra_bus_id = group.get('BusId')
             yatra_ids.add(yatra_id)
 
-            # Fetch parent objects needed to create a seat if missing
             try:
                 yatra_obj = Yatras.objects.get(yatraId=yatra_id)
                 bus_obj = YatraBuses.objects.get(yatraBusId=yatra_bus_id)
@@ -1951,7 +2027,7 @@ def inserttickets(request):
                 seat_no = int(reg.get('SeatNo'))
                 reg_ids.add(reg.get('RegistrationId'))
                 
-                # Critical Fix: Create ticket row if it doesn't exist
+                # ऑटो-क्रिएट (जागा नसल्यास तयार करा)
                 TicketsNew.objects.get_or_create(
                     yatra_id=yatra_obj,
                     yatra_bus_id=bus_obj,
@@ -1959,73 +2035,137 @@ def inserttickets(request):
                     defaults={
                         'yatra_route_id': route_obj,
                         'seat_fees': bus_obj.seatFees if bus_obj.seatFees else 0,
-                        'ticket_status_id': 0, # Available
+                        'ticket_status_id': 0, 
                         'discount': 0,
                         'amount_paid': 0
                     }
                 )
                 
-                # Build query for the next step
                 ticket_q_objects.append(
                     Q(yatra_id=yatra_id, yatra_bus_id=yatra_bus_id, seat_no=seat_no)
                 )
 
-        # --- Step 3: Fetch and Check for Double Booking ---
+        if not ticket_q_objects:
+            raise Exception("No registrations provided for booking.")
+
         registrations_map = {r.registrationId: r for r in Registrations.objects.filter(registrationId__in=reg_ids)}
         yatras_map = {y.yatraId: y for y in Yatras.objects.filter(yatraId__in=yatra_ids)}
-
-        # Fetch tickets (Now guaranteed to exist)
         combined_ticket_query = functools.reduce(operator.or_, ticket_q_objects)
-        tickets_to_book = list(TicketsNew.objects.filter(combined_ticket_query))
 
-        # Check if already booked by someone else
-        for ticket in tickets_to_book:
-            if ticket.ticket_status_id != 0:
-                raise Exception(f"Seat {ticket.seat_no} is already booked.")
-
-        # --- Step 4: Prepare Data ---
-        amount_paid_total = Decimal(body.get('AmountPaid', 0))
-        discount_total = Decimal(body.get('Discount', 0))
-        discount_reason = body.get('DiscountReason', '')
-        payment_mode = body.get('PaymentMode', 1)
-        booking_date_today = datetime.now().date()
-
-        total_tickets = len(tickets_to_book)
-        amount_per_ticket = amount_paid_total / total_tickets if total_tickets > 0 else 0
-        discount_per_ticket = discount_total / total_tickets if total_tickets > 0 else 0
-
-        # --- Step 5: Update Objects in Memory ---
-        for ticket_obj in tickets_to_book:
-            found_reg = False
-            for group in bookings:
-                if ticket_obj.yatra_id_id == int(group.get('YatraId')) and ticket_obj.yatra_bus_id_id == int(group.get('BusId')):
-                    for reg_info in group.get('Registrations', []):
-                        if ticket_obj.seat_no == int(reg_info.get('SeatNo')):
-                            reg_id = int(reg_info.get('RegistrationId'))
-                            registration_obj = registrations_map.get(reg_id)
-                            yatra_obj = yatras_map.get(ticket_obj.yatra_id_id)
-                            
-                            ticket_obj.ticket_status_id = 2 # Booked
-                            ticket_obj.user_id = user_obj
-                            ticket_obj.registration_id = registration_obj
-                            ticket_obj.permanant_id = registration_obj.registrationId
-                            ticket_obj.seat_fees = yatra_obj.yatraFees
-                            ticket_obj.discount = discount_per_ticket
-                            ticket_obj.discount_reason = discount_reason
-                            ticket_obj.amount_paid = amount_per_ticket
-                            ticket_obj.payment_mode = payment_mode
-                            ticket_obj.booking_date = booking_date_today
-                            found_reg = True
-                            break
-                if found_reg:
-                    break
-
-        # --- Step 6: Save to Database ---
+        # ३. DATABASE LOCKING (transaction.atomic + select_for_update)
+        # यामुळे एकाच वेळी दोन विनंत्या आल्यास दुसरी विनंती पहिल्या ट्रान्झॅक्शनच्या समाप्तीची वाट पाहेल.
         with transaction.atomic():
+            tickets_to_book = list(
+                TicketsNew.objects.select_for_update().filter(combined_ticket_query)
+            )
+
+            # सुरक्षिततेसाठी पुन्हा तपासा की कोणतीही जागा आधीच बुक झालेली नाही
+            for ticket in tickets_to_book:
+                if ticket.ticket_status_id != 0:
+                    raise Exception(f"Seat {ticket.seat_no} has just been booked by another agent. Please refresh.")
+
+            # ४. पेमेंट कॅल्क्युलेशन आणि मेमरी अपडेट
+            amount_paid_total = Decimal(body.get('AmountPaid', 0))
+            discount_total = Decimal(body.get('Discount', 0))
+            discount_reason = body.get('DiscountReason', '')
+            payment_mode = body.get('PaymentMode', 1)
+            booking_date_today = datetime.now().date()
+
+            total_tickets = len(tickets_to_book)
+            amount_per_ticket = amount_paid_total / total_tickets if total_tickets > 0 else 0
+            discount_per_ticket = discount_total / total_tickets if total_tickets > 0 else 0
+
+            for ticket_obj in tickets_to_book:
+                found_reg = False
+                for group in bookings:
+                    if ticket_obj.yatra_id_id == int(group.get('YatraId')) and ticket_obj.yatra_bus_id_id == int(group.get('BusId')):
+                        for reg_info in group.get('Registrations', []):
+                            if ticket_obj.seat_no == int(reg_info.get('SeatNo')):
+                                reg_id = int(reg_info.get('RegistrationId'))
+                                registration_obj = registrations_map.get(reg_id)
+                                yatra_obj = yatras_map.get(ticket_obj.yatra_id_id)
+                                
+                                ticket_obj.ticket_status_id = 2 # Booked Status
+                                ticket_obj.user_id = user_obj
+                                ticket_obj.registration_id = registration_obj
+                                ticket_obj.permanant_id = registration_obj.registrationId
+                                ticket_obj.seat_fees = yatra_obj.yatraFees
+                                ticket_obj.discount = discount_per_ticket
+                                ticket_obj.discount_reason = discount_reason
+                                ticket_obj.amount_paid = amount_per_ticket
+                                ticket_obj.payment_mode = payment_mode
+                                ticket_obj.booking_date = booking_date_today
+                                found_reg = True
+                                break
+                    if found_reg:
+                        break
+
+            # ५. बल्क अपडेट पूर्ण करा
             TicketsNew.objects.bulk_update(tickets_to_book, [
                 'ticket_status_id', 'user_id', 'registration_id', 'permanant_id',
                 'seat_fees', 'discount', 'discount_reason', 'amount_paid', 'payment_mode', 'booking_date'
             ])
+
+         # 🔴 ६. ऑटोमॅटिक एसएमएस पाठवण्याची प्रक्रिया (बुकिंग कन्फर्म झाल्यावरच)
+        for ticket_obj in tickets_to_book:
+            try:
+                sms_body = ""
+                sms_template_obj = None
+                
+                # SMS मास्टरमधून तिकीट बुकिंगचे टेम्पलेट (ID: 1) शोधण्याचा प्रयत्न करा
+                try:
+                    sms_template_obj = SMSMaster.objects.get(templateId=1)
+                    sms_body = sms_template_obj.templateMessageBody
+                    sms_body = sms_body.replace("{{FIRST_NAME}}", ticket_obj.registration_id.firstname or "")
+                    sms_body = sms_body.replace("{{LAST_NAME}}", ticket_obj.registration_id.lastname or "")
+                    sms_body = sms_body.replace("{{YATRA_NAME}}", ticket_obj.yatra_route_id.yatraRoutename or "दर्शन यात्रा")
+                    sms_body = sms_body.replace("{{YATRA_DATE}}", ticket_obj.yatra_id.yatraDateTime.strftime('%d-%m-%Y') if ticket_obj.yatra_id and ticket_obj.yatra_id.yatraDateTime else "")
+                    sms_body = sms_body.replace("{{BUS_NO}}", ticket_obj.yatra_bus_id.busName.busName if ticket_obj.yatra_bus_id and ticket_obj.yatra_bus_id.busName else "")
+                    sms_body = sms_body.replace("{{SEAT_NO}}", str(ticket_obj.seat_no))
+                except SMSMaster.DoesNotExist:
+                    # टेम्पलेट उपलब्ध नसल्यास प्रीमियम मराठी फॉलबॅक मेसेज वापरा
+                    sms_body = (
+                        f"प्रिय {ticket_obj.registration_id.firstname} {ticket_obj.registration_id.lastname},\n"
+                        f"आपले दर्शन यात्रा तिकीट यशस्वीरित्या बुक झाले आहे.\n"
+                        f"मार्ग: {ticket_obj.yatra_route_id.yatraRoutename}\n"
+                        f"तारीख: {ticket_obj.yatra_id.yatraDateTime.strftime('%d-%m-%Y') if ticket_obj.yatra_id and ticket_obj.yatra_id.yatraDateTime else ''}\n"
+                        f"बस: {ticket_obj.yatra_bus_id.busName.busName if ticket_obj.yatra_bus_id and ticket_obj.yatra_bus_id.busName else ''} | सीट: {ticket_obj.seat_no}\n"
+                        f"लक्ष्य प्रतिष्ठान."
+                    )
+
+                # एसएमएस गेटवे API ला विनंती पाठवा
+                sms_url = "http://173.45.76.227/sendunicode.aspx"
+                sms_payload = {
+                    'username': "pundem",
+                    'pass': "Pun1478de",
+                    'route': "trans1",
+                    'senderid': "MPunde",
+                    'numbers': ticket_obj.registration_id.mobileNo,
+                    'message': sms_body
+                }
+                
+                sms_response_text = "Pending Send."
+                try:
+                    sms_response = requests.post(sms_url, data=sms_payload, timeout=10)
+                    sms_response_text = sms_response.text
+                except Exception as sms_err:
+                    sms_response_text = f"Gateway Connection Error: {str(sms_err)}"
+
+                # एसएमएस ट्रान्झॅक्शन लॉगर तयार करा
+                SMSTransaction.objects.create(
+                    smsTemplateId=sms_template_obj,
+                    smsBody=sms_body,
+                    registrationId=ticket_obj.registration_id,
+                    smsTo=ticket_obj.registration_id.mobileNo,
+                    smsFrom='MPunde',
+                    smsStatus=2, # Sent
+                    smsSendOn=int(time.time()),
+                    smsRequestByUserId=user_obj,
+                    smsResponse=sms_response_text
+                )
+            except Exception as single_sms_error:
+                # एका प्रवाशाचा मेसेज फेल झाल्यास पूर्ण बुकिंग थांबू नये म्हणून ही सुरक्षा ठेवली आहे
+                print(f"❌ Failed to send automatic SMS to seat {ticket_obj.seat_no}: {str(single_sms_error)}")
 
         response_data = {
             'message_code': 1000,
@@ -2035,9 +2175,7 @@ def inserttickets(request):
         return Response(response_data, status=status.HTTP_200_OK)
 
     except Exception as e:
-        # import traceback
-        # print(traceback.format_exc())
-        response_data['message_text'] = f'Error: {str(e)}'
+        response_data['message_text'] = f'Booking Error: {str(e)}'
         return Response(response_data, status=status.HTTP_200_OK)
     
 
@@ -2111,7 +2249,6 @@ def cancelticket(request):
         response_data['message_text'] = f'An unexpected error occurred during cancellation: {e}'
         return Response(response_data, status=status.HTTP_200_OK)    
     
-
 @api_view(['GET'])
 def totals(request):
     """
@@ -2119,7 +2256,11 @@ def totals(request):
     """
     try:
         # Count all active registrations (not deleted)
+        # total_registrations = Registrations.objects.filter(is_deleted=False).count()
+
+        # total_registrations = TicketsNew.objects.filter(ticket_status_id=2,is_deleted=False).count()
         total_registrations = Registrations.objects.filter(is_deleted=False).count()
+
 
         # Count all tickets booked (status 2)
         total_tickets = TicketsNew.objects.filter(ticket_status_id=2).count()
@@ -2209,8 +2350,13 @@ def totalrouteyatrabus(request):
     """
     try:
         # Fetch and group tickets by Route, Yatra, and Bus
+        # tickets = TicketsNew.objects.filter(
+        #     ticket_year=2025,
+        #     ticket_status_id=2
+        # )
+
         tickets = TicketsNew.objects.filter(
-            ticket_year=2025,
+            Q(is_deleted=False) | Q(is_deleted__isnull=True),
             ticket_status_id=2
         ).select_related(
             'yatra_route_id',
@@ -2224,7 +2370,7 @@ def totalrouteyatrabus(request):
             'yatra_id__yatraStartDateTime',
             'yatra_id__yatraFees',
             'yatra_bus_id__yatraBusId',
-            'yatra_bus_id__busName'
+            'yatra_bus_id__busName__busName'
         ).annotate(
             bookings=Count('ticket_id')
         ).order_by(
@@ -2251,7 +2397,7 @@ def totalrouteyatrabus(request):
                 'YatraStartDateTime': t['yatra_id__yatraStartDateTime'].strftime('%d-%m-%Y %H-%M') if t['yatra_id__yatraStartDateTime'] else '',
                 'YatraFees': str(t['yatra_id__yatraFees']) if t['yatra_id__yatraFees'] else '0.00',
                 'YatraBusId': str(t['yatra_bus_id__yatraBusId']) if t['yatra_bus_id__yatraBusId'] else '',
-                'BusName': t['yatra_bus_id__busName'] if t['yatra_bus_id__busName'] else '',
+                'BusName': t['yatra_bus_id__busName__busName'] if t['yatra_bus_id__busName__busName'] else '',
                 'Bookings': str(t['bookings']),
                 'YatraCount': str(t['bookings']),
                 'RouteCount': str(t['bookings'])
@@ -2371,8 +2517,15 @@ def routeyatrabustickets(request):
             }, status=status.HTTP_200_OK)
 
         # Fetch tickets with all related data
+        # tickets = TicketsNew.objects.filter(
+        #     ticket_year=2025,
+        #     ticket_status_id=2,
+        #     yatra_route_id=yatra_route_id,
+        #     yatra_id=yatra_id,
+        #     yatra_bus_id=yatra_bus_id
+        # )
         tickets = TicketsNew.objects.filter(
-            ticket_year=2025,
+            Q(is_deleted=False) | Q(is_deleted__isnull=True),
             ticket_status_id=2,
             yatra_route_id=yatra_route_id,
             yatra_id=yatra_id,
@@ -2381,7 +2534,7 @@ def routeyatrabustickets(request):
             'yatra_route_id',
             'yatra_id',
             'yatra_bus_id',
-            'yatra_bus_id__busName',  # YatraBuses has a busName FK to BusNames
+            'yatra_bus_id__busName',
             'registration_id',
             'registration_id__bloodGroup'
         )
@@ -2396,6 +2549,13 @@ def routeyatrabustickets(request):
         # Build response data
         result_list = []
         for t in tickets:
+
+            full_name = " ".join(filter(None, [
+                t.registration_id.firstname if t.registration_id else '',
+                t.registration_id.middlename if t.registration_id else '',
+                t.registration_id.lastname if t.registration_id else ''
+            ]))
+
             ticket_data = {
                 'YatraRouteId': str(t.yatra_route_id.yatraRouteId) if t.yatra_route_id else '',
                 'YatraId': str(t.yatra_id.yatraId) if t.yatra_id else '',
@@ -2407,9 +2567,7 @@ def routeyatrabustickets(request):
                 'SeatNo': str(t.seat_no) if t.seat_no else '',
                 'RegistrationId': str(t.registration_id.registrationId) if t.registration_id else '',
                 'DiscountReason': t.discount_reason if t.discount_reason else '',
-                'Firstname': t.registration_id.firstname if t.registration_id and t.registration_id.firstname else '',
-                'Middlename': t.registration_id.middlename if t.registration_id and t.registration_id.middlename else '',
-                'Lastname': t.registration_id.lastname if t.registration_id and t.registration_id.lastname else '',
+                'PilgrimName': full_name, 
                 'MobileNo': t.registration_id.mobileNo if t.registration_id and t.registration_id.mobileNo else '',
                 'AlternateMobileNo': t.registration_id.alternateMobileNo if t.registration_id and t.registration_id.alternateMobileNo else '',
                 'BloodGroup': t.registration_id.bloodGroup.bloodGroupName if t.registration_id and t.registration_id.bloodGroup else '',
@@ -2481,7 +2639,7 @@ def agentbookings(request):
 
         # Filter tickets matching PHP query conditions
         tickets = TicketsNew.objects.filter(
-            ticket_year=2025,
+            ticket_year=2026,
             ticket_status_id=2,
             user_id=UserId,
             booking_date__day=target_date.day,
@@ -2638,12 +2796,13 @@ def agentbookings(request):
 
 #     return Response(response_data, status=status.HTTP_200_OK)
 
+# Backend views.py मधील yatrabookings फंक्शन या कोडने रिप्लेस करा:
 
 @api_view(['POST'])
 def yatrabookings(request):
     """
     Revised API: Fetches bookings flexibly.
-    - If only YatraRouteId provided -> Gets ALL bookings for that route (Good for Area Report)
+    - If only YatraRouteId provided -> Gets ALL bookings for that route
     - If YatraId/BusId provided -> Filters more specifically
     """
     response_data = {
@@ -2654,9 +2813,7 @@ def yatrabookings(request):
 
     try:
         body = request.data
-        yatra_route_id = body.get('YatraRouteId') or body.get('route_id') # Handle both naming conventions
-        
-        # Optional filters
+        yatra_route_id = body.get('YatraRouteId') or body.get('route_id')
         yatra_id = body.get('YatraId') or body.get('yatra_id')
         yatra_bus_id = body.get('YatraBusId') or body.get('bus_id')
 
@@ -2664,11 +2821,9 @@ def yatrabookings(request):
             response_data['message_text'] = 'YatraRouteId is required.'
             return Response(response_data, status=status.HTTP_200_OK)
 
-        # Base Query: Start with Route ID
-        # Note: TicketStatusId=2 means "Booked"
         tickets = TicketsNew.objects.filter(
-            ticket_year=2025, 
-            ticket_status_id=2, 
+            Q(is_deleted=False) | Q(is_deleted__isnull=True),
+            ticket_status_id=2,
             yatra_route_id=yatra_route_id
         ).select_related(
             'yatra_id', 
@@ -2679,7 +2834,6 @@ def yatrabookings(request):
             'registration_id__bloodGroup'
         ).order_by('yatra_id', 'yatra_bus_id', 'seat_no')
 
-        # Apply optional filters if they exist
         if yatra_id:
             tickets = tickets.filter(yatra_id=yatra_id)
         
@@ -2692,14 +2846,12 @@ def yatrabookings(request):
 
         ticket_list = []
         for t in tickets:
-            # Safe attribute access
             yatra = t.yatra_id
             bus = t.yatra_bus_id
             reg = t.registration_id
             area = reg.areaId if reg else None
             blood = reg.bloodGroup if reg else None
             
-            # Get Bus Name safely
             bus_name_str = "Unknown"
             if bus and bus.busName:
                 bus_name_str = bus.busName.busName
@@ -2713,6 +2865,9 @@ def yatrabookings(request):
                 "BusName": bus_name_str,
                 "SeatNo": str(t.seat_no),
                 
+                # 🔴 दुरुस्ती: प्रिटिंगसाठी युनिक RegistrationId की जोडली आहे
+                "RegistrationId": str(reg.registrationId) if reg else "",
+                
                 # Registration Details
                 "Firstname": reg.firstname if reg else "",
                 "Middlename": reg.middlename if reg else "",
@@ -2721,7 +2876,7 @@ def yatrabookings(request):
                 "AlternateMobileNo": reg.alternateMobileNo if reg else "",
                 "BloodGroup": blood.bloodGroupName if blood else "",
                 "Gender": str(reg.gender) if reg else "",
-                "AreaName": area.AreaName if area else "Unknown",  # CRITICAL FOR AREA REPORT
+                "AreaName": area.AreaName if area else "Unknown",  
                 "Address": reg.address if reg else ""
             }
             ticket_list.append(ticket_data)
@@ -2736,6 +2891,7 @@ def yatrabookings(request):
         response_data['message_text'] = f'Error: {str(e)}'
 
     return Response(response_data, status=status.HTTP_200_OK)
+
 
 
 @api_view(["GET"])
@@ -2941,6 +3097,7 @@ def list_yatras(request):
                 'YatraRouteId': y.yatraRouteId.yatraRouteId if y.yatraRouteId else None,
                 'YatraFees': float(y.yatraFees) if y.yatraFees else 0.0,
                 'YatraStatus': y.yatraStatus.statusName if y.yatraStatus else None,
+                'YatraStatusId': str(y.yatraStatus.statusId) if y.yatraStatus else "0",
                 'YatraRouteName': y.yatraRouteId.yatraRoutename if y.yatraRouteId else None,
                 'YatraRouteDetails': y.yatraRouteId.yatraDetails if y.yatraRouteId else None
             })
@@ -2981,6 +3138,7 @@ def list_yatras_all(request):
                 'YatraRouteId': y.yatraRouteId.yatraRouteId if y.yatraRouteId else None,
                 'YatraFees': float(y.yatraFees) if y.yatraFees else 0.0,
                 'YatraStatus': y.yatraStatus.statusName if y.yatraStatus else None,
+                'YatraStatusId': str(y.yatraStatus.statusId) if y.yatraStatus else "0",
                 'YatraRouteName': y.yatraRouteId.yatraRoutename if y.yatraRouteId else None,
                 'YatraRouteDetails': y.yatraRouteId.yatraDetails if y.yatraRouteId else None
             })
@@ -3407,7 +3565,8 @@ def createyatrabus(request):
             }, status=status.HTTP_200_OK)
         
         try:
-            user = User.objects.get(id=UserId)
+            # user = User.objects.get(id=UserId)
+            user = TblUsers.objects.get(UserId=UserId)
         except User.DoesNotExist:
             return Response({
                 'message_code': 999,
@@ -3651,7 +3810,8 @@ def modifyyatrabus(request):
             }, status=status.HTTP_200_OK)
         
         try:
-            user = User.objects.get(id=UserId)
+            # user = User.objects.get(id=UserId)
+            user = TblUsers.objects.get(UserId=UserId)
         except User.DoesNotExist:
             return Response({
                 'message_code': 999,

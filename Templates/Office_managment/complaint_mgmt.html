@@ -1,185 +1,446 @@
 {% extends 'base.html' %}
 {% block content %}
-<!-- Premium Typography & Icons -->
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+<!-- Fonts + Icons -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
 <style>
-    /* System-wide Professional Variables */
-    :root {
-        --primary-indigo: #4f46e5;
-        --surface-white: #ffffff;
-        --bg-slate: #f8fafc;
-        --border-soft: #e2e8f0;
-        --text-dark: #0f172a;
-        --text-muted: #64748b;
-    }
+:root{
+    --bg:#f5f7fb;
+    --card:#ffffff;
+    --text:#0f172a;
+    --muted:#64748b;
+    --border:#e6eaf2;
+    --brand:#4f46e5;
+    --brand2:#4338ca;
+    --shadow: 0 10px 25px rgba(15,23,42,.06);
+}
 
-    body { font-family: 'Inter', sans-serif; background-color: var(--bg-slate); color: var(--text-dark); }
+/* Page base */
+.page-wrap{
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+}
 
-    /* Page Header Styles */
-    .premium-nav { padding: 1.5rem 0; border-bottom: 1px solid var(--border-soft); background: white; margin-bottom: 2rem; margin-top: -20px; }
-    
-    /* Search Panel SaaS Style */
-    .amazon-filter-box { 
-        background: white; border: 1px solid var(--border-soft); border-radius: 12px; 
-        padding: 1.25rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05); margin-bottom: 2rem;
-    }
-    .form-pro { border: 1px solid var(--border-soft); border-radius: 8px; font-size: 14px; height: 45px; transition: 0.2s; }
-    .form-pro:focus { border-color: var(--primary-indigo); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); outline: none; }
+/* Header */
+.topbar{
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    box-shadow: var(--shadow);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom: 12px;
+}
 
-    /* Modern Complaint Card */
-    .complaint-ticket {
-        background: white; border: 1px solid var(--border-soft); border-radius: 16px;
-        margin-bottom: 1.5rem; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        display: flex; flex-direction: column; height: 100%; position: relative;
-    }
-    .complaint-ticket:hover { transform: translateY(-5px); border-color: var(--primary-indigo); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+.topbar h3{
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: .2px;
+}
 
-    .card-head { padding: 1rem 1.25rem; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
-    .card-body-main { padding: 1.25rem; flex-grow: 1; }
+.subnote{
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+}
 
-    /* Status Badges */
-    .status-pill { padding: 4px 12px; border-radius: 20px; font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
-    .pill-open { background: #fee2e2; color: #b91c1c; }
-    .pill-progress { background: #fef3c7; color: #92400e; }
-    .pill-resolved { background: #dcfce7; color: #15803d; }
+/* Counter pill */
+.counter{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: #fff;
+}
+.counter i{ color:#16a34a; font-size:18px; }
+.counter .label{
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--muted);
+    letter-spacing: .7px;
+}
+.counter .num{
+    font-size: 18px;
+    font-weight: 800;
+    color:#16a34a;
+    line-height: 1;
+}
 
-    /* Timeline History Styling */
-    .timeline { border-left: 2px solid var(--border-soft); position: relative; padding-left: 24px; margin-left: 10px; }
-    .timeline-item { position: relative; margin-bottom: 24px; }
-    .timeline-marker { position: absolute; width: 14px; height: 14px; border-radius: 50%; background: var(--primary-indigo); left: -32px; top: 4px; border: 3px solid white; box-shadow: 0 0 0 1px var(--primary-indigo); }
-    .timeline-card { background: #f1f5f9; padding: 12px; border-radius: 10px; border: 1px solid var(--border-soft); }
-    .timeline-meta { font-size: 11px; font-weight: 700; color: var(--text-muted); display: flex; justify-content: space-between; margin-bottom: 5px; }
-    .timeline-note { font-size: 13px; color: var(--text-dark); line-height: 1.4; }
+/* Filters */
+.filters{
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px;
+    box-shadow: var(--shadow);
+    margin-bottom: 12px;
+}
+.filters .form-control{
+    height: 40px;
+    border-radius: 10px;
+    border:1px solid var(--border);
+    font-size: 13px;
+}
+.filters .form-control:focus{
+    border-color: rgba(79,70,229,.55);
+    box-shadow: 0 0 0 3px rgba(79,70,229,.12);
+}
+.search-wrap{
+    display:flex;
+    align-items:center;
+    border:1px solid var(--border);
+    border-radius: 10px;
+    padding: 0 10px;
+    height: 40px;
+}
+.search-wrap i{ color: var(--muted); }
+.search-wrap input{
+    border:none !important;
+    box-shadow:none !important;
+    outline:none !important;
+    height: 38px;
+    font-size: 13px;
+}
+.btn-run{
+    height: 40px;
+    border-radius: 10px;
+    font-weight: 700;
+    letter-spacing: .2px;
+    background: var(--brand);
+    border:none;
+}
+.btn-run:hover{ background: var(--brand2); }
 
-    /* Handled By Badge */
-    .owner-section { margin-top: 1rem; padding-top: 0.75rem; border-top: 1px dashed var(--border-soft); display: flex; align-items: center; justify-content: space-between; }
-    .owner-badge { font-size: 11px; font-weight: 600; background: #f8fafc; border: 1px solid var(--border-soft); padding: 3px 10px; border-radius: 20px; color: #334155; }
+/* Grid */
+.cards-grid{
+    display:grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+@media(max-width: 1200px){
+    .cards-grid{ grid-template-columns: repeat(3, 1fr); }
+}
+@media(max-width: 992px){
+    .cards-grid{ grid-template-columns: repeat(2, 1fr); }
+}
+@media(max-width: 576px){
+    .cards-grid{ grid-template-columns: 1fr; }
+}
 
-    /* Buttons */
-    .btn-manage { background: var(--text-dark); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: 600; transition: 0.2s; }
-    .btn-manage:hover { background: #334155; }
-    .btn-history-view { background: #eef2ff; color: var(--primary-indigo); border: none; font-size: 11px; font-weight: 700; padding: 5px 10px; border-radius: 6px; }
+/* Card */
+.ticket{
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+    min-height: 235px;
+    transition: .15s ease;
+}
+.ticket:hover{
+    transform: translateY(-2px);
+    border-color: rgba(79,70,229,.35);
+}
 
-    /* Attachment Thumbnails */
-    .img-stack { display: flex; gap: 8px; }
-    .thumb-img { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: pointer; }
+/* Card head */
+.ticket-head{
+    padding: 10px 12px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    border-bottom: 1px solid #f0f3f8;
+}
+.link-mini{
+    background:#eef2ff;
+    color: var(--brand);
+    border:none;
+    font-weight:800;
+    font-size: 10px;
+    padding: 6px 10px;
+    border-radius: 10px;
+    display:flex;
+    align-items:center;
+    gap:6px;
+    cursor:pointer;
+}
+.link-mini:hover{ background:#e0e7ff; }
+
+.badge-status{
+    font-size: 10px;
+    font-weight: 900;
+    padding: 6px 10px;
+    border-radius: 999px;
+    letter-spacing:.4px;
+    text-transform: uppercase;
+}
+.st-open{ background:#fee2e2; color:#b91c1c; }
+.st-progress{ background:#fef3c7; color:#92400e; }
+.st-resolved{ background:#dcfce7; color:#15803d; }
+
+/* Body */
+.ticket-body{
+    padding: 12px;
+    flex: 1;
+}
+.name{
+    font-size: 15px;
+    font-weight: 800;
+    margin-bottom: 6px;
+    line-height:1.2;
+}
+.meta{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 10px;
+}
+.meta span{ display:flex; align-items:center; gap:6px; }
+
+.tags{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    flex-wrap:wrap;
+    margin-bottom: 8px;
+}
+.tag{
+    font-size: 11px;
+    font-weight: 800;
+    padding: 5px 9px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background:#f8fafc;
+    color:#1f2937;
+}
+.tag.cat{ background:#eff6ff; border-color:#dbeafe; color:#1d4ed8; }
+.tag.type{ background:#f1f5f9; }
+
+.desc{
+    font-size: 13px;
+    color:#334155;
+    line-height: 1.5;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 58px;
+}
+
+/* Footer */
+.ticket-foot{
+    padding: 10px 12px;
+    border-top: 1px dashed #eef2f7;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+}
+.owner{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size: 12px;
+    color: var(--muted);
+}
+.owner .pill{
+    font-size: 11px;
+    font-weight: 700;
+    color:#334155;
+    background:#f8fafc;
+    border:1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 999px;
+}
+
+.thumb-row{
+    display:flex;
+    gap:6px;
+}
+.thumb{
+    width:34px; height:34px;
+    border-radius: 10px;
+    object-fit: cover;
+    border:1px solid var(--border);
+    cursor:pointer;
+}
+
+/* Button */
+.btn-manage{
+    margin: 10px 12px 12px 12px;
+    height: 38px;
+    border-radius: 10px;
+    background: #0f172a;
+    color:#fff;
+    font-weight: 800;
+    font-size: 12px;
+    border:none;
+}
+.btn-manage:hover{ background:#111827; }
+
+/* No records */
+.empty-box{
+    background: var(--card);
+    border: 1px dashed var(--border);
+    border-radius: 14px;
+    padding: 28px;
+    text-align:center;
+    color: var(--muted);
+}
 </style>
 
-<!-- Premium Header -->
-<div class="premium-nav">
-    <div class="container-fluid d-flex justify-content-between align-items-center">
-        <div>
-            <h4 class="font-weight-bold mb-0">Central Resolution Console</h4>
+<div class="page-wrap">
+    <div class="container-fluid px-3 px-md-4">
 
-        </div>
-        <div class="d-flex align-items-center bg-white border rounded-pill px-4 py-2 shadow-sm">
-            <div class="text-success mr-3"><i class="fas fa-shield-check fa-lg"></i></div>
+        <!-- Header -->
+        <div class="topbar">
             <div>
-                <p class="text-muted mb-0" style="font-size: 10px; font-weight: 800; text-transform: uppercase;">Resolved Cases</p>
-                <h5 class="mb-0 font-weight-bold text-success">{{ resolved_count }}</h5>
+                <h3>Central Resolution Console</h3>
+                <div class="subnote">View and manage only complaint records from all operators.</div>
+            </div>
+
+            <div class="counter">
+                <i class="fa-solid fa-circle-check"></i>
+                <div>
+                    <div class="label">RESOLVED CASES</div>
+                    <div class="num">{{ resolved_count }}</div>
+                </div>
             </div>
         </div>
-    </div>
-</div>
 
-<div class="content container-fluid">
-    <!-- Filters -->
-    <div class="amazon-filter-box">
-        <form method="GET" class="row g-2 align-items-center">
-            <div class="col-md-5">
-                <div class="input-group">
-                    <span class="input-group-text bg-white border-right-0" style="border-radius: 8px 0 0 8px;"><i class="fa fa-search text-muted"></i></span>
-                    <input type="text" name="mobile" class="form-control form-pro border-left-0" placeholder="Search by name, mobile, or category..." value="{{ request.GET.mobile }}">
-                </div>
-            </div>
-            <div class="col-md-4">
-                <select name="status" class="form-control form-pro">
-                    <option value="">Status: All Records</option>
-                    <option value="Open" {% if request.GET.status == 'Open' %}selected{% endif %}>Open</option>
-                    <option value="InProgress" {% if request.GET.status == 'InProgress' %}selected{% endif %}>In Progress</option>
-                    <option value="Resolved" {% if request.GET.status == 'Resolved' %}selected{% endif %}>Resolved</option>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <button type="submit" class="btn btn-primary btn-block font-weight-bold" style="height: 45px; background: var(--primary-indigo); border:none; border-radius: 8px;">Run Query</button>
-            </div>
-        </form>
-    </div>
-
-    <!-- Complaint Grid -->
-    <div class="row">
-        {% for c in complaints %}
-        <div class="col-xl-4 col-lg-6 mb-4">
-            <div class="complaint-ticket shadow-sm">
-                <div class="card-head">
-                    <span class="btn-history-view" onclick="openHistory('{{ c.description|escapejs }}')">
-                        <i class="fa fa-clock-rotate-left"></i> HISTORY
-                    </span>
-                    <span class="status-pill {% if c.status == 'Open' %}pill-open{% elif c.status == 'Resolved' %}pill-resolved{% else %}pill-progress{% endif %}">
-                        {{ c.status }}
-                    </span>
-                </div>
-                <div class="card-body-main">
-                    <div class="voter-name font-weight-bold mb-1" style="font-size: 16px;">{{ c.voter_name }}</div>
-                    <div class="d-flex gap-3 mb-3 text-muted" style="font-size: 12px;">
-                        <span><i class="fa fa-phone mr-1"></i> {{ c.voter_mobile }}</span>
-                        <span class="mx-2">•</span>
-                        <span><i class="fa fa-calendar-alt mr-1"></i> {{ c.created_on|date:"d M Y" }}</span>
-                    </div>
-
-                    <div class="mb-2">
-                        <span class="badge badge-light border text-primary small px-2 py-1" style="font-size: 10px;">{{ c.complaint_category }}</span>
-                        <span class="font-weight-bold ml-1 text-dark" style="font-size: 14px;">{{ c.complaint_type }}</span>
-                    </div>
-                    
-                    <p class="text-secondary small mb-3" style="line-height: 1.6; height: 45px; overflow: hidden;">
-                        {{ c.description|truncatechars:110 }}
-                    </p>
-
-                    <div class="owner-section">
-                        <div class="d-flex align-items-center">
-                            <i class="fa fa-user-circle text-muted mr-1"></i>
-                            <span class="owner-badge">{{ c.handled_by_name|default:"Auto-System" }}</span>
-                        </div>
-                        <div class="img-stack">
-                            {% if c.complaint_photo1_url %}<img src="{{ c.complaint_photo1_url }}" class="thumb-img" onclick="window.open(this.src)">{% endif %}
-                            {% if c.personal_aadhar_url %}<img src="{{ c.personal_aadhar_url }}" class="thumb-img ml-n2" onclick="window.open(this.src)">{% endif %}
+        <!-- Filters -->
+        <div class="filters">
+            <form method="GET">
+                <div class="row g-2 align-items-center">
+                    <div class="col-lg-6">
+                        <div class="search-wrap">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input
+                                type="text"
+                                name="mobile"
+                                class="form-control"
+                                placeholder="Search by name, mobile, or category..."
+                                value="{{ request.GET.mobile }}"
+                            >
                         </div>
                     </div>
 
-                    <div class="mt-3">
-                        <button class="btn btn-manage btn-block" onclick="openUpdateModal('{{ c.bjp_office_id }}', '{{ c.status }}', '{{ c.voter_name }}')">
-                            MANAGE RESOLUTION
+                    <div class="col-lg-3">
+                        <select name="status" class="form-control">
+                            <option value="">Status: All Records</option>
+                            <option value="Open" {% if request.GET.status == 'Open' %}selected{% endif %}>Open</option>
+                            <option value="InProgress" {% if request.GET.status == 'InProgress' %}selected{% endif %}>In Progress</option>
+                            <option value="Resolved" {% if request.GET.status == 'Resolved' %}selected{% endif %}>Resolved</option>
+                        </select>
+                    </div>
+
+                    <div class="col-lg-3">
+                        <button type="submit" class="btn btn-primary btn-run w-100">
+                            <i class="fa-solid fa-filter me-1"></i> Run Query
                         </button>
                     </div>
                 </div>
+            </form>
+        </div>
+
+        <!-- Grid -->
+        {% if complaints %}
+        <div class="cards-grid">
+            {% for c in complaints %}
+            <div class="ticket">
+
+                <div class="ticket-head">
+                    <button class="link-mini" type="button" onclick="openHistory('{{ c.description|escapejs }}')">
+                        <i class="fa-solid fa-clock-rotate-left"></i> HISTORY
+                    </button>
+
+                    <span class="badge-status
+                        {% if c.status == 'Open' %}st-open
+                        {% elif c.status == 'Resolved' %}st-resolved
+                        {% else %}st-progress{% endif %}">
+                        {{ c.status }}
+                    </span>
+                </div>
+
+                <div class="ticket-body">
+                    <div class="name">{{ c.voter_name }}</div>
+
+                    <div class="meta">
+                        <span><i class="fa-solid fa-phone"></i> {{ c.voter_mobile }}</span>
+                        <span><i class="fa-solid fa-calendar-days"></i> {{ c.created_on|date:"d M Y" }}</span>
+                    </div>
+
+                    <div class="tags">
+                        <span class="tag cat">{{ c.complaint_category }}</span>
+                        {% if c.complaint_type %}
+                            <span class="tag type">{{ c.complaint_type }}</span>
+                        {% endif %}
+                    </div>
+
+                    <p class="desc">{{ c.description|default:"-" }}</p>
+                </div>
+
+                <div class="ticket-foot">
+                    <div class="owner">
+                        <i class="fa-solid fa-user-shield"></i>
+                        <span class="pill">{{ c.handled_by_name|default:"Auto-System" }}</span>
+                    </div>
+
+                    <div class="thumb-row">
+                        {% if c.complaint_photo1_url %}
+                            <img src="{{ c.complaint_photo1_url }}" class="thumb" onclick="window.open(this.src)">
+                        {% endif %}
+                        {% if c.personal_aadhar_url %}
+                            <img src="{{ c.personal_aadhar_url }}" class="thumb" onclick="window.open(this.src)">
+                        {% endif %}
+                    </div>
+                </div>
+
+                <button class="btn-manage" onclick="openUpdateModal('{{ c.bjp_office_id }}', '{{ c.status }}', '{{ c.voter_name }}')">
+                    MANAGE RESOLUTION
+                </button>
+
             </div>
+            {% endfor %}
         </div>
-        {% empty %}
-        <div class="col-12 text-center py-5">
-            <h5 class="text-muted font-weight-light">No records found matching your current filters.</h5>
-        </div>
-        {% endfor %}
+        {% else %}
+            <div class="empty-box">No complaint records found for the selected filters.</div>
+        {% endif %}
+
     </div>
 </div>
 
-<!-- Update Status Modal -->
+<!-- Update Status Modal (Bootstrap 4 style) -->
 <div class="modal fade" id="updateModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
-            <div class="modal-header px-4 pt-4 border-0">
-                <h5 class="font-weight-bold">Update Case Status</h5>
+            <div class="modal-header border-0 pb-0 px-4 pt-4">
+                <h5 class="font-weight-bold mb-0">Update Case Status</h5>
                 <button type="button" class="close" data-dismiss="modal">&times;</button>
             </div>
+
             <div class="modal-body px-4 pb-4">
-                <p class="small text-muted mb-4">Updating file for: <span id="v_name_display" class="text-dark font-weight-bold"></span></p>
+                <p class="small text-muted mb-3">
+                    Updating file for: <span id="v_name_display" class="text-dark font-weight-bold"></span>
+                </p>
+
                 <input type="hidden" id="modal_id">
-                
+
                 <div class="form-group mb-3">
                     <label class="small font-weight-bold text-muted">Progression Status</label>
-                    <select id="modal_status" class="form-control form-pro">
+                    <select id="modal_status" class="form-control" style="height:40px;border-radius:10px;">
                         <option value="Open">🔴 Open / Pending</option>
                         <option value="InProgress">🟡 In Progress</option>
                         <option value="Resolved">🟢 Resolved (Notify Voter)</option>
@@ -188,27 +449,28 @@
 
                 <div class="form-group mb-4">
                     <label class="small font-weight-bold text-muted">Resolution Remark / Note</label>
-                    <textarea id="modal_note" class="form-control form-pro" rows="4" style="height: auto;" placeholder="Provide details about the work done..."></textarea>
+                    <textarea id="modal_note" class="form-control" rows="4" style="border-radius:10px;" placeholder="Provide details about the work done..."></textarea>
                 </div>
 
-                <button onclick="saveChanges()" class="btn btn-primary btn-block font-weight-bold" style="height: 50px; background: var(--primary-indigo); border:none; border-radius: 10px;">COMMIT CHANGES</button>
+                <button onclick="saveChanges()" class="btn btn-primary btn-block font-weight-bold"
+                        style="height:44px;border-radius:10px;background:var(--brand);border:none;">
+                    COMMIT CHANGES
+                </button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- History Timeline Modal -->
+<!-- History Modal -->
 <div class="modal fade" id="historyModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
-            <div class="modal-header px-4 pt-4 border-0">
-                <h5 class="font-weight-bold">Follow-up History Log</h5>
+            <div class="modal-header border-0 pb-0 px-4 pt-4">
+                <h5 class="font-weight-bold mb-0">Follow-up History Log</h5>
                 <button type="button" class="close" data-dismiss="modal">&times;</button>
             </div>
-            <div class="modal-body px-4 pb-5">
-                <div id="timeline_body" class="timeline">
-                    <!-- Parsed timeline items will appear here -->
-                </div>
+            <div class="modal-body px-4 pb-4">
+                <div id="timeline_body"></div>
             </div>
         </div>
     </div>
@@ -242,9 +504,8 @@ function saveChanges() {
 function openHistory(desc) {
     const body = document.getElementById('timeline_body');
     body.innerHTML = '';
-    
-    // Split the description by the pipe-format: |timestamp|user|status|note
-    const lines = desc.split('\n');
+
+    const lines = (desc || '').split('\n');
     let hasLog = false;
 
     lines.forEach(line => {
@@ -252,28 +513,33 @@ function openHistory(desc) {
             const parts = line.split('|');
             if(parts.length >= 5) {
                 hasLog = true;
-                const html = `
-                <div class="timeline-item">
-                    <div class="timeline-marker"></div>
-                    <div class="timeline-card shadow-sm">
-                        <div class="timeline-meta">
-                            <span><i class="fa fa-user-shield"></i> ${parts[2]}</span>
-                            <span>${parts[1]}</span>
-                        </div>
-                        <div class="badge badge-primary px-2 mb-2" style="font-size: 9px; font-weight: 800;">${parts[3]}</div>
-                        <div class="timeline-note">${parts[4]}</div>
+
+                const item = document.createElement('div');
+                item.style.border = "1px solid #e6eaf2";
+                item.style.borderRadius = "12px";
+                item.style.padding = "10px";
+                item.style.marginBottom = "10px";
+                item.style.background = "#f8fafc";
+
+                item.innerHTML = `
+                    <div style="display:flex;justify-content:space-between;gap:10px;font-size:12px;color:#64748b;font-weight:700;margin-bottom:6px;">
+                        <span><i class="fa-solid fa-user-shield"></i> ${parts[2]}</span>
+                        <span>${parts[1]}</span>
                     </div>
-                </div>`;
-                body.innerHTML += html;
+                    <div style="font-size:11px;font-weight:900;color:#4f46e5;margin-bottom:6px;">${parts[3]}</div>
+                    <div style="font-size:13px;color:#0f172a;">${parts[4]}</div>
+                `;
+                body.appendChild(item);
             }
         }
     });
 
     if(!hasLog) {
-        body.innerHTML = '<div class="text-center py-4 text-muted small">No historical data available for this record.</div>';
+        body.innerHTML = '<div class="text-center py-3 text-muted small">No historical data available for this record.</div>';
     }
-    
+
     $('#historyModal').modal('show');
 }
 </script>
+
 {% endblock %}
