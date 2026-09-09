@@ -58,6 +58,8 @@ urlpatterns = [
     path('insertroute/', views.create_route, name='create_route'),
     path('modifyroute/', views.modify_route, name='modify_route'),
 
+    path('create_upi_qr/', views.create_upi_qr, name='create_upi_qr'),
+
     ########################################################################
 
     # path("change_ticket/", views.change_ticket, name="change_ticket"),

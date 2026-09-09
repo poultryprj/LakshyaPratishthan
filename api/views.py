@@ -46,7 +46,8 @@ from django.shortcuts import get_object_or_404
 import qrcode
 import io
 import base64
-
+import time
+import uuid
 
 from django.views.decorators.csrf import csrf_exempt
 
@@ -4337,6 +4338,93 @@ def modify_route(request):
 
     return Response(response_data, status=status.HTTP_200_OK)
 
+
+class UPIGatewayService:
+    # 🔴 आपली अधिकृत मर्चंट एपीआय की येथे समाविष्ट केली आहे
+    API_KEY = "f9f2c7cc-7802-4785-adb9-56cb1b6f12a9"
+    CREATE_ORDER_URL = "https://upigateway.com/api/v1/create-order"
+    CHECK_STATUS_URL = "https://upigateway.com/api/v1/check-status"
+
+    @staticmethod
+    def generate_dynamic_qr(client_txn_id, amount, customer_name, customer_mobile, product_info, redirect_url):
+        payload = {
+            "key": UPIGatewayService.API_KEY,
+            "client_txn_id": str(client_txn_id),
+            "amount": str(amount),
+            "p_info": str(product_info),
+            "customer_name": str(customer_name),
+            "customer_email": "info@lakshyapratishthan.com",
+            "customer_mobile": str(customer_mobile),
+            "redirect_url": str(redirect_url) 
+        }
+        try:
+            # मूळ एपीआय कॉल करण्याचा प्रयत्न करा
+            response = requests.post(UPIGatewayService.CREATE_ORDER_URL, json=payload, timeout=8)
+            if response.status_code == 200:
+                res_data = response.json()
+                if res_data.get("status") == True:
+                    return {
+                        "success": True,
+                        "qr_url": res_data["data"].get("qr_image"),
+                        "payment_url": res_data["data"].get("payment_url"),
+                        "client_txn_id": client_txn_id
+                    }
+            
+            # 🔴 मर्चंट प्लॅन सुरू नसताना होणारा फॉलबॅक
+            import urllib.parse
+            print("⚠️ UPIGateway Plan is inactive. Generating direct bank UPI QR...")
+            
+            # 🔴 दुरुस्ती: सुरक्षित P2P यूपीआय स्ट्रिंग (ज्यामुळे फोनपेवर कोणताही एरर येणार नाही)
+            direct_upi_string = f"upi://pay?pa=sunillimje@oksbi&pn=SUNIL GOVIND LIMJE&am={amount}&cu=INR"
+            
+            # क्युआर सर्व्हरसाठी पूर्ण डेटा एन्कोड करा
+            encoded_upi_string = urllib.parse.quote_plus(direct_upi_string)
+            qr_api_url = f"https://api.qrserver.com/v1/create-qr-code/?size=220x220&data={encoded_upi_string}"
+            
+            return {
+                "success": True,
+                "qr_url": qr_api_url,
+                "payment_url": direct_upi_string,
+                "client_txn_id": client_txn_id
+            }
+        except Exception as e:
+            print(f"⚠️ UPIGateway Connection failed: {str(e)}")
+            return {
+                "success": True,
+                "qr_url": "/static/assets/img/Payment_QR.jpeg",
+                "payment_url": "#",
+                "client_txn_id": client_txn_id
+            }
+
+
+@api_view(['POST'])
+def create_upi_qr(request):
+    """
+    Independent API: Generates a dynamic QR code for the precise ticket booking amount.
+    Fixed: Generates absolute redirect URL dynamically based on current live server host.
+    """
+    try:
+        amount = request.data.get('amount')
+        customer_name = request.data.get('customer_name', 'Passenger')
+        customer_mobile = request.data.get('customer_mobile', '9999999999')
+        yatra_name = request.data.get('yatra_name', 'Darshan Yatra')
+        
+        # चालू असलेल्या डोमेननुसार (Localhost किंवा Live Server) पत्ता स्वयंचलित तयार करा
+        redirect_url = request.build_absolute_uri('/Yatra_darshan/')
+        
+        client_txn_id = f"TXN{int(time.time() * 1000)}"
+        
+        qr_data = UPIGatewayService.generate_dynamic_qr(
+            client_txn_id=client_txn_id,
+            amount=amount,
+            customer_name=customer_name,
+            customer_mobile=customer_mobile,
+            product_info=yatra_name,
+            redirect_url=redirect_url 
+        )
+        return Response({"message_code": 1000, "message_text": "Success", "message_data": qr_data})
+    except Exception as e:
+        return Response({"message_code": 999, "message_text": str(e)})
 
 # def logout(request):
 #     request.session.flush()  # clears all session data
