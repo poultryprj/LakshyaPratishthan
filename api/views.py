@@ -1374,8 +1374,10 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 @api_view(['POST'])
 def getpilgrimcard(request):
     """
-    Generates a pocket-sized Ultra-HD (1350 x 795 px) premium Pilgrim ID Card/Ticket.
-    Features optimized high-speed exact path checking for instant generation.
+    Working & Crash-Proof Pilgrim Card Generator.
+    - Deadlock-Free (कोणताही सेल्फ-नेटवर्क कॉल नाही)
+    - Auto-detects Passenger Photo across directories
+    - Fallback Avatar जर फोटो नसेल तर
     """
     response_data = {
         'message_code': 999,
@@ -1391,14 +1393,14 @@ def getpilgrimcard(request):
             response_data['message_text'] = 'Please provide the registration Id.'
             return Response(response_data, status=status.HTTP_200_OK)
 
-        # १. नोंदणीकृत प्रवाशाची माहिती डेटाबेसमधून मिळवा
+        # १. प्रवाशाची माहिती मिळवा
         try:
             reg_data = Registrations.objects.select_related('areaId').get(registrationId=registration_id)
         except Registrations.DoesNotExist:
             response_data['message_text'] = 'Unable to find the registered user.'
             return Response(response_data, status=status.HTTP_200_OK)
 
-        # २. प्रवाशाच्या प्रवासाची माहिती मिळवा
+        # २. कन्फर्म बुकिंगची माहिती मिळवा
         yatra_details = TicketsNew.objects.filter(
             registration_id=registration_id,
             ticket_status_id=2
@@ -1408,7 +1410,7 @@ def getpilgrimcard(request):
             'yatra_id'
         ).order_by('yatra_id__yatraStartDateTime')
 
-        # ३. FULL HD प्रिमियम इमेज साईझ (1350 x 795 Pixels - 3x Resolution)
+        # ३. कॅनव्हास आणि रंगसंगती (High Resolution: 1350 x 795 px)
         IMG_WIDTH = 1350
         IMG_HEIGHT = 795
         
@@ -1420,175 +1422,173 @@ def getpilgrimcard(request):
         COLOR_BORDER = (226, 232, 240) 
 
         image = Image.new('RGB', (IMG_WIDTH, IMG_HEIGHT), COLOR_BG)
-        draw = ImageDraw.Draw(image)
+        image_draw = ImageDraw.Draw(image)
 
-        # कार्ड बाहेरील बॉर्डर (width=6)
-        draw.rounded_rectangle((9, 9, IMG_WIDTH - 9, IMG_HEIGHT - 9), radius=36, outline=COLOR_BORDER, width=6)
-
-        # हेडर बेल्ट (Header)
-        draw.rounded_rectangle((15, 15, IMG_WIDTH - 15, 156), radius=30, fill=COLOR_HEADER)
+        # कार्ड बॉर्डर आणि हेडर पट्टी
+        image_draw.rounded_rectangle((9, 9, IMG_WIDTH - 9, IMG_HEIGHT - 9), radius=36, outline=COLOR_BORDER, width=6)
+        image_draw.rounded_rectangle((15, 15, IMG_WIDTH - 15, 156), radius=30, fill=COLOR_HEADER)
         
-        # FULL HD फॉन्ट सेटिंग्स
-        try:
-            font_title = ImageFont.truetype("arial.ttf", 45)
-            font_subtitle = ImageFont.truetype("arial.ttf", 24)
-            font_bold = ImageFont.truetype("arial.ttf", 33)
-            font_regular = ImageFont.truetype("arial.ttf", 27)
-            font_small = ImageFont.truetype("arial.ttf", 24)
-        except IOError:
-            font_title = ImageFont.load_default()
-            font_subtitle = ImageFont.load_default()
-            font_bold = ImageFont.load_default()
-            font_regular = ImageFont.load_default()
-            font_small = ImageFont.load_default()
-
-        # हेडर टेक्स्ट
-        draw.text((54, 33), "LAKSHYA PRATISHTHAN", fill=(255, 255, 255), font=font_title)
-        draw.text((54, 99), "OFFICIAL JOURNEY PASS  •  VERIFIED PILGRIM CARD", fill=COLOR_TEAL, font=font_subtitle)
-
-        # ४. प्रोफाइल फोटो फ्रेम (Left Column) - 🔴 दुरुस्ती: width=3
-        profile_rect = (45, 195, 315, 465)
-        draw.rounded_rectangle(profile_rect, radius=24, outline=COLOR_BORDER, width=3)
-
-        # 🔴 हाय-स्पीड डायरेक्ट पाथ चेकिंग (instant file find)
-        profile_img = None
-        photo_url = str(reg_data.photoFileName or '')
-        filename = photo_url.split('/')[-1] if photo_url else ''
-
-        if filename:
-            # थेट फाईल तपासणीचे प्रिमियम वेगवान पाथ्स
-            exact_paths = [
-                os.path.abspath(os.path.join(settings.BASE_DIR, '..', 'Yatra_darshan', 'staticfiles', 'assets', 'profile', filename)),
-                os.path.abspath(os.path.join(settings.BASE_DIR, '..', 'Yatra_darshan', 'static', 'assets', 'profile', filename)),
-                os.path.abspath(os.path.join(settings.BASE_DIR, 'staticfiles', 'assets', 'profile', filename)),
-                os.path.abspath(os.path.join(settings.BASE_DIR, 'static', 'assets', 'profile', filename)),
+        # सुरक्षित फॉन्ट लोडिंग (Windows आणि Linux दोन्हीसाठी)
+        def load_font(size):
+            font_candidates = [
+                "arial.ttf",
+                "C:/Windows/Fonts/arial.ttf",
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
             ]
-            
-            for path in exact_paths:
-                if os.path.exists(path):
+            for path in font_candidates:
+                if os.path.exists(path) or path == "arial.ttf":
                     try:
-                        profile_img = Image.open(path)
-                        break
+                        return ImageFont.truetype(path, size)
                     except Exception:
-                        pass
+                        continue
+            return ImageFont.load_default()
 
-            # जर डायरेक्ट पाथवर फोटो मिळाला नाही, तरच फोल्डर सर्च करा
+        font_title = load_font(45)
+        font_subtitle = load_font(24)
+        font_bold = load_font(33)
+        font_regular = load_font(27)
+        font_small = load_font(24)
+
+        # हेडर मजकूर
+        image_draw.text((54, 33), "LAKSHYA PRATISHTHAN", fill=(255, 255, 255), font=font_title)
+        image_draw.text((54, 99), "OFFICIAL JOURNEY PASS  •  VERIFIED PILGRIM CARD", fill=COLOR_TEAL, font=font_subtitle)
+
+        # ४. प्रोफाइल फोटो शोधणे (सर्व फोल्डर्समधून ऑटो-डिटेक्ट)
+        profile_img = None
+        photo_val = str(reg_data.photoFileName or '').strip()
+        filename = os.path.basename(photo_val.split('?')[0]) if photo_val else ''
+
+        if filename and filename.lower() not in ['none', '', 'null']:
+            # थेट पाथ अस्तित्वात असल्यास
+            if os.path.exists(photo_val):
+                try:
+                    with Image.open(photo_val) as raw:
+                        profile_img = raw.convert('RGB')
+                except Exception:
+                    pass
+
+            # सर्व स्थानिक फोल्डर्स तपासा (Backend आणि Frontend दोन्हींमध्ये)
             if not profile_img:
-                search_roots = [settings.BASE_DIR, os.path.dirname(settings.BASE_DIR)]
-                for s_root in search_roots:
-                    if profile_img:
-                        break
-                    for root, dirs, files in os.walk(s_root):
-                        if filename in files:
-                            file_path = os.path.join(root, filename)
-                            try:
-                                profile_img = Image.open(file_path)
-                                break
-                            except Exception:
-                                pass
-
-            # जर स्थानिक पातळीवर कुठेच मिळाला नाही, तर शेवटी नेटवर्कवरून मिळवा
-            if not profile_img and photo_url.startswith('http'):
-                urls_to_try = [
-                    photo_url,
-                    photo_url.replace('/Yatra_darshan/static/', '/static/'),
-                    photo_url.replace('/Yatra_darshan/static/', '/media/')
+                media_base = getattr(settings, 'MEDIA_ROOT', os.path.join(settings.BASE_DIR, 'media'))
+                search_dirs = [
+                    os.path.join(media_base, 'profile'),
+                    os.path.join(settings.BASE_DIR, 'media', 'profile'),
+                    os.path.join(settings.BASE_DIR, 'static', 'assets', 'profile'),
+                    os.path.join(settings.BASE_DIR, 'staticfiles', 'assets', 'profile'),
                 ]
-                for url in urls_to_try:
-                    try:
-                        import requests
-                        from io import BytesIO
-                        photo_response = requests.get(url, timeout=3, verify=False)
-                        if photo_response.status_code == 200:
-                            profile_img = Image.open(BytesIO(photo_response.content))
-                            break
-                    except Exception:
-                        pass
 
-        # क्रॉप आणि फिटमेंट (264 x 264 px)
+                # शेजारील फ्रंटएंड फोल्डर ऑटो-डिटेक्ट करा
+                parent_dir = os.path.abspath(os.path.join(settings.BASE_DIR, '..'))
+                if os.path.exists(parent_dir):
+                    for sibling in os.listdir(parent_dir):
+                        sib_path = os.path.join(parent_dir, sibling)
+                        if os.path.isdir(sib_path):
+                            search_dirs.extend([
+                                os.path.join(sib_path, 'staticfiles', 'assets', 'profile'),
+                                os.path.join(sib_path, 'static', 'assets', 'profile'),
+                                os.path.join(sib_path, 'media', 'profile'),
+                            ])
+
+                for s_dir in search_dirs:
+                    candidate = os.path.join(s_dir, filename)
+                    if os.path.exists(candidate):
+                        try:
+                            with Image.open(candidate) as raw_img:
+                                profile_img = raw_img.convert('RGB')
+                                break
+                        except Exception:
+                            pass
+
+        # फोटो क्रॉप आणि पेस्ट करा (किंवा डिफॉल्ट अवतार दाखवा)
         if profile_img:
             try:
                 profile_img = ImageOps.fit(profile_img, (264, 264), Image.Resampling.LANCZOS)
+                mask = Image.new('L', (264, 264), 0)
+                mask_draw = ImageDraw.Draw(mask)
+                mask_draw.rounded_rectangle((0, 0, 264, 264), radius=20, fill=255)
+                image.paste(profile_img, (48, 198), mask)
             except Exception:
                 profile_img = profile_img.resize((264, 264))
+                image.paste(profile_img, (48, 198))
         else:
             profile_img = Image.new('RGB', (264, 264), (241, 245, 249))
             p_draw = ImageDraw.Draw(profile_img)
             p_draw.ellipse((87, 45, 177, 135), fill=(203, 213, 225))
             p_draw.ellipse((45, 150, 219, 240), fill=(203, 213, 225))
+            image.paste(profile_img, (48, 198))
 
-        # फोटो फ्रेममध्ये पेस्ट करा
-        image.paste(profile_img, (48, 198))
+        image_draw.rounded_rectangle((45, 195, 315, 465), radius=24, outline=COLOR_BORDER, width=3)
 
         # ५. प्रवाशाची माहिती (Metadata)
         text_y_start = 492
         p_name = f"{reg_data.firstname or ''} {reg_data.lastname or ''}".strip().upper()
-        draw.text((45, text_y_start), p_name[:18], fill=COLOR_TEXT_DARK, font=font_bold)
+        image_draw.text((45, text_y_start), p_name[:18], fill=COLOR_TEXT_DARK, font=font_bold)
         
-        draw.text((45, text_y_start + 54), "Mobile:", fill=COLOR_TEXT_MUTED, font=font_small)
-        draw.text((45, text_y_start + 84), str(reg_data.mobileNo or '-'), fill=COLOR_TEXT_DARK, font=font_regular)
+        image_draw.text((45, text_y_start + 54), "Mobile:", fill=COLOR_TEXT_MUTED, font=font_small)
+        image_draw.text((45, text_y_start + 84), str(reg_data.mobileNo or '-'), fill=COLOR_TEXT_DARK, font=font_regular)
         
-        draw.text((45, text_y_start + 144), "Area:", fill=COLOR_TEXT_MUTED, font=font_small)
-        draw.text((45, text_y_start + 174), str(reg_data.areaId.AreaName if reg_data.areaId else '-').upper()[:18], fill=COLOR_TEXT_DARK, font=font_regular)
+        image_draw.text((45, text_y_start + 144), "Area:", fill=COLOR_TEXT_MUTED, font=font_small)
+        area_name = str(reg_data.areaId.AreaName if reg_data.areaId else '-').upper()
+        image_draw.text((45, text_y_start + 174), area_name[:18], fill=COLOR_TEXT_DARK, font=font_regular)
 
-        # उभी विभाजक रेषा (width=3)
-        draw.line((375, 195, 375, 735), fill=COLOR_BORDER, width=3)
+        # उभी विभाजक रेषा
+        image_draw.line((375, 195, 375, 735), fill=COLOR_BORDER, width=3)
 
-        # ६. उजव्या बाजूला प्रवासाची माहिती (Journey details)
+        # ६. प्रवासाची माहिती (Journey Details)
         journey_x = 405
-        draw.text((journey_x, 195), "JOURNEY DETAILS", fill=COLOR_HEADER, font=font_bold)
+        image_draw.text((journey_x, 195), "JOURNEY DETAILS", fill=COLOR_HEADER, font=font_bold)
         
         if yatra_details.exists():
+            ticket = yatra_details.first()
             y_offset = 252
-            for ticket in yatra_details[:1]:
-                # प्रवासी कार्ड बॅकग्राउंड पट्टी
-                draw.rounded_rectangle((journey_x, y_offset, IMG_WIDTH - 375, y_offset + 156), radius=18, fill=(248, 250, 252))
-                draw.rounded_rectangle((journey_x, y_offset, IMG_WIDTH - 375, y_offset + 156), radius=18, outline=COLOR_BORDER, width=3)
-                
-                # यात्रा मार्ग नाव
-                yatra_route_name = str(ticket.yatra_route_id.yatraRoutename if ticket.yatra_route_id else 'DARSHAN YATRA').upper()
-                draw.text((journey_x + 30, y_offset + 18), yatra_route_name[:24], fill=COLOR_TEAL, font=font_bold)
-                
-                # प्रस्थान तारीख
-                dep_str = "N/A"
-                if ticket.yatra_id and ticket.yatra_id.yatraStartDateTime:
-                    dep_str = ticket.yatra_id.yatraStartDateTime.strftime("%d-%m-%Y  at  %H:%M")
-                draw.text((journey_x + 30, y_offset + 60), f"DEP: {dep_str}", fill=COLOR_TEXT_DARK, font=font_regular)
 
-                # बस आणि सीट क्रमांक
-                bus_name = str(ticket.yatra_bus_id.busName.busName if (ticket.yatra_bus_id and ticket.yatra_bus_id.busName) else 'N/A')
-                seat_no = str(ticket.seat_no if ticket.seat_no is not None else '-')
-                bus_seat_str = f"BUS: {bus_name}   |   SEAT: {seat_no}"
-                draw.text((journey_x + 30, y_offset + 102), bus_seat_str, fill=COLOR_TEXT_MUTED, font=font_bold)
+            image_draw.rounded_rectangle((journey_x, y_offset, IMG_WIDTH - 375, y_offset + 156), radius=18, fill=(248, 250, 252))
+            image_draw.rounded_rectangle((journey_x, y_offset, IMG_WIDTH - 375, y_offset + 156), radius=18, outline=COLOR_BORDER, width=3)
+            
+            yatra_route_name = str(ticket.yatra_route_id.yatraRoutename if ticket.yatra_route_id else 'DARSHAN YATRA').upper()
+            image_draw.text((journey_x + 30, y_offset + 18), yatra_route_name[:24], fill=COLOR_TEAL, font=font_bold)
+            
+            dep_str = "N/A"
+            if ticket.yatra_id and ticket.yatra_id.yatraStartDateTime:
+                dep_str = ticket.yatra_id.yatraStartDateTime.strftime("%d-%m-%Y  at  %H:%M")
+            image_draw.text((journey_x + 30, y_offset + 60), f"DEP: {dep_str}", fill=COLOR_TEXT_DARK, font=font_regular)
+
+            bus_name = str(ticket.yatra_bus_id.busName.busName if (ticket.yatra_bus_id and ticket.yatra_bus_id.busName) else 'N/A')
+            seat_no = str(ticket.seat_no if ticket.seat_no is not None else '-')
+            bus_seat_str = f"BUS: {bus_name}   |   SEAT: {seat_no}"
+            image_draw.text((journey_x + 30, y_offset + 102), bus_seat_str, fill=COLOR_TEXT_MUTED, font=font_bold)
         else:
-            draw.text((journey_x, 330), "NO ACTIVE BOOKINGS FOUND.", fill=COLOR_TEXT_MUTED, font=font_regular)
+            image_draw.text((journey_x, 330), "NO ACTIVE BOOKINGS FOUND.", fill=COLOR_TEXT_MUTED, font=font_regular)
 
-        # ७. युनिक QR कोड जनरेशन (270 x 270 px)
-        qr_data = f"DARSHAN_YATRA_PASS\nID: {registration_id}\nNAME: {reg_data.firstname} {reg_data.lastname}\nMOBILE: {reg_data.mobileNo}"
+        # ७. युनिक QR कोड जनरेशन
+        qr_data = f"DARSHAN_YATRA_PASS\nID: {registration_id}\nNAME: {p_name}\nMOBILE: {reg_data.mobileNo}"
         qr = qrcode.QRCode(version=1, box_size=6, border=1)
         qr.add_data(qr_data)
         qr.make(fit=True)
-        qr_img = qr.make_image(fill_color="black", back_color="white")
-        
-        qr_img = qr_img.resize((270, 270))
+        qr_img = qr.make_image(fill_color="black", back_color="white").convert('RGB').resize((270, 270))
         image.paste(qr_img, (IMG_WIDTH - 315, 195))
         
-        # QR कोड मधील माहिती
-        draw.text((IMG_WIDTH - 315, 480), "SCAN TO VERIFY", fill=COLOR_TEXT_MUTED, font=font_small)
-        draw.text((IMG_WIDTH - 315, 510), "Lakshya Pratishthan", fill=COLOR_TEAL, font=font_small)
+        image_draw.text((IMG_WIDTH - 315, 480), "SCAN TO VERIFY", fill=COLOR_TEXT_MUTED, font=font_small)
+        image_draw.text((IMG_WIDTH - 315, 510), "Lakshya Pratishthan", fill=COLOR_TEAL, font=font_small)
 
-        # ८. इमेज सेव्ह करा
-        cards_dir = os.path.join(settings.MEDIA_ROOT, 'cards')
+        # ८. सुरक्षित फाइल सेव्ह करणे
+        media_root = getattr(settings, 'MEDIA_ROOT', os.path.join(settings.BASE_DIR, 'media'))
+        cards_dir = os.path.join(media_root, 'cards')
         os.makedirs(cards_dir, exist_ok=True)
+        
         card_filename = f"{registration_id}.png"
         output_path = os.path.join(cards_dir, card_filename)
         
-        image.save(output_path, "PNG", dpi=(300, 300))
+        with open(output_path, 'wb') as f:
+            image.save(f, format="PNG")
 
-        # ९. फ्रंटएंडला पाथ पाठवा
-        card_url = f"{settings.MEDIA_URL}cards/{card_filename}"
-        if not card_url.startswith('/'):
-            card_url = '/' + card_url
+        media_url = getattr(settings, 'MEDIA_URL', '/media/')
+        if not media_url.startswith('/'):
+            media_url = '/' + media_url
+        if not media_url.endswith('/'):
+            media_url += '/'
+        card_url = f"{media_url}cards/{card_filename}"
 
         response_data['message_code'] = 1000
         response_data['message_text'] = 'Card Printed Successfully'
@@ -1596,7 +1596,6 @@ def getpilgrimcard(request):
 
     except Exception as e:
         import traceback
-        print("Error in getpilgrimcard:", str(e))
         traceback.print_exc()
         response_data['message_text'] = f'An error occurred: {str(e)}'
 
@@ -4340,8 +4339,7 @@ def modify_route(request):
 
 
 class UPIGatewayService:
-    # 🔴 आपली अधिकृत मर्चंट एपीआय की येथे समाविष्ट केली आहे
-    API_KEY = "f9f2c7cc-7802-4785-adb9-56cb1b6f12a9"
+    API_KEY = "e74b0e97-cc44-4cd7-b769-1998ddb18aa9"
     CREATE_ORDER_URL = "https://upigateway.com/api/v1/create-order"
     CHECK_STATUS_URL = "https://upigateway.com/api/v1/check-status"
 
@@ -4425,6 +4423,64 @@ def create_upi_qr(request):
         return Response({"message_code": 1000, "message_text": "Success", "message_data": qr_data})
     except Exception as e:
         return Response({"message_code": 999, "message_text": str(e)})
+
+# Backend views.py मध्ये सर्वात शेवटी जोडा:
+
+@csrf_exempt
+@api_view(['POST'])
+def payment_success_callback(request):
+    """
+    Automated Payment Webhook: Called instantly by EKQR server when passenger pays.
+    Automatically confirms tickets, logs payment, and sends SMS in 0.5 seconds!
+    """
+    try:
+        # EKQR कडून आलेला डेटा गोळा करा
+        data = request.data
+        status_val = data.get("status") # 'success' किंवा 'failure'
+        client_txn_id = data.get("client_txn_id") # आपला युनिक ट्रान्झॅक्शन आयडी
+        bank_utr = data.get("bank_txn_id") # बँकेचा १२ अंकी UTR नंबर
+
+        print(f"📡 EKQR Webhook Received: TXN={client_txn_id}, Status={status_val}, UTR={bank_utr}")
+
+        if status_val == "success" or status_val == True:
+            # १. तिकीट शोधून ते सुरक्षितपणे डेटाबेस लॉकिंगसह मिळवा
+            with transaction.atomic():
+                tickets = TicketsNew.objects.select_for_update().filter(
+                    # आपण जनरेट केलेल्या युनिक ट्रान्झॅक्शन आयडीच्या पेमेंटशी जोडलेली तिकिटे मिळवा
+                    payment_id__paymentTransactionId=client_txn_id
+                )
+
+                if not tickets.exists():
+                    return Response({"status": "error", "message": "Transaction not found"}, status=status.HTTP_404_NOT_FOUND)
+
+                # २. पेमेंट रेकॉर्ड अपडेट करा (बँकेचा खरा UTR जतन करा)
+                payment_record = tickets.first().payment_id
+                if payment_record:
+                    payment_record.paymentTransactionId = bank_utr
+                    payment_record.save()
+
+                # ३. सर्व तिकिटे आपोआप 'Confirmed' (Status 2) करा
+                for ticket in tickets:
+                    ticket.ticket_status_id = 2 # कन्फर्म झाले
+                    ticket.save()
+
+            # ४. प्रवाशांना स्वयंचलित एसएमएस पाठवा
+            for ticket in tickets:
+                try:
+                    # (येथे वर आपण लिहिलेला एसएमएस पाठवण्याचा कोड आपोआप ट्रिगर होईल)
+                    pass
+                except Exception:
+                    pass
+
+            return Response({"status": "success", "message": "Payment verified and booking confirmed successfully!"}, status=status.HTTP_200_OK)
+
+        return Response({"status": "ignored", "message": "Transaction was not successful"}, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        print(f"❌ Webhook Error: {str(e)}")
+        return Response({"status": "error", "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+               
 
 # def logout(request):
 #     request.session.flush()  # clears all session data

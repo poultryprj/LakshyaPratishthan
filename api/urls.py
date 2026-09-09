@@ -59,6 +59,7 @@ urlpatterns = [
     path('modifyroute/', views.modify_route, name='modify_route'),
 
     path('create_upi_qr/', views.create_upi_qr, name='create_upi_qr'),
+    path('payment_success_callback/', views.payment_success_callback, name='payment_success_callback'),
 
     ########################################################################
 
