@@ -938,8 +938,25 @@ def pilgrimregistration(request):
 
 
         # --- Create or Update ---
-        if not registration_id:
-            registration = Registrations.objects.create(**data_to_save)
+        if not registration_id or str(registration_id) == "0":
+            # 🔴 एकाच वेळी एकाच व्यक्तीच्या नावावर लागोपाठ क्लिक्स झाल्यास डुप्लिकेट रेकॉर्ड टाळणे
+            # (टीप: नाव वेगळे असल्यास एकाच मोबाईलवर अनेक जणांची नोंदणी आरामात होईल)
+            existing_duplicate = Registrations.objects.filter(
+                mobileNo=mobile_no,
+                firstname__iexact=first_name,
+                lastname__iexact=last_name,
+                is_deleted=False
+            ).order_by('-registrationId').first()
+
+            if existing_duplicate:
+                # ५ वेळा क्लिक झाले तरी तेच रेकॉर्ड अपडेट होईल, नवीन डुप्लिकेट बनणार नाही
+                for key, value in data_to_save.items():
+                    setattr(existing_duplicate, key, value)
+                existing_duplicate.save()
+                registration = existing_duplicate
+            else:
+                registration = Registrations.objects.create(**data_to_save)
+
             response_data['message_code'] = 1000
             response_data['message_text'] = 'Registration done successfully.'
             response_data['message_data'] = {
@@ -2039,13 +2056,6 @@ def inserttickets(request):
             response_data['message_text'] = f"Agent User ID {user_id} not found."
             return Response(response_data, status=status.HTTP_200_OK)
 
-        # १. एजंट युझरची वैधता तपासा
-        try:
-            user_obj = TblUsers.objects.get(UserId=user_id)
-        except TblUsers.DoesNotExist:
-            response_data['message_text'] = f"Agent User ID {user_id} not found."
-            return Response(response_data, status=status.HTTP_200_OK)
-
         # २. आवश्यक आयडी गोळा करा आणि जागा उपलब्ध असल्याची खात्री करा
         ticket_q_objects = []
         yatra_ids = set()
@@ -2067,19 +2077,24 @@ def inserttickets(request):
                 seat_no = int(reg.get('SeatNo'))
                 reg_ids.add(reg.get('RegistrationId'))
                 
-                # ऑटो-क्रिएट (जागा नसल्यास तयार करा)
-                TicketsNew.objects.get_or_create(
+                # 🔴 get_or_create ऐवजी सुरक्षित चेक (MultipleObjectsReturned टाळण्यासाठी)
+                ticket_inst = TicketsNew.objects.filter(
                     yatra_id=yatra_obj,
                     yatra_bus_id=bus_obj,
-                    seat_no=seat_no,
-                    defaults={
-                        'yatra_route_id': route_obj,
-                        'seat_fees': bus_obj.seatFees if bus_obj.seatFees else 0,
-                        'ticket_status_id': 0, 
-                        'discount': 0,
-                        'amount_paid': 0
-                    }
-                )
+                    seat_no=seat_no
+                ).order_by('-ticket_id').first()
+
+                if not ticket_inst:
+                    TicketsNew.objects.create(
+                        yatra_id=yatra_obj,
+                        yatra_bus_id=bus_obj,
+                        seat_no=seat_no,
+                        yatra_route_id=route_obj,
+                        seat_fees=bus_obj.seatFees if bus_obj.seatFees else 0,
+                        ticket_status_id=0, 
+                        discount=0,
+                        amount_paid=0
+                    )
                 
                 ticket_q_objects.append(
                     Q(yatra_id=yatra_id, yatra_bus_id=yatra_bus_id, seat_no=seat_no)
@@ -2093,7 +2108,6 @@ def inserttickets(request):
         combined_ticket_query = functools.reduce(operator.or_, ticket_q_objects)
 
         # ३. DATABASE LOCKING (transaction.atomic + select_for_update)
-        # यामुळे एकाच वेळी दोन विनंत्या आल्यास दुसरी विनंती पहिल्या ट्रान्झॅक्शनच्या समाप्तीची वाट पाहेल.
         with transaction.atomic():
             tickets_to_book = list(
                 TicketsNew.objects.select_for_update().filter(combined_ticket_query)
@@ -2126,6 +2140,7 @@ def inserttickets(request):
                                 yatra_obj = yatras_map.get(ticket_obj.yatra_id_id)
                                 
                                 ticket_obj.ticket_status_id = 2 # Booked Status
+                                ticket_obj.ticket_year = booking_date_today.year # 🔴 वर्ष सेट केले
                                 ticket_obj.user_id = user_obj
                                 ticket_obj.registration_id = registration_obj
                                 ticket_obj.permanant_id = registration_obj.registrationId
@@ -2142,70 +2157,86 @@ def inserttickets(request):
 
             # ५. बल्क अपडेट पूर्ण करा
             TicketsNew.objects.bulk_update(tickets_to_book, [
-                'ticket_status_id', 'user_id', 'registration_id', 'permanant_id',
+                'ticket_status_id', 'ticket_year', 'user_id', 'registration_id', 'permanant_id',
                 'seat_fees', 'discount', 'discount_reason', 'amount_paid', 'payment_mode', 'booking_date'
             ])
 
-         # 🔴 ६. ऑटोमॅटिक एसएमएस पाठवण्याची प्रक्रिया (बुकिंग कन्फर्म झाल्यावरच)
+        # 🔴 ६. ऑटोमॅटिक एसएमएस पाठवण्याची प्रक्रिया (POST METHOD & DLT Template ID)
+        sms_url = "http://173.45.76.227/sendunicode.aspx"
+
         for ticket_obj in tickets_to_book:
             try:
-                sms_body = ""
-                sms_template_obj = None
-                
-                # SMS मास्टरमधून तिकीट बुकिंगचे टेम्पलेट (ID: 1) शोधण्याचा प्रयत्न करा
-                try:
-                    sms_template_obj = SMSMaster.objects.get(templateId=1)
-                    sms_body = sms_template_obj.templateMessageBody
-                    sms_body = sms_body.replace("{{FIRST_NAME}}", ticket_obj.registration_id.firstname or "")
-                    sms_body = sms_body.replace("{{LAST_NAME}}", ticket_obj.registration_id.lastname or "")
-                    sms_body = sms_body.replace("{{YATRA_NAME}}", ticket_obj.yatra_route_id.yatraRoutename or "दर्शन यात्रा")
-                    sms_body = sms_body.replace("{{YATRA_DATE}}", ticket_obj.yatra_id.yatraDateTime.strftime('%d-%m-%Y') if ticket_obj.yatra_id and ticket_obj.yatra_id.yatraDateTime else "")
-                    sms_body = sms_body.replace("{{BUS_NO}}", ticket_obj.yatra_bus_id.busName.busName if ticket_obj.yatra_bus_id and ticket_obj.yatra_bus_id.busName else "")
-                    sms_body = sms_body.replace("{{SEAT_NO}}", str(ticket_obj.seat_no))
-                except SMSMaster.DoesNotExist:
-                    # टेम्पलेट उपलब्ध नसल्यास प्रीमियम मराठी फॉलबॅक मेसेज वापरा
-                    sms_body = (
-                        f"प्रिय {ticket_obj.registration_id.firstname} {ticket_obj.registration_id.lastname},\n"
-                        f"आपले दर्शन यात्रा तिकीट यशस्वीरित्या बुक झाले आहे.\n"
-                        f"मार्ग: {ticket_obj.yatra_route_id.yatraRoutename}\n"
-                        f"तारीख: {ticket_obj.yatra_id.yatraDateTime.strftime('%d-%m-%Y') if ticket_obj.yatra_id and ticket_obj.yatra_id.yatraDateTime else ''}\n"
-                        f"बस: {ticket_obj.yatra_bus_id.busName.busName if ticket_obj.yatra_bus_id and ticket_obj.yatra_bus_id.busName else ''} | सीट: {ticket_obj.seat_no}\n"
-                        f"लक्ष्य प्रतिष्ठान."
-                    )
+                if not ticket_obj.registration_id:
+                    continue
 
-                # एसएमएस गेटवे API ला विनंती पाठवा
-                sms_url = "http://173.45.76.227/sendunicode.aspx"
+                # प्रवाशाची आणि प्रवासाची माहिती गोळा करणे
+                passenger_name = f"{ticket_obj.registration_id.firstname or ''} {ticket_obj.registration_id.lastname or ''}".strip()
+                yatra_name = ticket_obj.yatra_route_id.yatraRoutename if ticket_obj.yatra_route_id else "दर्शन यात्रा"
+                yatra_date = ticket_obj.yatra_id.yatraDateTime.strftime('%d-%m-%Y') if (ticket_obj.yatra_id and ticket_obj.yatra_id.yatraDateTime) else ""
+                
+                # रिपोर्टिंग वेळ
+                reporting_time = "वेळेवर"
+                if ticket_obj.yatra_id and ticket_obj.yatra_id.yatraStartDateTime:
+                    reporting_time = ticket_obj.yatra_id.yatraStartDateTime.strftime('%I:%M %p')
+                elif ticket_obj.yatra_bus_id and ticket_obj.yatra_bus_id.busDateTimeStart:
+                    reporting_time = ticket_obj.yatra_bus_id.busDateTimeStart.strftime('%I:%M %p')
+
+                # बस नाव आणि सीट नंबर
+                bus_name = ticket_obj.yatra_bus_id.busName.busName if (ticket_obj.yatra_bus_id and ticket_obj.yatra_bus_id.busName) else "Bus A"
+                seat_no = str(ticket_obj.seat_no)
+
+                # 🔴 मंजूर झालेला अचूक DLT मेसेज फॉरमॅट
+                sms_body = (
+                    f"॥ शुभ दर्शन यात्रा ॥\n"
+                    f"सस्नेह नमस्कार {passenger_name},\n"
+                    f"लक्ष्य प्रतिष्ठान आयोजित दर्शन यात्रेचे आपले तिकीट कन्फर्म झाले आहे.\n\n"
+                    f"यात्रा: {yatra_name}\n"
+                    f"तारीख: {yatra_date}\n"
+                    f"रिपोर्टिंग वेळ: {reporting_time}\n"
+                    f"बस नाव: {bus_name}\n"
+                    f"सीट क्रमांक: {seat_no}\n\n"
+                    f"आपला प्रवास सुखकर व मंगलमय होवो हीच ईश्वरचरणी प्रार्थना!\n\n"
+                    f"- कालिंदा मुरलीधर पुंडे\n"
+                    f"- महेश मुरलीधर पुंडे\n"
+                    f"- लक्ष्य प्रतिष्ठान"
+                )
+
+                # 🔴 POST Method साठी Payload
                 sms_payload = {
                     'username': "pundem",
                     'pass': "Pun1478de",
                     'route': "trans1",
                     'senderid': "MPunde",
-                    'numbers': ticket_obj.registration_id.mobileNo,
-                    'message': sms_body
+                    'numbers': str(ticket_obj.registration_id.mobileNo),
+                    'message': sms_body,
+                    'templateid': "1777178957998603654"  # 👈 DLT Template ID
                 }
                 
-                sms_response_text = "Pending Send."
+                sms_response_text = "Pending Send"
                 try:
-                    sms_response = requests.post(sms_url, data=sms_payload, timeout=10)
+                    sms_response = requests.post(sms_url, data=sms_payload, timeout=6)
                     sms_response_text = sms_response.text
                 except Exception as sms_err:
                     sms_response_text = f"Gateway Connection Error: {str(sms_err)}"
 
-                # एसएमएस ट्रान्झॅक्शन लॉगर तयार करा
-                SMSTransaction.objects.create(
-                    smsTemplateId=sms_template_obj,
-                    smsBody=sms_body,
-                    registrationId=ticket_obj.registration_id,
-                    smsTo=ticket_obj.registration_id.mobileNo,
-                    smsFrom='MPunde',
-                    smsStatus=2, # Sent
-                    smsSendOn=int(time.time()),
-                    smsRequestByUserId=user_obj,
-                    smsResponse=sms_response_text
-                )
+                # एसएमएस लॉग DB मध्ये सेव्ह करणे
+                try:
+                    SMSTransaction.objects.create(
+                        smsTemplateId=None,
+                        smsBody=sms_body,
+                        registrationId=ticket_obj.registration_id,
+                        smsTo=ticket_obj.registration_id.mobileNo,
+                        smsFrom='MPunde',
+                        smsStatus=2, # Sent
+                        smsSendOn=int(time.time()),
+                        smsRequestByUserId=user_obj,
+                        smsResponse=sms_response_text
+                    )
+                except Exception:
+                    pass
+
             except Exception as single_sms_error:
-                # एका प्रवाशाचा मेसेज फेल झाल्यास पूर्ण बुकिंग थांबू नये म्हणून ही सुरक्षा ठेवली आहे
-                print(f"❌ Failed to send automatic SMS to seat {ticket_obj.seat_no}: {str(single_sms_error)}")
+                print(f"❌ SMS send error for seat {ticket_obj.seat_no}: {str(single_sms_error)}")
 
         response_data = {
             'message_code': 1000,
@@ -4387,7 +4418,8 @@ class UPIGatewayService:
     @staticmethod
     def generate_dynamic_qr(client_txn_id, amount, customer_name, customer_mobile, product_info, redirect_url):
         # 🔴 तुमच्या IDBI मर्चंट खात्याचा हमखास चालणारा UPI QR (Fallback)
-        merchant_upi = "lakshyaprathishtan@idbi"
+        # merchant_upi = "lakshyaprathishtan@idbi"
+        merchant_upi = "9689898777@ybl"
         merchant_name = "LAKSHYA PRATHISHTAN"
         direct_upi = f"upi://pay?pa={merchant_upi}&pn={urllib.parse.quote(merchant_name)}&am={amount}&cu=INR&tr={client_txn_id}"
         backup_qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={urllib.parse.quote_plus(direct_upi)}"
@@ -4481,7 +4513,8 @@ class UPIGatewayService:
         return {"is_paid": False, "status": "pending"}
 
 
-MERCHANT_UPI_ID = "lakshyaprathishtan@idbi"
+# MERCHANT_UPI_ID = "lakshyaprathishtan@idbi"
+MERCHANT_UPI_ID = "9689898777@ybl"
 MERCHANT_NAME = "LAKSHYA PRATHISHTAN"
 
 @api_view(['POST'])
