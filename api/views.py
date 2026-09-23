@@ -2441,7 +2441,12 @@ def totalrouteyatrabus(request):
 
         tickets = TicketsNew.objects.filter(
             Q(is_deleted=False) | Q(is_deleted__isnull=True),
-            ticket_status_id=2
+            ticket_status_id=2,
+            yatra_route_id__yatraStatus=1,
+            yatra_id__yatraStatus__statusId=1,  
+            yatra_bus_id__busStatus=1,       
+            yatra_id__is_deleted=False,
+            yatra_bus_id__is_deleted=False
         ).select_related(
             'yatra_route_id',
             'yatra_id',
