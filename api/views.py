@@ -4480,7 +4480,7 @@ class UPIGatewayService:
             "customer_name": str(customer_name),
             "customer_email": "sangalepraphulla9689@gmail.com",
             "customer_mobile": str(customer_mobile),
-            "redirect_url": "https://kukudku.in/Yatra_darshan/", # Localhost ऐवजी व्हॅलिड पब्लिक URL
+            "redirect_url": "https://lakshyapratishthan.com/Yatra_darshan/", # Localhost ऐवजी व्हॅलिड पब्लिक URL
             "udf1": "YatraDarshan"
         }
 
@@ -7171,10 +7171,10 @@ def event_registration_api(request, event_id):
             # --- Generate Token and QR Code (unchanged) ---
             token_number = EventRegistration.objects.filter(EventId=event).count() + 1
 
-            FRONTEND_BASE_URL = "https://kukudku.in/Yatra_darshan" 
+            FRONTEND_BASE_URL = "https://lakshyapratishthan.com/Yatra_darshan" 
 
             #qr_url_to_encode = f"https://www.google.com?eventId={event.eventId}&regId={person_record.registrationId}"
-            qr_url_to_encode = f"https://kukudku.in/Yatra_darshan/verify/{event.eventId}/{person_record.registrationId}/"
+            qr_url_to_encode = f"https://lakshyapratishthan.com/Yatra_darshan/verify/{event.eventId}/{person_record.registrationId}/"
             qr = qrcode.QRCode(version=1, box_size=10, border=4)
             qr.add_data(qr_url_to_encode)
             qr.make(fit=True)
