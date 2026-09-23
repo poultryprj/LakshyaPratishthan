@@ -735,7 +735,8 @@ def agentlogin(request):
         mobile_no = str(request.data.get('userMobileNo', '')).strip()
         password = str(request.data.get('userPassword', '')).strip()
 
-        # ... (Keep your validation code here) ...
+        if not mobile_no or not password:
+            return Response({'message_code': 999, 'message_text': 'Mobile number and PIN are required.', 'message_data': []})
 
         user = TblUsers.objects.filter(UserMobileNo=mobile_no).first()
         if not user or str(user.UserLoginPin) != str(password):
@@ -744,25 +745,37 @@ def agentlogin(request):
         if int(user.UserStatus or 0) != 1:
             return Response({'message_code': 999, 'message_text': 'Your login is not active.', 'message_data': []})
 
+        # 🔴 अधिकारांची लिस्ट सुरक्षितपणे मिळवणे (कोणताही Variable Conflict न होता):
+        user_rights = []
+        try:
+            from django.apps import apps
+            RightsModel = apps.get_model(user._meta.app_label, 'TblUserRights')
+            if RightsModel:
+                rights_rec = RightsModel.objects.filter(user=user).first()
+                if rights_rec and rights_rec.permissions:
+                    user_rights = json.loads(rights_rec.permissions)
+        except Exception:
+            user_rights = []
+
         # Success Data
         user_data = [{
             "UserId": str(user.UserId),
             "UserFirstname": user.UserFirstname,
             "UserMobileNo": user.UserMobileNo,
-            "UserRole": str(user.UserRole or 0)
+            "UserRole": str(user.UserRole or 0),
+            "UserRights": user_rights
         }]
 
-        # 🔴 SECURITY LOGIC: Check if 60 days have passed
+        # ६० दिवसांचा सिक्युरिटी चेक
         if user.password_updated_at:
             expiry_date = user.password_updated_at + timedelta(days=60)
             if timezone.now() > expiry_date:
                 return Response({
-                    'message_code': 1001, # 1001 means "Password Expired"
+                    'message_code': 1001,
                     'message_text': 'Your password is older than 60 days.',
                     'message_data': user_data
                 }, status=status.HTTP_200_OK)
         else:
-            # Force change if field is NULL
             return Response({'message_code': 1001, 'message_text': 'Security Update required.', 'message_data': user_data})
 
         return Response({'message_code': 1000, 'message_text': 'Success', 'message_data': user_data})
@@ -3197,6 +3210,8 @@ def list_yatras_all(request):
     try:
         yatras = Yatras.objects.filter(is_deleted=False)
 
+        # yatras = Yatras.objects.filter(yatraStatus__statusId=1,is_deleted=False)
+
         if not yatras.exists():
             response_data['message_text'] = 'No Yatras.'
             return Response(response_data, status=status.HTTP_200_OK)
@@ -3223,6 +3238,18 @@ def list_yatras_all(request):
         debug.append(str(e))
 
     return Response(response_data, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+def delete_yatra(request):
+    yatra_id = request.data.get('YatraId')
+    try:
+        yatra = Yatras.objects.get(yatraId=yatra_id)
+        yatra.is_deleted = True
+        yatra.save()
+        return Response({'message_code': 1000, 'message_text': 'Yatra deleted successfully.'})
+    except Yatras.DoesNotExist:
+        return Response({'message_code': 999, 'message_text': 'Yatra not found.'})
 
 
 @api_view(["GET"])
@@ -4407,6 +4434,22 @@ def modify_route(request):
         debug.append(f"Error Type: {type(e).__name__}, Details: {str(e)}")
 
     return Response(response_data, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+def delete_route(request):
+    route_id = request.data.get('YatraRouteId')
+    try:
+        route = YatraRoutes.objects.get(yatraRouteId=route_id)
+        route.is_deleted = True
+        route.save()
+        return Response({'message_code': 1000, 'message_text': 'Route deleted successfully.'})
+    except YatraRoutes.DoesNotExist:
+        return Response({'message_code': 999, 'message_text': 'Route not found.'})
+    except Exception as e:
+        return Response({'message_code': 999, 'message_text': str(e)})
+
+            
 
 import urllib.parse
 class UPIGatewayService:
@@ -7371,3 +7414,60 @@ def cancel_registration(request, event_id, registration_id):
     except Exception as e:
         response_data['message_text'] = f"An unexpected error occurred: {str(e)}"
         return Response(response_data, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+@api_view(['GET', 'POST'])
+def manage_user_rights_api(request):
+    """
+    User Rights सुरक्षितपणे Database मध्ये सेव्ह आणि फेच करणे
+    """
+    try:
+        if request.method == 'GET':
+            user_id = request.query_params.get('user_id')
+            if not user_id:
+                return Response({'message_code': 999, 'permissions': []})
+            
+            # थेट डेटाबेसमधून अचूक परमिशन आणणे:
+            perms = []
+            with connection.cursor() as cursor:
+                cursor.execute('SELECT "permissions" FROM "tblUserRights" WHERE "user_id" = %s', [int(user_id)])
+                row = cursor.fetchone()
+                if row and row[0]:
+                    perms = json.loads(row[0])
+
+            return Response({'message_code': 1000, 'permissions': perms})
+
+        elif request.method == 'POST':
+            user_id = request.data.get('user_id')
+            permissions = request.data.get('permissions', [])
+
+            if not user_id:
+                return Response({'message_code': 999, 'message_text': 'User ID is required.'})
+
+            perms_json = json.dumps(permissions)
+
+            # 🔴 थेट PostgreSQL मध्ये हमखास सेव्ह करणे (कोणतीही अडचण न येता):
+            with connection.cursor() as cursor:
+                cursor.execute('SELECT "right_id" FROM "tblUserRights" WHERE "user_id" = %s', [int(user_id)])
+                exists = cursor.fetchone()
+                
+                if exists:
+                    # आधीचे रेकॉर्ड असेल तर अपडेट करा:
+                    cursor.execute(
+                        'UPDATE "tblUserRights" SET "permissions" = %s, "is_deleted" = FALSE, "last_modified_on" = CURRENT_TIMESTAMP WHERE "user_id" = %s',
+                        [perms_json, int(user_id)]
+                    )
+                else:
+                    # नवीन एन्ट्री इन्सर्ट करा:
+                    cursor.execute(
+                        'INSERT INTO "tblUserRights" ("user_id", "permissions", "is_deleted", "created_on", "last_modified_on") VALUES (%s, %s, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
+                        [int(user_id), perms_json]
+                    )
+
+            return Response({'message_code': 1000, 'message_text': 'Rights updated successfully.'})
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return Response({'message_code': 999, 'message_text': f"Save Error: {str(e)}", 'permissions': []})

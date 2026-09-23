@@ -44,6 +44,7 @@ urlpatterns = [
     path('listroutebus/', views.list_buses, name='list_buses'),
     path('listyatra/', views.list_yatras, name='list_yatras'),
     path('listyatraall/', views.list_yatras_all, name='list_yatras_all'), 
+    path('deleteyatra/', views.delete_yatra, name='delete_yatra'),
 
     path('listyatrabuses/', views.listyatrabuses, name='listyatrabuses'), 
     path('createyatrabus/', views.createyatrabus, name='createyatrabus'), 
@@ -57,6 +58,7 @@ urlpatterns = [
 
     path('insertroute/', views.create_route, name='create_route'),
     path('modifyroute/', views.modify_route, name='modify_route'),
+    path('deleteroute/', views.delete_route, name='delete_route'),
 
     path('create_upi_qr/', views.create_upi_qr, name='create_upi_qr'),
     path('payment_success_callback/', views.payment_success_callback, name='payment_success_callback'),
@@ -126,5 +128,7 @@ urlpatterns = [
     path('public/update_status/<int:event_id>/<int:registration_id>/', views.update_registration_status, name='update_registration_status'),
     
     path('public/cancel/<int:event_id>/<int:registration_id>/', views.cancel_registration, name='cancel_registration'),
+
+    path('manage_user_rights/', views.manage_user_rights_api, name='manage_user_rights_api'),
    
 ]

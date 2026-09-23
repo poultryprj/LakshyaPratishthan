@@ -594,3 +594,19 @@ class CounselorCalendar(models.Model):
 
     class Meta:
         db_table = "tblCounselorCalendar"
+
+
+class TblUserRights(models.Model):
+    right_id = models.AutoField(primary_key=True)
+    user = models.OneToOneField(TblUsers, on_delete=models.CASCADE, related_name='user_rights')
+    permissions = models.TextField(default="[]") # JSON लिस्ट मध्ये सर्व Allowed Keys साठवल्या जातील
+    
+    created_on = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    created_by = models.ForeignKey(TblUsers, on_delete=models.SET_NULL, null=True, blank=True, related_name='userright_created_by')
+    last_modified_on = models.DateTimeField(auto_now=True, null=True, blank=True)
+    last_modified_by = models.ForeignKey(TblUsers, on_delete=models.SET_NULL, null=True, blank=True, related_name='userright_modified_by')
+    is_deleted = models.BooleanField(default=False, null=True, blank=True)
+    deleted_by = models.ForeignKey(TblUsers, on_delete=models.SET_NULL, null=True, blank=True, related_name='userright_deleted_by')
+
+    class Meta:
+        db_table = "tblUserRights"        
