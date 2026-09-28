@@ -2442,11 +2442,14 @@ def totalrouteyatrabus(request):
         tickets = TicketsNew.objects.filter(
             Q(is_deleted=False) | Q(is_deleted__isnull=True),
             ticket_status_id=2,
+            registration_id__isnull=False,      
             yatra_route_id__yatraStatus=1,
             yatra_id__yatraStatus__statusId=1,  
-            yatra_bus_id__busStatus=1,       
-            yatra_id__is_deleted=False,
-            yatra_bus_id__is_deleted=False
+            yatra_bus_id__busStatus=1
+        ).filter(
+            Q(registration_id__is_deleted=False) | Q(registration_id__is_deleted__isnull=True),
+            Q(yatra_id__is_deleted=False) | Q(yatra_id__is_deleted__isnull=True),
+            Q(yatra_bus_id__is_deleted=False) | Q(yatra_bus_id__is_deleted__isnull=True)
         ).select_related(
             'yatra_route_id',
             'yatra_id',
@@ -2913,7 +2916,11 @@ def yatrabookings(request):
         tickets = TicketsNew.objects.filter(
             Q(is_deleted=False) | Q(is_deleted__isnull=True),
             ticket_status_id=2,
-            yatra_route_id=yatra_route_id
+            yatra_route_id=yatra_route_id,
+            registration_id__isnull=False,    
+            registration_id__is_deleted=False,
+            yatra_bus_id__busStatus=1,
+            yatra_bus_id__is_deleted=False
         ).select_related(
             'yatra_id', 
             'yatra_bus_id', 
@@ -6448,25 +6455,35 @@ def add_diwali_kirana_sms(request):
 @api_view(['POST'])
 def delete_diwali_member(request, reg_id):
     """
-    Deletes a registration record by its ID.
+    प्रवासी डिलीट करताना त्याची जागा (Seat) सुरक्षितपणे मोकळी करणे.
+    दिवाळी किराणा किंवा इतर कोणत्याही फ्लोवर याचा ०% परिणाम होणार नाही.
     """
     try:
         member_to_delete = Registrations.objects.get(registrationId=reg_id)
-        member_to_delete.delete()
+
+        with transaction.atomic():
+            
+            TicketsNew.objects.filter(registration_id=member_to_delete).update(
+                ticket_status_id=0,      
+                registration_id=None,   
+                permanant_id=None,
+                amount_paid=0.00,
+                discount=0.00,
+                discount_reason='',
+                user_id=None
+            )
+
+            member_to_delete.delete()
+
         return Response({
             "status": "success",
-            "message": "Member deleted successfully."
+            "message": "Member deleted and seat released successfully."
         }, status=status.HTTP_200_OK)
+
     except Registrations.DoesNotExist:
-        return Response({
-            "status": "error",
-            "message": "Member not found."
-        }, status=status.HTTP_404_NOT_FOUND)
+        return Response({"status": "error", "message": "Member not found."}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
-        return Response({
-            "status": "error",
-            "message": f"An error occurred: {str(e)}"
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({"status": "error", "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
