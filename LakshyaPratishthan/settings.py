@@ -87,27 +87,27 @@ WSGI_APPLICATION = 'LakshyaPratishthan.wsgi.application'
 #     }
 # }
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'Lakshya_testing',
-        'USER': 'postgres',
-        'PASSWORD': 'lakshya1812',
-        'HOST': '13.205.166.167',
-        'PORT': '5432',
-    }
-}
-
 # DATABASES = {
 #     'default': {
 #         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': 'LakshyaPratishthan_db',
+#         'NAME': 'Lakshya_testing',
 #         'USER': 'postgres',
 #         'PASSWORD': 'lakshya1812',
 #         'HOST': '13.205.166.167',
 #         'PORT': '5432',
 #     }
 # }
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'LakshyaPratishthan_db',
+        'USER': 'postgres',
+        'PASSWORD': 'lakshya1812',
+        'HOST': '13.205.166.167',
+        'PORT': '5432',
+    }
+}
 
 
 # Password validation
