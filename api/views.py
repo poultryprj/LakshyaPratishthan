@@ -2339,11 +2339,13 @@ def totals(request):
     Provides total counts for registrations and booked tickets.
     """
     try:
-        # Count all active registrations (not deleted)
         # total_registrations = Registrations.objects.filter(is_deleted=False).count()
 
-        # total_registrations = TicketsNew.objects.filter(ticket_status_id=2,is_deleted=False).count()
-        total_registrations = Registrations.objects.filter(is_deleted=False).count()
+        total_registrations = TicketsNew.objects.filter(
+            ticket_status_id=2,
+            registration_id__isnull=False,
+            registration_id__is_deleted=False
+        ).values('registration_id').distinct().count()
 
 
         # Count all tickets booked (status 2)
