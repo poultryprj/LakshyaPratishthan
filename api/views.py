@@ -1461,7 +1461,7 @@ def getpilgrimcard(request):
 
         # ३. कॅनव्हास आणि रंगसंगती (1350 x 795 px)
         IMG_WIDTH = 1350
-        IMG_HEIGHT = 795
+        IMG_HEIGHT = 900
         
         COLOR_BG = (255, 255, 255) 
         COLOR_HEADER = (15, 23, 42) 
@@ -1500,7 +1500,7 @@ def getpilgrimcard(request):
 
         # हेडर
         image_draw.text((54, 33), "LAKSHYA PRATISHTHAN", fill=(255, 255, 255), font=font_title)
-        image_draw.text((54, 99), "OFFICIAL JOURNEY PASS  •  VERIFIED PILGRIM CARD", fill=COLOR_TEAL, font=font_subtitle)
+        image_draw.text((54, 99), "OFFICIAL JOURNEY PASS  •  VERIFIED  CARD", fill=COLOR_TEAL, font=font_subtitle)
 
         # 🔴 ४. प्रोफाइल फोटो शोधणे (लोकल आणि लाइव्ह सर्व्हर दोन्हीसाठी ऑटो-डिटेक्ट)
         profile_img = None
@@ -1603,11 +1603,10 @@ def getpilgrimcard(request):
         image_draw.text((journey_x + 30, y_box_top + 22), route_name, fill=COLOR_TEAL, font=font_route)
         
         # वेळ आणि तारीख
-        dep_str = "N/A"
         if ticket.yatra_id and ticket.yatra_id.yatraStartDateTime:
-            dep_str = ticket.yatra_id.yatraStartDateTime.strftime("%d-%m-%Y  at  %H:%M")
+            dep_str = ticket.yatra_id.yatraStartDateTime.strftime("%d-%m-%Y  at  %I:%M %p")
         elif ticket.yatra_id and ticket.yatra_id.yatraDateTime:
-            dep_str = ticket.yatra_id.yatraDateTime.strftime("%d-%m-%Y")
+            dep_str = ticket.yatra_id.yatraDateTime.strftime("%d-%m-%Y  at  %I:%M %p")
         image_draw.text((journey_x + 30, y_box_top + 80), f"DEP: {dep_str}", fill=COLOR_TEXT_DARK, font=font_regular)
 
         # बस आणि अचूक सीट नंबर
@@ -3181,7 +3180,15 @@ def list_yatras(request):
 
     try:
 
-        yatras = Yatras.objects.filter(yatraStatus__statusId=1, is_deleted=False)
+        # yatras = Yatras.objects.filter(yatraStatus__statusId=1, is_deleted=False)
+
+        yatras = Yatras.objects.filter(
+            yatraStatus_id=1,                       # 👈 फक्त Active Yatra
+            yatraRouteId__yatraStatus=1             # 👈 फक्त Active Route
+        ).filter(
+            Q(is_deleted=False) | Q(is_deleted__isnull=True),
+            Q(yatraRouteId__is_deleted=False) | Q(yatraRouteId__is_deleted__isnull=True)
+        ).order_by('-yatraDateTime')
 
         if not yatras.exists():
             response_data['message_text'] = 'No Yatras.'
@@ -7440,7 +7447,7 @@ def cancel_registration(request, event_id, registration_id):
         return Response(response_data, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-
+@csrf_exempt
 @api_view(['GET', 'POST'])
 def manage_user_rights_api(request):
     """
