@@ -1405,18 +1405,9 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 @api_view(['POST'])
 def getpilgrimcard(request):
     """
-    Generates Standard PVC / CR80 Pilgrim Card.
-
-    Features:
-    - Exact Ticket / Yatra / Seat matching
-    - Localhost + Live Server support
-    - Robust profile photo auto-detection
-    - Direct filesystem photo loading
-    - Static / Media / sibling folder searching
-    - HTTP / HTTPS photo downloading
-    - Standard PVC card size: 1016 x 648
+    Generates an exact Route/Yatra/Seat matching Pilgrim Card.
+    Works seamlessly on both Localhost and Production Live Server.
     """
-
     response_data = {
         'message_code': 999,
         'message_text': 'Failure',
@@ -1424,1961 +1415,245 @@ def getpilgrimcard(request):
     }
 
     try:
-
-        # ==========================================================
-        # 1. REQUEST DATA
-        # ==========================================================
-
         body = request.data
-
         registration_id = body.get('RegistrationId')
-
-        ticket_id = (
-            body.get('TicketId')
-            or body.get('ticket_id')
-        )
-
-        yatra_id = (
-            body.get('YatraId')
-            or body.get('yatra_id')
-        )
-
-        yatra_route_id = (
-            body.get('YatraRouteId')
-            or body.get('route_id')
-        )
-
-        req_seat_no = (
-            body.get('SeatNo')
-            or body.get('seat_no')
-        )
-
-
-        # ==========================================================
-        # 2. VALIDATE REGISTRATION ID
-        # ==========================================================
+        ticket_id = body.get('TicketId') or body.get('ticket_id')
+        yatra_id = body.get('YatraId') or body.get('yatra_id')
+        yatra_route_id = body.get('YatraRouteId') or body.get('route_id')
+        req_seat_no = body.get('SeatNo') or body.get('seat_no')
 
         if not registration_id:
+            response_data['message_text'] = 'Please provide the registration Id.'
+            return Response(response_data, status=status.HTTP_200_OK)
 
-            response_data['message_text'] = (
-                'Please provide the registration Id.'
-            )
-
-            return Response(
-                response_data,
-                status=status.HTTP_200_OK
-            )
-
-
-        # ==========================================================
-        # 3. GET REGISTRATION / PASSENGER
-        # ==========================================================
-
+        # १. प्रवासी शोधा
         try:
-
-            reg_data = (
-                Registrations.objects
-                .select_related('areaId')
-                .get(
-                    registrationId=registration_id
-                )
-            )
-
+            reg_data = Registrations.objects.select_related('areaId').get(registrationId=registration_id)
         except Registrations.DoesNotExist:
+            response_data['message_text'] = 'Registered passenger not found.'
+            return Response(response_data, status=status.HTTP_200_OK)
 
-            response_data['message_text'] = (
-                'Registered passenger not found.'
-            )
-
-            return Response(
-                response_data,
-                status=status.HTTP_200_OK
-            )
-
-
-        # ==========================================================
-        # 4. GET TICKETS
-        # ==========================================================
-
-        tickets_query = (
-            TicketsNew.objects
-            .filter(
-                registration_id=registration_id,
-                ticket_status_id=2
-            )
-            .select_related(
-                'yatra_route_id',
-                'yatra_bus_id__busName',
-                'yatra_id'
-            )
+        # २. नेमके तेच तिकीट शोधा ज्यावर क्लिक केले आहे
+        tickets_query = TicketsNew.objects.filter(
+            registration_id=registration_id,
+            ticket_status_id=2
+        ).select_related(
+            'yatra_route_id', 
+            'yatra_bus_id__busName',
+            'yatra_id'
         )
-
 
         ticket = None
-
-
-        # Exact Ticket ID
         if ticket_id:
-
-            try:
-
-                ticket = (
-                    tickets_query
-                    .filter(
-                        ticket_id=int(ticket_id)
-                    )
-                    .first()
-                )
-
-            except (ValueError, TypeError):
-
-                ticket = None
-
-
-        # Exact Yatra + Seat
+            ticket = tickets_query.filter(ticket_id=int(ticket_id)).first()
         elif yatra_id and req_seat_no:
-
-            try:
-
-                ticket = (
-                    tickets_query
-                    .filter(
-                        yatra_id=int(yatra_id),
-                        seat_no=int(req_seat_no)
-                    )
-                    .first()
-                )
-
-            except (ValueError, TypeError):
-
-                ticket = None
-
-
-        # Yatra only
+            ticket = tickets_query.filter(yatra_id=int(yatra_id), seat_no=int(req_seat_no)).first()
         elif yatra_id:
-
-            try:
-
-                ticket = (
-                    tickets_query
-                    .filter(
-                        yatra_id=int(yatra_id)
-                    )
-                    .order_by('-ticket_id')
-                    .first()
-                )
-
-            except (ValueError, TypeError):
-
-                ticket = None
-
-
-        # Route only
+            ticket = tickets_query.filter(yatra_id=int(yatra_id)).order_by('-ticket_id').first()
         elif yatra_route_id:
-
-            try:
-
-                ticket = (
-                    tickets_query
-                    .filter(
-                        yatra_route_id=int(yatra_route_id)
-                    )
-                    .order_by('-ticket_id')
-                    .first()
-                )
-
-            except (ValueError, TypeError):
-
-                ticket = None
-
-
-        # Latest ticket
+            ticket = tickets_query.filter(yatra_route_id=int(yatra_route_id)).order_by('-ticket_id').first()
         else:
-
-            ticket = (
-                tickets_query
-                .order_by('-ticket_id')
-                .first()
-            )
-
-
-        # ==========================================================
-        # 5. TICKET NOT FOUND
-        # ==========================================================
+            ticket = tickets_query.order_by('-ticket_id').first()
 
         if not ticket:
+            response_data['message_text'] = 'No confirmed booking found for this selection.'
+            return Response(response_data, status=status.HTTP_200_OK)
 
-            response_data['message_text'] = (
-                'No confirmed booking found for this selection.'
-            )
+        # ३. कॅनव्हास आणि रंगसंगती (1350 x 795 px)
+        IMG_WIDTH = 1350
+        IMG_HEIGHT = 795
+        
+        COLOR_BG = (255, 255, 255) 
+        COLOR_HEADER = (15, 23, 42) 
+        COLOR_TEXT_DARK = (30, 41, 59) 
+        COLOR_TEXT_MUTED = (100, 116, 139) 
+        COLOR_TEAL = (13, 148, 136) 
+        COLOR_BORDER = (226, 232, 240) 
 
-            return Response(
-                response_data,
-                status=status.HTTP_200_OK
-            )
+        image = Image.new('RGB', (IMG_WIDTH, IMG_HEIGHT), COLOR_BG)
+        image_draw = ImageDraw.Draw(image)
 
-
-        # ==========================================================
-        # 6. PVC CARD SIZE
-        # ==========================================================
-
-        IMG_WIDTH = 1200
-        IMG_HEIGHT = 900
-
-
-        # ==========================================================
-        # 7. COLORS
-        # ==========================================================
-
-        COLOR_BG = (
-            255,
-            255,
-            255
-        )
-
-        COLOR_HEADER_BG = (
-            15,
-            23,
-            42
-        )
-
-        COLOR_ORANGE = (
-            255,
-            123,
-            0
-        )
-
-        COLOR_RED = (
-            220,
-            38,
-            38
-        )
-
-        COLOR_BLACK = (
-            15,
-            23,
-            42
-        )
-
-        COLOR_MUTED = (
-            100,
-            116,
-            139
-        )
-
-        COLOR_LINE = (
-            226,
-            232,
-            240
-        )
-
-
-        # ==========================================================
-        # 8. CREATE IMAGE
-        # ==========================================================
-
-        image = Image.new(
-            'RGB',
-            (
-                IMG_WIDTH,
-                IMG_HEIGHT
-            ),
-            COLOR_BG
-        )
-
-        draw = ImageDraw.Draw(image)
-
-
-        # ==========================================================
-        # 9. FONT LOADER
-        # ==========================================================
-
-        def load_font(size, bold=True):
-
+        image_draw.rounded_rectangle((9, 9, IMG_WIDTH - 9, IMG_HEIGHT - 9), radius=36, outline=COLOR_BORDER, width=6)
+        image_draw.rounded_rectangle((15, 15, IMG_WIDTH - 15, 156), radius=30, fill=COLOR_HEADER)
+        
+        def load_font(size):
             font_candidates = [
-
-                (
-                    "arialbd.ttf"
-                    if bold
-                    else "arial.ttf"
-                ),
-
-                (
-                    "C:/Windows/Fonts/arialbd.ttf"
-                    if bold
-                    else "C:/Windows/Fonts/arial.ttf"
-                ),
-
-                (
-                    "/usr/share/fonts/truetype/dejavu/"
-                    "DejaVuSans-Bold.ttf"
-                    if bold
-                    else
-                    "/usr/share/fonts/truetype/dejavu/"
-                    "DejaVuSans.ttf"
-                )
+                "arial.ttf",
+                "C:/Windows/Fonts/arial.ttf",
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
             ]
-
-
             for path in font_candidates:
-
-                if (
-                    os.path.exists(path)
-                    or path in [
-                        "arial.ttf",
-                        "arialbd.ttf"
-                    ]
-                ):
-
+                if os.path.exists(path) or path == "arial.ttf":
                     try:
-
-                        return ImageFont.truetype(
-                            path,
-                            size
-                        )
-
+                        return ImageFont.truetype(path, size)
                     except Exception:
-
                         continue
-
-
             return ImageFont.load_default()
 
+        font_title = load_font(45)
+        font_subtitle = load_font(24)
+        font_bold = load_font(33)
+        font_route = load_font(38)
+        font_regular = load_font(28)
+        font_small = load_font(24)
 
-        # ==========================================================
-        # 10. FONTS
-        # ==========================================================
+        # हेडर
+        image_draw.text((54, 33), "LAKSHYA PRATISHTHAN", fill=(255, 255, 255), font=font_title)
+        image_draw.text((54, 99), "OFFICIAL JOURNEY PASS  •  VERIFIED PILGRIM CARD", fill=COLOR_TEAL, font=font_subtitle)
 
-        font_header_title = load_font(
-            38,
-            bold=True
-        )
-
-        font_footer = load_font(
-            18,
-            bold=True
-        )
-
-        font_section_title = load_font(
-            20,
-            bold=True
-        )
-
-        font_route = load_font(
-            34,
-            bold=True
-        )
-
-        font_val_big = load_font(
-            26,
-            bold=True
-        )
-
-        font_val_mid = load_font(
-            22,
-            bold=True
-        )
-
-        font_label = load_font(
-            15,
-            bold=True
-        )
-
-        font_badge_num = load_font(
-            34,
-            bold=True
-        )
-
-
-        # ==========================================================
-        # 11. TEXT WRAPPER
-        # ==========================================================
-
-        def wrap_text(
-            text,
-            font,
-            max_width
-        ):
-
-            words = text.split()
-
-            lines = []
-
-            current_line = []
-
-
-            for word in words:
-
-                test_line = ' '.join(
-                    current_line + [word]
-                )
-
-                bbox = draw.textbbox(
-                    (0, 0),
-                    test_line,
-                    font=font
-                )
-
-                text_width = (
-                    bbox[2] - bbox[0]
-                )
-
-
-                if text_width <= max_width:
-
-                    current_line.append(word)
-
-                else:
-
-                    if current_line:
-
-                        lines.append(
-                            ' '.join(current_line)
-                        )
-
-                    current_line = [word]
-
-
-            if current_line:
-
-                lines.append(
-                    ' '.join(current_line)
-                )
-
-
-            return lines
-
-
-        # ==========================================================
-        # 12. HEADER
-        # ==========================================================
-
-        HEADER_HEIGHT = 92
-
-        draw.rectangle(
-            (
-                0,
-                0,
-                IMG_WIDTH,
-                HEADER_HEIGHT
-            ),
-            fill=COLOR_HEADER_BG
-        )
-
-        draw.rectangle(
-            (
-                0,
-                0,
-                IMG_WIDTH,
-                5
-            ),
-            fill=COLOR_ORANGE
-        )
-
-
-        def draw_centered_text(
-            y,
-            text,
-            font,
-            fill
-        ):
-
-            bbox = draw.textbbox(
-                (0, 0),
-                text,
-                font=font
-            )
-
-            text_width = (
-                bbox[2] - bbox[0]
-            )
-
-            x = (
-                IMG_WIDTH - text_width
-            ) // 2
-
-            draw.text(
-                (x, y),
-                text,
-                fill=fill,
-                font=font
-            )
-
-
-        draw_centered_text(
-            26,
-            "LAKSHYA PRATISHTHAN",
-            font_header_title,
-            fill=(255, 255, 255)
-        )
-
-
-        # ==========================================================
-        # 13. PROFILE PHOTO
-        # ==========================================================
-
-        PHOTO_X = 30
-        PHOTO_Y = 112
-        PHOTO_W = 195
-        PHOTO_H = 248
-
-
+        # 🔴 ४. प्रोफाइल फोटो शोधणे (लोकल आणि लाइव्ह सर्व्हर दोन्हीसाठी ऑटो-डिटेक्ट)
         profile_img = None
+        photo_val = str(reg_data.photoFileName or '').strip()
 
+        if photo_val and photo_val.lower() not in ['none', '', 'null']:
+            filename = os.path.basename(photo_val.split('?')[0])
 
-        # ----------------------------------------------------------
-        # Get DB photo value
-        # ----------------------------------------------------------
-
-        photo_val = str(
-            getattr(
-                reg_data,
-                'photoFileName',
-                ''
-            ) or ''
-        ).strip()
-
-
-        print(
-            "\n"
-            "=================================================="
-        )
-
-        print(
-            f"[DEBUG PHOTO] "
-            f"Registration ID = {registration_id}"
-        )
-
-        print(
-            f"[DEBUG PHOTO] "
-            f"DB photoFileName = '{photo_val}'"
-        )
-
-        print(
-            "=================================================="
-        )
-
-
-        # ----------------------------------------------------------
-        # Validate photo
-        # ----------------------------------------------------------
-
-        if (
-            photo_val
-            and
-            photo_val.lower()
-            not in [
-                'none',
-                '',
-                'null',
-                'undefined'
+            # (A) थेट संगणकाच्या/सर्व्हरच्या हार्डडिस्कवरून शोधा
+            search_dirs = [
+                os.path.join(settings.BASE_DIR, "staticfiles", "assets", "profile"),
+                os.path.join(settings.BASE_DIR, "static", "assets", "profile"),
+                os.path.join(settings.BASE_DIR, "media", "profile"),
             ]
-        ):
 
-            # ------------------------------------------------------
-            # Clean URL
-            # ------------------------------------------------------
+            parent_dir = os.path.abspath(os.path.join(settings.BASE_DIR, ".."))
+            if os.path.exists(parent_dir):
+                for sibling in os.listdir(parent_dir):
+                    sib_path = os.path.join(parent_dir, sibling)
+                    if os.path.isdir(sib_path):
+                        search_dirs.extend([
+                            os.path.join(sib_path, "staticfiles", "assets", "profile"),
+                            os.path.join(sib_path, "static", "assets", "profile"),
+                            os.path.join(sib_path, "media", "profile"),
+                        ])
 
-            clean_url = (
-                photo_val
-                .split('?')[0]
-                .split('#')[0]
-                .strip()
-            )
-
-
-            # ------------------------------------------------------
-            # Extract filename
-            # ------------------------------------------------------
-
-            filename = os.path.basename(
-                clean_url
-            )
-
-
-            decoded_filename = (
-                urllib.parse.unquote(
-                    filename
-                )
-            )
-
-
-            print(
-                f"[DEBUG PHOTO] "
-                f"filename = '{filename}'"
-            )
-
-            print(
-                f"[DEBUG PHOTO] "
-                f"decoded_filename = "
-                f"'{decoded_filename}'"
-            )
-
-
-            # ======================================================
-            # A. DIRECT FILE PATH
-            # ======================================================
-
-            direct_paths = []
-
-
-            # Original DB value
-            direct_paths.append(
-                photo_val
-            )
-
-            # Clean path
-            direct_paths.append(
-                clean_url
-            )
-
-
-            # BASE_DIR + filename
-            direct_paths.append(
-                os.path.join(
-                    settings.BASE_DIR,
-                    filename
-                )
-            )
-
-
-            # MEDIA_ROOT + filename
-            media_root_value = getattr(
-                settings,
-                'MEDIA_ROOT',
-                None
-            )
-
-            if media_root_value:
-
-                direct_paths.append(
-                    os.path.join(
-                        media_root_value,
-                        filename
-                    )
-                )
-
-
-            # STATIC_ROOT + filename
-            static_root_value = getattr(
-                settings,
-                'STATIC_ROOT',
-                None
-            )
-
-            if static_root_value:
-
-                direct_paths.append(
-                    os.path.join(
-                        static_root_value,
-                        filename
-                    )
-                )
-
-
-            # ------------------------------------------------------
-            # Check direct paths
-            # ------------------------------------------------------
-
-            for candidate_path in direct_paths:
-
-                if not candidate_path:
-                    continue
-
-
-                # Remove file:// if present
-                candidate_path = (
-                    candidate_path
-                    .replace(
-                        'file:///',
-                        ''
-                    )
-                    .replace(
-                        'file://',
-                        ''
-                    )
-                )
-
-
-                if os.path.isfile(
-                    candidate_path
-                ):
-
+            for s_dir in search_dirs:
+                candidate = os.path.join(s_dir, filename)
+                if os.path.exists(candidate):
                     try:
-
-                        with Image.open(
-                            candidate_path
-                        ) as raw_img:
-
-                            profile_img = (
-                                raw_img
-                                .convert('RGB')
-                            )
-
-
-                        print(
-                            "[PHOTO FOUND - DIRECT PATH] "
-                            f"{candidate_path}"
-                        )
-
-                        break
-
-
-                    except Exception as photo_error:
-
-                        print(
-                            "[PHOTO ERROR - DIRECT] "
-                            f"{candidate_path} "
-                            f"=> {photo_error}"
-                        )
-
-
-            # ======================================================
-            # B. SEARCH ALL IMPORTANT DIRECTORIES
-            # ======================================================
-
-            if not profile_img:
-
-                possible_roots = []
-
-
-                # Main BASE_DIR
-                possible_roots.append(
-                    settings.BASE_DIR
-                )
-
-
-                # STATIC_ROOT
-                if static_root_value:
-
-                    possible_roots.append(
-                        static_root_value
-                    )
-
-
-                # MEDIA_ROOT
-                if media_root_value:
-
-                    possible_roots.append(
-                        media_root_value
-                    )
-
-
-                # Parent directory
-                parent_dir = os.path.abspath(
-                    os.path.join(
-                        settings.BASE_DIR,
-                        ".."
-                    )
-                )
-
-
-                if os.path.exists(
-                    parent_dir
-                ):
-
-                    possible_roots.append(
-                        parent_dir
-                    )
-
-
-                    # Sibling projects/folders
-                    try:
-
-                        for sibling in os.listdir(
-                            parent_dir
-                        ):
-
-                            sibling_path = (
-                                os.path.join(
-                                    parent_dir,
-                                    sibling
-                                )
-                            )
-
-
-                            if os.path.isdir(
-                                sibling_path
-                            ):
-
-                                possible_roots.append(
-                                    sibling_path
-                                )
-
-                    except Exception as sibling_error:
-
-                        print(
-                            "[PHOTO DEBUG] "
-                            f"Sibling scan error: "
-                            f"{sibling_error}"
-                        )
-
-
-                # Remove duplicates
-                unique_roots = []
-
-                for root in possible_roots:
-
-                    if (
-                        root
-                        and
-                        root not in unique_roots
-                    ):
-
-                        unique_roots.append(
-                            root
-                        )
-
-
-                # --------------------------------------------------
-                # Important folders
-                # --------------------------------------------------
-
-                sub_paths = [
-
-                    "",
-
-                    "staticfiles/assets/profile",
-
-                    "static/assets/profile",
-
-                    "media/profile",
-
-                    "media",
-
-                    "images",
-
-                    "assets/profile",
-
-                    "assets",
-
-                    "staticfiles",
-
-                    "static",
-
-                    "uploads/profile",
-
-                    "uploads",
-
-                    "profile",
-
-                ]
-
-
-                target_names = list(
-                    set([
-                        filename,
-                        decoded_filename
-                    ])
-                )
-
-
-                # --------------------------------------------------
-                # Search
-                # --------------------------------------------------
-
-                for root in unique_roots:
-
-                    if not root:
-                        continue
-
-
-                    if not os.path.exists(root):
-                        continue
-
-
-                    for sub_path in sub_paths:
-
-                        if sub_path:
-
-                            dir_to_check = (
-                                os.path.join(
-                                    root,
-                                    sub_path
-                                )
-                            )
-
-                        else:
-
-                            dir_to_check = root
-
-
-                        if not os.path.isdir(
-                            dir_to_check
-                        ):
-
-                            continue
-
-
-                        for target_name in target_names:
-
-                            if not target_name:
-                                continue
-
-
-                            candidate = os.path.join(
-                                dir_to_check,
-                                target_name
-                            )
-
-
-                            if os.path.isfile(
-                                candidate
-                            ):
-
-                                try:
-
-                                    with Image.open(
-                                        candidate
-                                    ) as raw_img:
-
-                                        profile_img = (
-                                            raw_img
-                                            .convert('RGB')
-                                        )
-
-
-                                    print(
-                                        "[PHOTO FOUND - DISK] "
-                                        f"{candidate}"
-                                    )
-
-                                    break
-
-
-                                except Exception as img_error:
-
-                                    print(
-                                        "[PHOTO ERROR] "
-                                        f"{candidate} "
-                                        f"=> {img_error}"
-                                    )
-
-
-                        if profile_img:
-
+                        with Image.open(candidate) as raw_img:
+                            profile_img = raw_img.convert('RGB')
                             break
+                    except Exception as e:
+                        pass
 
-
-                    if profile_img:
-
-                        break
-
-
-            # ======================================================
-            # C. HTTP / HTTPS DOWNLOAD
-            # ======================================================
-
-            if (
-                not profile_img
-                and
-                (
-                    photo_val.startswith('http://')
-                    or
-                    photo_val.startswith('https://')
-                )
-            ):
-
-                test_urls = [
-                    photo_val
-                ]
-
-                # 8000 -> 8002
+            # (B) जर डिस्कवर नसेल तर URL वरून डाऊनलोड करा (Live Server HTTPS किंवा Localhost)
+            if not profile_img and (photo_val.startswith('http://') or photo_val.startswith('https://')):
+                urls_to_try = [photo_val]
                 if ":8000" in photo_val:
-                    test_urls.append(photo_val.replace(":8000", ":8002"))
+                    urls_to_try.append(photo_val.replace(":8000", ":8002"))
                 elif ":8002" in photo_val:
-                    test_urls.append(photo_val.replace(":8002", ":8000"))
+                    urls_to_try.append(photo_val.replace(":8002", ":8000"))
 
-                test_urls = list(dict.fromkeys(test_urls))
-
-                for photo_url in test_urls:
+                for u in urls_to_try:
                     try:
-                        print(f"[PHOTO URL TRY] {photo_url}")
+                        resp = requests.get(u, timeout=3)
+                        if resp.status_code == 200:
+                            profile_img = Image.open(io.BytesIO(resp.content)).convert('RGB')
+                            break
+                    except Exception:
+                        pass
 
-                        # 🔴 verify=False मुळे SSL Certificate चा एरर येणार नाही!
-                        resp = requests.get(
-                            photo_url,
-                            timeout=8,
-                            verify=False,
-                            allow_redirects=True,
-                            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-                        )
-
-                        print(f"[PHOTO URL RESPONSE] status={resp.status_code}")
-
-                        if resp.status_code == 200 and resp.content:
-                            try:
-                                with Image.open(io.BytesIO(resp.content)) as raw_img:
-                                    profile_img = raw_img.convert('RGB')
-
-                                print(f"[PHOTO FOUND - URL] Successfully downloaded: {photo_url}")
-                                break
-
-                            except Exception as image_error:
-                                print(f"[PHOTO URL IMAGE ERROR] {image_error}")
-
-                    except Exception as request_error:
-                        print(f"[PHOTO URL ERROR] {photo_url} => {request_error}")
-
-
-        # ==========================================================
-        # 14. DRAW PHOTO
-        # ==========================================================
-
+        # फोटो क्रॉप करून गोलाकार कोपऱ्यांसह सेट करा
         if profile_img:
-
             try:
-
-                profile_img = ImageOps.fit(
-                    profile_img,
-                    (
-                        PHOTO_W,
-                        PHOTO_H
-                    ),
-                    Image.Resampling.LANCZOS
-                )
-
-
-                mask = Image.new(
-                    'L',
-                    (
-                        PHOTO_W,
-                        PHOTO_H
-                    ),
-                    0
-                )
-
-
-                mask_draw = ImageDraw.Draw(
-                    mask
-                )
-
-
-                mask_draw.rounded_rectangle(
-                    (
-                        0,
-                        0,
-                        PHOTO_W - 1,
-                        PHOTO_H - 1
-                    ),
-                    radius=10,
-                    fill=255
-                )
-
-
-                image.paste(
-                    profile_img,
-                    (
-                        PHOTO_X,
-                        PHOTO_Y
-                    ),
-                    mask
-                )
-
-
-                print(
-                    "[PHOTO SUCCESS] "
-                    "Real profile photo added to card."
-                )
-
-
-            except Exception as paste_error:
-
-                print(
-                    "[PHOTO PASTE ERROR] "
-                    f"{paste_error}"
-                )
-
-
-                try:
-
-                    image.paste(
-                        profile_img.resize(
-                            (
-                                PHOTO_W,
-                                PHOTO_H
-                            )
-                        ),
-                        (
-                            PHOTO_X,
-                            PHOTO_Y
-                        )
-                    )
-
-                except Exception as resize_error:
-
-                    print(
-                        "[PHOTO RESIZE ERROR] "
-                        f"{resize_error}"
-                    )
-
-
+                profile_img = ImageOps.fit(profile_img, (264, 264), Image.Resampling.LANCZOS)
+                mask = Image.new('L', (264, 264), 0)
+                mask_draw = ImageDraw.Draw(mask)
+                mask_draw.rounded_rectangle((0, 0, 264, 264), radius=20, fill=255)
+                image.paste(profile_img, (48, 198), mask)
+            except Exception:
+                profile_img = profile_img.resize((264, 264))
+                image.paste(profile_img, (48, 198))
         else:
-
-            # ------------------------------------------------------
-            # Dummy avatar
-            # ------------------------------------------------------
-
-            print(
-                "[NO PHOTO FOUND] "
-                f"Rendering dummy avatar for "
-                f"RegId={registration_id}"
-            )
-
-
-            dummy_img = Image.new(
-                'RGB',
-                (
-                    PHOTO_W,
-                    PHOTO_H
-                ),
-                (
-                    241,
-                    245,
-                    249
-                )
-            )
-
-
-            d_draw = ImageDraw.Draw(
-                dummy_img
-            )
-
-
-            d_draw.ellipse(
-                (
-                    60,
-                    40,
-                    135,
-                    115
-                ),
-                fill=(
-                    203,
-                    213,
-                    225
-                )
-            )
-
-
-            d_draw.ellipse(
-                (
-                    30,
-                    130,
-                    165,
-                    220
-                ),
-                fill=(
-                    203,
-                    213,
-                    225
-                )
-            )
-
-
-            image.paste(
-                dummy_img,
-                (
-                    PHOTO_X,
-                    PHOTO_Y
-                )
-            )
-
-
-        # ==========================================================
-        # 15. PHOTO BORDER
-        # ==========================================================
-
-        draw.rounded_rectangle(
-            (
-                PHOTO_X,
-                PHOTO_Y,
-                PHOTO_X + PHOTO_W,
-                PHOTO_Y + PHOTO_H
-            ),
-            radius=10,
-            outline=COLOR_LINE,
-            width=2
-        )
-
-
-        # ==========================================================
-        # 16. JOURNEY DETAILS
-        # ==========================================================
-
-        MID_X = 250
-        MID_W = 490
-
-
-        draw.text(
-            (
-                MID_X,
-                112
-            ),
-            "JOURNEY DETAILS",
-            fill=COLOR_BLACK,
-            font=font_section_title
-        )
-
-
-        draw.line(
-            (
-                MID_X,
-                140,
-                MID_X + MID_W,
-                140
-            ),
-            fill=COLOR_LINE,
-            width=1
-        )
-
-
-        # ==========================================================
-        # 17. ROUTE
-        # ==========================================================
-
-        route_name = str(
-            ticket.yatra_route_id.yatraRoutename
-            if ticket.yatra_route_id
-            else
-            'DARSHAN YATRA'
-        ).upper()
-
-
-        draw.text(
-            (
-                MID_X,
-                148
-            ),
-            "DESTINATION / ROUTE",
-            fill=COLOR_MUTED,
-            font=font_label
-        )
-
-
-        draw.text(
-            (
-                MID_X,
-                168
-            ),
-            route_name[:20],
-            fill=COLOR_BLACK,
-            font=font_route
-        )
-
-
-        # ==========================================================
-        # 18. DEPARTURE
-        # ==========================================================
-
-        dep_str = "-"
-
-
-        if (
-            ticket.yatra_id
-            and
-            ticket.yatra_id.yatraStartDateTime
-        ):
-
-            dep_str = (
-                ticket.yatra_id
-                .yatraStartDateTime
-                .strftime(
-                    "%d-%m-%Y  at  %I:%M %p"
-                )
-            )
-
-
-        elif (
-            ticket.yatra_id
-            and
-            ticket.yatra_id.yatraDateTime
-        ):
-
-            dep_str = (
-                ticket.yatra_id
-                .yatraDateTime
-                .strftime(
-                    "%d-%m-%Y  at  %I:%M %p"
-                )
-            )
-
-
-        draw.text(
-            (
-                MID_X,
-                224
-            ),
-            "DEPARTURE (DATE & TIME)",
-            fill=COLOR_MUTED,
-            font=font_label
-        )
-
-
-        draw.text(
-            (
-                MID_X,
-                244
-            ),
-            dep_str,
-            fill=COLOR_BLACK,
-            font=font_val_mid
-        )
-
-
-        # ==========================================================
-        # 19. BUS + SEAT
-        # ==========================================================
-
-        bus_name = str(
-            ticket.yatra_bus_id.busName.busName
-            if (
-                ticket.yatra_bus_id
-                and
-                ticket.yatra_bus_id.busName
-            )
-            else
-            'A'
-        )
-
-
-        actual_seat_no = str(
-            ticket.seat_no
-            if ticket.seat_no is not None
-            else
-            '-'
-        )
-
-
-        BADGE_Y = 293
-        BADGE_H = 67
-
-
-        # BUS
-        draw.rounded_rectangle(
-            (
-                MID_X,
-                BADGE_Y,
-                MID_X + 230,
-                BADGE_Y + BADGE_H
-            ),
-            radius=8,
-            fill=(
-                248,
-                250,
-                252
-            ),
-            outline=COLOR_LINE,
-            width=2
-        )
-
-
-        draw.text(
-            (
-                MID_X + 16,
-                BADGE_Y + 10
-            ),
-            "BUS",
-            fill=COLOR_MUTED,
-            font=font_label
-        )
-
-
-        draw.text(
-            (
-                MID_X + 16,
-                BADGE_Y + 26
-            ),
-            bus_name[:10],
-            fill=COLOR_BLACK,
-            font=font_badge_num
-        )
-
-
-        # SEAT
-        draw.rounded_rectangle(
-            (
-                MID_X + 246,
-                BADGE_Y,
-                MID_X + MID_W,
-                BADGE_Y + BADGE_H
-            ),
-            radius=8,
-            fill=(
-                255,
-                247,
-                237
-            ),
-            outline=COLOR_ORANGE,
-            width=2
-        )
-
-
-        draw.text(
-            (
-                MID_X + 262,
-                BADGE_Y + 10
-            ),
-            "SEAT NO.",
-            fill=COLOR_ORANGE,
-            font=font_label
-        )
-
-
-        draw.text(
-            (
-                MID_X + 262,
-                BADGE_Y + 26
-            ),
-            actual_seat_no,
-            fill=COLOR_BLACK,
-            font=font_badge_num
-        )
-
-
-        # ==========================================================
-        # 20. QR CODE
-        # ==========================================================
-
-        QR_X = 765
-        QR_Y = 112
-
-        QR_BOX_W = 220
-        QR_BOX_H = 248
-
-
-        draw.rounded_rectangle(
-            (
-                QR_X,
-                QR_Y,
-                QR_X + QR_BOX_W,
-                QR_Y + QR_BOX_H
-            ),
-            radius=10,
-            fill=(255, 255, 255),
-            outline=COLOR_LINE,
-            width=2
-        )
-
-
-        QR_SIZE = 162
-
-
-        QR_POS_X = (
-            QR_X
-            +
-            (
-                QR_BOX_W - QR_SIZE
-            ) // 2
-        )
-
-
-        QR_POS_Y = (
-            QR_Y + 16
-        )
-
-
-        p_name = (
-            f"{reg_data.firstname or ''} "
-            f"{reg_data.lastname or ''}"
-        ).strip().upper()
-
-
-        qr_data = (
-            f"PASS\n"
-            f"TICKET:{ticket.ticket_id}\n"
-            f"REG:{registration_id}\n"
-            f"NAME:{p_name}\n"
-            f"ROUTE:{route_name}\n"
-            f"BUS:{bus_name}\n"
-            f"SEAT:{actual_seat_no}"
-        )
-
-
-        qr = qrcode.QRCode(
-            version=1,
-            box_size=6,
-            border=1
-        )
-
-
-        qr.add_data(
-            qr_data
-        )
-
-
-        qr.make(
-            fit=True
-        )
-
-
-        qr_img = (
-            qr.make_image(
-                fill_color="black",
-                back_color="white"
-            )
-            .convert('RGB')
-            .resize(
-                (
-                    QR_SIZE,
-                    QR_SIZE
-                )
-            )
-        )
-
-
-        image.paste(
-            qr_img,
-            (
-                QR_POS_X,
-                QR_POS_Y
-            )
-        )
-
-
-        # ==========================================================
-        # 21. QR TEXT
-        # ==========================================================
-
-        def draw_centered_in_qr(
-            y,
-            text,
-            font,
-            fill
-        ):
-
-            bbox = draw.textbbox(
-                (0, 0),
-                text,
-                font=font
-            )
-
-
-            text_width = (
-                bbox[2] - bbox[0]
-            )
-
-
-            x = (
-                QR_X
-                +
-                (
-                    QR_BOX_W - text_width
-                ) // 2
-            )
-
-
-            draw.text(
-                (
-                    x,
-                    y
-                ),
-                text,
-                fill=fill,
-                font=font
-            )
-
-
-        draw_centered_in_qr(
-            QR_Y + 188,
-            "SCAN TO VERIFY",
-            font_section_title,
-            fill=COLOR_RED
-        )
-
-
-        draw_centered_in_qr(
-            QR_Y + 218,
-            "Lakshya Pratishthan",
-            font_label,
-            fill=COLOR_BLACK
-        )
-
-
-        # ==========================================================
-        # 22. LOWER INFORMATION SECTION
-        # ==========================================================
-
-        DIVIDER_Y = 380
-
-
-        draw.line(
-            (
-                30,
-                DIVIDER_Y,
-                IMG_WIDTH - 30,
-                DIVIDER_Y
-            ),
-            fill=COLOR_LINE,
-            width=2
-        )
-
-
-        LABEL_X = 35
-        VALUE_X = 180
-
-        ROW_WIDTH = IMG_WIDTH - 50
-
-
-        # ==========================================================
-        # NAME
-        # ==========================================================
-
-        ROW1_Y = 398
-
-
-        draw.text(
-            (
-                LABEL_X,
-                ROW1_Y + 2
-            ),
-            "NAME :",
-            fill=COLOR_MUTED,
-            font=font_val_mid
-        )
-
-
-        draw.text(
-            (
-                VALUE_X,
-                ROW1_Y
-            ),
-            p_name[:40],
-            fill=COLOR_BLACK,
-            font=font_val_big
-        )
-
-
-        draw.line(
-            (
-                30,
-                ROW1_Y + 44,
-                ROW_WIDTH,
-                ROW1_Y + 44
-            ),
-            fill=COLOR_LINE,
-            width=1
-        )
-
-
-        # ==========================================================
-        # MOBILE
-        # ==========================================================
-
-        ROW2_Y = 458
-
-
-        draw.text(
-            (
-                LABEL_X,
-                ROW2_Y + 2
-            ),
-            "MOBILE :",
-            fill=COLOR_MUTED,
-            font=font_val_mid
-        )
-
-
-        mob_text = str(
-            reg_data.mobileNo
-            or
-            '-'
-        )
-
-
-        if getattr(
-            reg_data,
-            'alternateMobileNo',
-            None
-        ):
-
-            mob_text += (
-                f"   (Alt: "
-                f"{reg_data.alternateMobileNo})"
-            )
-
-
-        draw.text(
-            (
-                VALUE_X,
-                ROW2_Y
-            ),
-            mob_text,
-            fill=COLOR_BLACK,
-            font=font_val_mid
-        )
-
-
-        draw.line(
-            (
-                30,
-                ROW2_Y + 44,
-                ROW_WIDTH,
-                ROW2_Y + 44
-            ),
-            fill=COLOR_LINE,
-            width=1
-        )
-
-
-        # ==========================================================
-        # ADDRESS
-        # ==========================================================
-
-        ROW3_Y = 518
-
-
-        draw.text(
-            (
-                LABEL_X,
-                ROW3_Y + 2
-            ),
-            "ADDRESS :",
-            fill=COLOR_MUTED,
-            font=font_val_mid
-        )
-
-
-        full_addr = str(
-            getattr(
-                reg_data,
-                'address',
-                ''
-            ) or ''
-        ).strip()
-
-
-        area_name = str(
-            reg_data.areaId.AreaName
-            if reg_data.areaId
-            else
-            ''
-        ).strip()
-
-
-        if (
-            area_name
-            and
-            area_name.upper()
-            not in
-            full_addr.upper()
-        ):
-
-            full_addr = (
-                f"{full_addr}, {area_name}"
-                if full_addr
-                else
-                area_name
-            )
-
-
-        if not full_addr:
-
-            full_addr = "-"
-
-
-        addr_lines = wrap_text(
-            full_addr.upper(),
-            font_val_mid,
-            (
-                IMG_WIDTH
-                -
-                VALUE_X
-                -
-                40
-            )
-        )
-
-
-        cur_addr_y = ROW3_Y
-
-
-        for line in addr_lines[:3]:
-
-            draw.text(
-                (
-                    VALUE_X,
-                    cur_addr_y
-                ),
-                line,
-                fill=COLOR_BLACK,
-                font=font_val_mid
-            )
-
-            cur_addr_y += 28
-
-
-        # ==========================================================
-        # 23. FOOTER
-        # ==========================================================
-
-        FOOTER_Y = 602
-
-
-        draw.rectangle(
-            (
-                0,
-                FOOTER_Y,
-                IMG_WIDTH,
-                IMG_HEIGHT
-            ),
-            fill=COLOR_HEADER_BG
-        )
-
-
-        draw.rectangle(
-            (
-                0,
-                FOOTER_Y,
-                IMG_WIDTH,
-                FOOTER_Y + 3
-            ),
-            fill=COLOR_ORANGE
-        )
-
-
-        draw_centered_text(
-            FOOTER_Y + 12,
-            "OFFICIAL JOURNEY PASS  •  VERIFIED CARD",
-            font_footer,
-            fill=COLOR_ORANGE
-        )
-
-
-        # ==========================================================
-        # 24. OUTER BORDER
-        # ==========================================================
-
-        draw.rectangle(
-            (
-                0,
-                0,
-                IMG_WIDTH - 1,
-                IMG_HEIGHT - 1
-            ),
-            outline=COLOR_LINE,
-            width=2
-        )
-
-
-        # ==========================================================
-        # 25. SAVE CARD
-        # ==========================================================
-
-        media_root = getattr(
-            settings,
-            'MEDIA_ROOT',
-            os.path.join(
-                settings.BASE_DIR,
-                'media'
-            )
-        )
-
-
-        cards_dir = os.path.join(
-            media_root,
-            'cards'
-        )
-
-
-        os.makedirs(
-            cards_dir,
-            exist_ok=True
-        )
-
-
-        card_filename = (
-            f"pass_"
-            f"{registration_id}_"
-            f"{ticket.ticket_id}.png"
-        )
-
-
-        output_path = os.path.join(
-            cards_dir,
-            card_filename
-        )
-
-
-        with open(
-            output_path,
-            'wb'
-        ) as f:
-
-            image.save(
-                f,
-                format="PNG"
-            )
-
-
-        print(
-            "[CARD SAVED] "
-            f"{output_path}"
-        )
-
-
-        # ==========================================================
-        # 26. MEDIA URL
-        # ==========================================================
-
-        media_url = getattr(
-            settings,
-            'MEDIA_URL',
-            '/media/'
-        )
-
-
-        if not media_url.startswith('/'):
-
-            media_url = (
-                '/'
-                +
-                media_url
-            )
-
-
-        if not media_url.endswith('/'):
-
-            media_url += '/'
-
-
-        card_url = (
-            f"{media_url}"
-            f"cards/"
-            f"{card_filename}"
-            f"?t={int(time.time())}"
-        )
-
-
-        # ==========================================================
-        # 27. SUCCESS RESPONSE
-        # ==========================================================
+            profile_img = Image.new('RGB', (264, 264), (241, 245, 249))
+            p_draw = ImageDraw.Draw(profile_img)
+            p_draw.ellipse((87, 45, 177, 135), fill=(203, 213, 225))
+            p_draw.ellipse((45, 150, 219, 240), fill=(203, 213, 225))
+            image.paste(profile_img, (48, 198))
+
+        image_draw.rounded_rectangle((45, 195, 315, 465), radius=24, outline=COLOR_BORDER, width=3)
+
+        # ५. प्रवाशाची माहिती
+        text_y_start = 492
+        p_name = f"{reg_data.firstname or ''} {reg_data.lastname or ''}".strip().upper()
+        image_draw.text((45, text_y_start), p_name[:18], fill=COLOR_TEXT_DARK, font=font_bold)
+        
+        image_draw.text((45, text_y_start + 54), "Mobile:", fill=COLOR_TEXT_MUTED, font=font_small)
+        image_draw.text((45, text_y_start + 84), str(reg_data.mobileNo or '-'), fill=COLOR_TEXT_DARK, font=font_regular)
+        
+        image_draw.text((45, text_y_start + 144), "Area:", fill=COLOR_TEXT_MUTED, font=font_small)
+        area_name = str(reg_data.areaId.AreaName if reg_data.areaId else '-').upper()
+        image_draw.text((45, text_y_start + 174), area_name[:18], fill=COLOR_TEXT_DARK, font=font_regular)
+
+        # उभी विभाजक रेषा
+        image_draw.line((375, 195, 375, 735), fill=COLOR_BORDER, width=3)
+
+        # ६. प्रवासाची माहिती (१ मोठा आणि अचूक प्रवासाचा बॉक्स)
+        journey_x = 405
+        image_draw.text((journey_x, 195), "JOURNEY DETAILS", fill=COLOR_HEADER, font=font_bold)
+        
+        y_box_top = 252
+        y_box_bottom = y_box_top + 210
+        image_draw.rounded_rectangle((journey_x, y_box_top, IMG_WIDTH - 375, y_box_bottom), radius=20, fill=(248, 250, 252))
+        image_draw.rounded_rectangle((journey_x, y_box_top, IMG_WIDTH - 375, y_box_bottom), radius=20, outline=COLOR_BORDER, width=3)
+        
+        # रूटचे नाव
+        route_name = str(ticket.yatra_route_id.yatraRoutename if ticket.yatra_route_id else 'DARSHAN YATRA').upper()
+        image_draw.text((journey_x + 30, y_box_top + 22), route_name, fill=COLOR_TEAL, font=font_route)
+        
+        # वेळ आणि तारीख
+        dep_str = "N/A"
+        if ticket.yatra_id and ticket.yatra_id.yatraStartDateTime:
+            dep_str = ticket.yatra_id.yatraStartDateTime.strftime("%d-%m-%Y  at  %H:%M")
+        elif ticket.yatra_id and ticket.yatra_id.yatraDateTime:
+            dep_str = ticket.yatra_id.yatraDateTime.strftime("%d-%m-%Y")
+        image_draw.text((journey_x + 30, y_box_top + 80), f"DEP: {dep_str}", fill=COLOR_TEXT_DARK, font=font_regular)
+
+        # बस आणि अचूक सीट नंबर
+        bus_name = str(ticket.yatra_bus_id.busName.busName if (ticket.yatra_bus_id and ticket.yatra_bus_id.busName) else 'A')
+        actual_seat_no = str(ticket.seat_no if ticket.seat_no is not None else '-')
+        bus_seat_str = f"BUS: {bus_name}     |     SEAT: {actual_seat_no}"
+        image_draw.text((journey_x + 30, y_box_top + 138), bus_seat_str, fill=COLOR_HEADER, font=font_bold)
+
+        # ७. तिकीट स्पेसिफिक युनिक QR कोड
+        qr_data = f"DARSHAN_YATRA_PASS\nTICKET: {ticket.ticket_id}\nID: {registration_id}\nNAME: {p_name}\nROUTE: {route_name}\nBUS: {bus_name}\nSEAT: {actual_seat_no}"
+        qr = qrcode.QRCode(version=1, box_size=6, border=1)
+        qr.add_data(qr_data)
+        qr.make(fit=True)
+        qr_img = qr.make_image(fill_color="black", back_color="white").convert('RGB').resize((270, 270))
+        image.paste(qr_img, (IMG_WIDTH - 315, 195))
+        
+        image_draw.text((IMG_WIDTH - 315, 480), "SCAN TO VERIFY", fill=COLOR_TEXT_MUTED, font=font_small)
+        image_draw.text((IMG_WIDTH - 315, 510), "Lakshya Pratishthan", fill=COLOR_TEAL, font=font_small)
+
+        # ८. युनिक फाइलनेम
+        media_root = getattr(settings, 'MEDIA_ROOT', os.path.join(settings.BASE_DIR, 'media'))
+        cards_dir = os.path.join(media_root, 'cards')
+        os.makedirs(cards_dir, exist_ok=True)
+        
+        card_filename = f"pass_{registration_id}_{ticket.ticket_id}.png"
+        output_path = os.path.join(cards_dir, card_filename)
+        
+        with open(output_path, 'wb') as f:
+            image.save(f, format="PNG")
+
+        media_url = getattr(settings, 'MEDIA_URL', '/media/')
+        if not media_url.startswith('/'): media_url = '/' + media_url
+        if not media_url.endswith('/'): media_url += '/'
+        
+        card_url = f"{media_url}cards/{card_filename}?t={int(time.time())}"
 
         response_data['message_code'] = 1000
-
-        response_data['message_text'] = (
-            'Card Printed Successfully'
-        )
-
-        response_data['message_data'] = (
-            card_url
-        )
-
+        response_data['message_text'] = 'Card Printed Successfully'
+        response_data['message_data'] = card_url
 
     except Exception as e:
-
         import traceback
-
         traceback.print_exc()
+        response_data['message_text'] = f'An error occurred: {str(e)}'
 
-        response_data['message_text'] = (
-            f'An error occurred: {str(e)}'
-        )
-
-
-    return Response(
-        response_data,
-        status=status.HTTP_200_OK
-    )
+    return Response(response_data, status=status.HTTP_200_OK)
 
 # @api_view(['POST'])
 # def insertblanktickets(request):
