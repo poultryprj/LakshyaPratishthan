@@ -1459,16 +1459,16 @@ def getpilgrimcard(request):
             response_data['message_text'] = 'No confirmed booking found for this selection.'
             return Response(response_data, status=status.HTTP_200_OK)
 
-        # ३. कॅनव्हास आणि रंगसंगती (1350 x 795 px)
+        # ३. कॅनव्हास आणि रंगसंगती (1350 x 760 px)
         IMG_WIDTH = 1350
-        IMG_HEIGHT = 795
+        IMG_HEIGHT = 760  # आधी 795
         
         COLOR_BG = (255, 255, 255) 
         COLOR_HEADER = (15, 23, 42) 
-        COLOR_TEXT_DARK = (30, 41, 59) 
-        COLOR_TEXT_MUTED = (100, 116, 139) 
-        COLOR_TEAL = (13, 148, 136) 
+        COLOR_BLACK = (0, 0, 0) # 🔴 Pure Black
         COLOR_BORDER = (226, 232, 240) 
+        COLOR_TEXT_MUTED = (100, 116, 139)
+        COLOR_TEAL = (13, 148, 136)
 
         image = Image.new('RGB', (IMG_WIDTH, IMG_HEIGHT), COLOR_BG)
         image_draw = ImageDraw.Draw(image)
@@ -1476,31 +1476,44 @@ def getpilgrimcard(request):
         image_draw.rounded_rectangle((9, 9, IMG_WIDTH - 9, IMG_HEIGHT - 9), radius=36, outline=COLOR_BORDER, width=6)
         image_draw.rounded_rectangle((15, 15, IMG_WIDTH - 15, 156), radius=30, fill=COLOR_HEADER)
         
-        def load_font(size):
-            font_candidates = [
-                "arial.ttf",
-                "C:/Windows/Fonts/arial.ttf",
-                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-            ]
+        def load_font(size, bold=False):
+            if bold:
+                font_candidates = [
+                    "arialbd.ttf",
+                    "C:/Windows/Fonts/arialbd.ttf",
+                    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                    "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+                ]
+            else:
+                font_candidates = [
+                    "arial.ttf",
+                    "C:/Windows/Fonts/arial.ttf",
+                    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+                ]
             for path in font_candidates:
-                if os.path.exists(path) or path == "arial.ttf":
+                if os.path.exists(path) or path in ("arial.ttf", "arialbd.ttf"):
                     try:
                         return ImageFont.truetype(path, size)
                     except Exception:
                         continue
             return ImageFont.load_default()
 
-        font_title = load_font(45)
-        font_subtitle = load_font(24)
-        font_bold = load_font(33)
-        font_route = load_font(38)
-        font_regular = load_font(28)
+        font_title = load_font(45, bold=True)          # LAKSHYA PRATISHTHAN → bold
+        font_bold = load_font(33, bold=True)           # Passenger name, JOURNEY DETAILS, BUS/SEAT → bold
+        font_route = load_font(38, bold=True)          # Route name → bold
+        font_regular = load_font(31)                   # Mobile / Area value
+        font_regular_bold = load_font(28, bold=True)   # DEP line साठी
         font_small = load_font(24)
 
-        # हेडर
-        image_draw.text((54, 33), "LAKSHYA PRATISHTHAN", fill=(255, 255, 255), font=font_title)
-        image_draw.text((54, 99), "OFFICIAL JOURNEY PASS  •  VERIFIED PILGRIM CARD", fill=COLOR_TEAL, font=font_subtitle)
+        # 🔴 हेडर: LAKSHYA PRATISHTHAN मध्यभागी (Centered) आणि सबटायटल काढले आहे
+        title_text = "LAKSHYA PRATISHTHAN"
+        bbox = image_draw.textbbox((0, 0), title_text, font=font_title)
+        title_width = bbox[2] - bbox[0]
+        title_height = bbox[3] - bbox[1]
+        x_center = (IMG_WIDTH - title_width) // 2
+        y_center = 15 + (141 - title_height) // 2 - 8
+        image_draw.text((x_center, y_center), title_text, fill=(255, 255, 255), font=font_title)
 
         # 🔴 ४. प्रोफाइल फोटो शोधणे (लोकल आणि लाइव्ह सर्व्हर दोन्हीसाठी ऑटो-डिटेक्ट)
         profile_img = None
@@ -1509,7 +1522,6 @@ def getpilgrimcard(request):
         if photo_val and photo_val.lower() not in ['none', '', 'null']:
             filename = os.path.basename(photo_val.split('?')[0])
 
-            # (A) थेट संगणकाच्या/सर्व्हरच्या हार्डडिस्कवरून शोधा
             search_dirs = [
                 os.path.join(settings.BASE_DIR, "staticfiles", "assets", "profile"),
                 os.path.join(settings.BASE_DIR, "static", "assets", "profile"),
@@ -1537,7 +1549,6 @@ def getpilgrimcard(request):
                     except Exception as e:
                         pass
 
-            # (B) जर डिस्कवर नसेल तर URL वरून डाऊनलोड करा (Live Server HTTPS किंवा Localhost)
             if not profile_img and (photo_val.startswith('http://') or photo_val.startswith('https://')):
                 urls_to_try = [photo_val]
                 if ":8000" in photo_val:
@@ -1554,7 +1565,6 @@ def getpilgrimcard(request):
                     except Exception:
                         pass
 
-        # फोटो क्रॉप करून गोलाकार कोपऱ्यांसह सेट करा
         if profile_img:
             try:
                 profile_img = ImageOps.fit(profile_img, (264, 264), Image.Resampling.LANCZOS)
@@ -1574,47 +1584,52 @@ def getpilgrimcard(request):
 
         image_draw.rounded_rectangle((45, 195, 315, 465), radius=24, outline=COLOR_BORDER, width=3)
 
-        # ५. प्रवाशाची माहिती
+        # 🔴 ५. प्रवाशाची माहिती (NAME, MOBILE, AREA सर्व Pure Black मध्ये)
         text_y_start = 492
         p_name = f"{reg_data.firstname or ''} {reg_data.lastname or ''}".strip().upper()
-        image_draw.text((45, text_y_start), p_name[:18], fill=COLOR_TEXT_DARK, font=font_bold)
+
+        # Bold नाव divider line ला overlap होऊ नये म्हणून रुंदीनुसार कट करा
+        name_text = p_name
+        while image_draw.textlength(name_text, font=font_bold) > 315 and len(name_text) > 1:
+            name_text = name_text[:-1]
+        image_draw.text((45, text_y_start), name_text, fill=COLOR_BLACK, font=font_bold)
         
-        image_draw.text((45, text_y_start + 54), "Mobile:", fill=COLOR_TEXT_MUTED, font=font_small)
-        image_draw.text((45, text_y_start + 84), str(reg_data.mobileNo or '-'), fill=COLOR_TEXT_DARK, font=font_regular)
+        image_draw.text((45, text_y_start + 54), "Mobile:", fill=COLOR_BLACK, font=font_small)
+        image_draw.text((45, text_y_start + 84), str(reg_data.mobileNo or '-'), fill=COLOR_BLACK, font=font_regular)
         
-        image_draw.text((45, text_y_start + 144), "Area:", fill=COLOR_TEXT_MUTED, font=font_small)
+        image_draw.text((45, text_y_start + 144), "Area:", fill=COLOR_BLACK, font=font_small)
         area_name = str(reg_data.areaId.AreaName if reg_data.areaId else '-').upper()
-        image_draw.text((45, text_y_start + 174), area_name[:18], fill=COLOR_TEXT_DARK, font=font_regular)
+        image_draw.text((45, text_y_start + 174), area_name[:18], fill=COLOR_BLACK, font=font_regular)
 
         # उभी विभाजक रेषा
-        image_draw.line((375, 195, 375, 735), fill=COLOR_BORDER, width=3)
+        image_draw.line((375, 195, 375, IMG_HEIGHT - 45), fill=COLOR_BORDER, width=3)
 
-        # ६. प्रवासाची माहिती (१ मोठा आणि अचूक प्रवासाचा बॉक्स)
+        # 🔴 ६. प्रवासाची माहिती (JOURNEY DETAILS सर्व Pure Black मध्ये + AM/PM)
         journey_x = 405
-        image_draw.text((journey_x, 195), "JOURNEY DETAILS", fill=COLOR_HEADER, font=font_bold)
+        image_draw.text((journey_x, 195), "JOURNEY DETAILS", fill=COLOR_BLACK, font=font_bold)
         
         y_box_top = 252
-        y_box_bottom = y_box_top + 210
+        y_box_bottom = y_box_top + 200  # आधी 210
         image_draw.rounded_rectangle((journey_x, y_box_top, IMG_WIDTH - 375, y_box_bottom), radius=20, fill=(248, 250, 252))
         image_draw.rounded_rectangle((journey_x, y_box_top, IMG_WIDTH - 375, y_box_bottom), radius=20, outline=COLOR_BORDER, width=3)
         
-        # रूटचे नाव
+        # रूटचे नाव (Black)
         route_name = str(ticket.yatra_route_id.yatraRoutename if ticket.yatra_route_id else 'DARSHAN YATRA').upper()
-        image_draw.text((journey_x + 30, y_box_top + 22), route_name, fill=COLOR_TEAL, font=font_route)
+        image_draw.text((journey_x + 30, y_box_top + 22), route_name, fill=COLOR_BLACK, font=font_route)
         
-        # वेळ आणि तारीख
+        # 🔴 वेळ आणि तारीख (AM / PM लॉजिक जोडले)
         dep_str = "N/A"
         if ticket.yatra_id and ticket.yatra_id.yatraStartDateTime:
-            dep_str = ticket.yatra_id.yatraStartDateTime.strftime("%d-%m-%Y  at  %H:%M")
+            dep_str = ticket.yatra_id.yatraStartDateTime.strftime("%d-%m-%Y  at  %I:%M %p")
         elif ticket.yatra_id and ticket.yatra_id.yatraDateTime:
-            dep_str = ticket.yatra_id.yatraDateTime.strftime("%d-%m-%Y")
-        image_draw.text((journey_x + 30, y_box_top + 80), f"DEP: {dep_str}", fill=COLOR_TEXT_DARK, font=font_regular)
+            dep_str = ticket.yatra_id.yatraDateTime.strftime("%d-%m-%Y  at  %I:%M %p")
+        image_draw.text((journey_x + 30, y_box_top + 80), f"DEP: {dep_str}", fill=COLOR_BLACK, font=font_regular_bold)
 
-        # बस आणि अचूक सीट नंबर
+        # बस आणि सीट नंबर (Black)
         bus_name = str(ticket.yatra_bus_id.busName.busName if (ticket.yatra_bus_id and ticket.yatra_bus_id.busName) else 'A')
         actual_seat_no = str(ticket.seat_no if ticket.seat_no is not None else '-')
         bus_seat_str = f"BUS: {bus_name}     |     SEAT: {actual_seat_no}"
-        image_draw.text((journey_x + 30, y_box_top + 138), bus_seat_str, fill=COLOR_HEADER, font=font_bold)
+        image_draw.text((journey_x + 30, y_box_top + 138), bus_seat_str, fill=COLOR_BLACK, font=font_bold)
 
         # ७. तिकीट स्पेसिफिक युनिक QR कोड
         qr_data = f"DARSHAN_YATRA_PASS\nTICKET: {ticket.ticket_id}\nID: {registration_id}\nNAME: {p_name}\nROUTE: {route_name}\nBUS: {bus_name}\nSEAT: {actual_seat_no}"
