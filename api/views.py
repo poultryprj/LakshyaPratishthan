@@ -1558,7 +1558,7 @@ def getpilgrimcard(request):
 
                 for u in urls_to_try:
                     try:
-                        resp = requests.get(u, timeout=3)
+                        resp = requests.get(u, timeout=3, verify=False)
                         if resp.status_code == 200:
                             profile_img = Image.open(io.BytesIO(resp.content)).convert('RGB')
                             break
@@ -1588,11 +1588,20 @@ def getpilgrimcard(request):
         text_y_start = 492
         p_name = f"{reg_data.firstname or ''} {reg_data.lastname or ''}".strip().upper()
 
-        # Bold नाव divider line ला overlap होऊ नये म्हणून रुंदीनुसार कट करा
-        name_text = p_name
-        while image_draw.textlength(name_text, font=font_bold) > 315 and len(name_text) > 1:
-            name_text = name_text[:-1]
-        image_draw.text((45, text_y_start), name_text, fill=COLOR_BLACK, font=font_bold)
+        name_font = font_bold
+        cur_size = 33
+        while cur_size >= 20 and image_draw.textlength(p_name, font=name_font) > 320:
+            cur_size -= 2
+            name_font = load_font(cur_size, bold=True)
+
+        if image_draw.textlength(p_name, font=name_font) > 320 and ' ' in p_name:
+            parts = p_name.split(' ')
+            line1 = parts[0]
+            line2 = ' '.join(parts[1:])
+            image_draw.text((45, text_y_start - 8), line1, fill=COLOR_BLACK, font=name_font)
+            image_draw.text((45, text_y_start + 20), line2, fill=COLOR_BLACK, font=name_font)
+        else:
+            image_draw.text((45, text_y_start), p_name, fill=COLOR_BLACK, font=name_font)
         
         image_draw.text((45, text_y_start + 54), "Mobile:", fill=COLOR_BLACK, font=font_small)
         image_draw.text((45, text_y_start + 84), str(reg_data.mobileNo or '-'), fill=COLOR_BLACK, font=font_regular)
@@ -2281,67 +2290,57 @@ def inserttickets(request):
 @api_view(['POST'])
 def cancelticket(request):
     """
-    Cancels all booked tickets associated with a given RegistrationId.
-    It rolls back the ticket status to 'Available' (0) and clears associated
-    booking-specific fields.
-    Requires 'RegistrationId' as a POST parameter.
+    Cancels a specific ticket (or all tickets for a registration) and releases the seat.
+    Status is reset to Available (0) so other passengers can book it immediately.
     """
     response_data = {'message_code': 999, 'message_text': 'Cancellation Failure', 'message_data': {}}
 
     try:
         body = request.data
-        registration_id_str = body.get('RegistrationId')
+        ticket_id = body.get('TicketId') or body.get('ticket_id')
+        registration_id = body.get('RegistrationId') or body.get('registration_id')
 
-        if not registration_id_str:
-            response_data['message_text'] = 'RegistrationId is required for cancellation.'
+        # १. नेमके कोणते तिकीट रद्द करायचे ते शोधा
+        if ticket_id:
+            tickets_to_cancel = TicketsNew.objects.filter(ticket_id=int(ticket_id))
+        elif registration_id:
+            tickets_to_cancel = TicketsNew.objects.filter(registration_id=int(registration_id), ticket_status_id=2)
+        else:
+            response_data['message_text'] = 'TicketId or RegistrationId is required.'
             return Response(response_data, status=status.HTTP_200_OK)
-
-        try:
-            registration_id = int(registration_id_str)
-        except ValueError:
-            response_data['message_text'] = 'Invalid RegistrationId format. Must be an integer.'
-            return Response(response_data, status=status.HTTP_200_OK)
-
-        # Filter tickets associated with this registration ID and that are currently booked (status 2)
-        tickets_to_cancel = TicketsNew.objects.filter(
-            registration_id=registration_id, # Assuming 'registration_id' is the ForeignKey field
-            ticket_status_id=2 # Only cancel actively booked tickets
-        )
 
         if not tickets_to_cancel.exists():
-            response_data['message_text'] = f'No booked tickets found for RegistrationId {registration_id} to cancel.'
+            response_data['message_text'] = 'No booked tickets found to cancel.'
             return Response(response_data, status=status.HTTP_200_OK)
 
-        updated_count = 0
+        # २. जागा मोकळी करा आणि जुनी सर्व माहिती साफ करा
         with transaction.atomic():
             for ticket in tickets_to_cancel:
-                ticket.ticket_status_id = 0 # Set status to Available
-                ticket.user_id = None        # Clear associated user (ForeignKey to User)
-                ticket.registration_id = None # Clear associated registration (ForeignKey to Registrations)
-                ticket.permanant_id = None   # Clear permanent ID (if linked to registration)
-                ticket.seat_fees = Decimal('0.00') # Reset fees
-                ticket.discount = Decimal('0.00')  # Reset discount
-                ticket.discount_reason = ''   # Clear discount reason
-                ticket.amount_paid = Decimal('0.00') # Reset amount paid
-                ticket.payment_mode = None    # Clear payment mode (assuming nullable)
+                ticket.ticket_status_id = 0          # 🔴 जागा मोकळी झाली (Available)
+                ticket.user_id = None                # युझर क्लिअर
+                ticket.registration_id = None        # प्रवाशाचा संबंध पूर्णपणे संपवला
+                ticket.permanant_id = None
+                ticket.seat_fees = Decimal('0.00')
+                ticket.discount = Decimal('0.00')
+                ticket.discount_reason = ''
+                ticket.amount_paid = Decimal('0.00')
+                ticket.payment_mode = None
+                ticket.booking_date = None
                 
             updated_count = TicketsNew.objects.bulk_update(tickets_to_cancel, [
-                'ticket_status_id', 
-                'user_id',             # Field to update for User ForeignKey
-                'registration_id',     # Field to update for Registration ForeignKey
-                'permanant_id',
-                'seat_fees', 
-                'discount', 
-                'discount_reason', 
-                'amount_paid', 
-                'payment_mode'
+                'ticket_status_id', 'user_id', 'registration_id', 'permanant_id',
+                'seat_fees', 'discount', 'discount_reason', 'amount_paid', 'payment_mode', 'booking_date'
             ])
 
         response_data = {
             'message_code': 1000,
-            'message_text': f'{updated_count} ticket(s) cancelled successfully for RegistrationId {registration_id}.',
-            'message_data': {'registration_id': registration_id, 'cancelled_tickets_count': updated_count}
+            'message_text': f'Ticket cancelled and seat released successfully.',
+            'message_data': {'cancelled_tickets_count': updated_count}
         }
+        return Response(response_data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        response_data['message_text'] = f'Cancellation Error: {str(e)}'
         return Response(response_data, status=status.HTTP_200_OK)
 
     except Exception as e:
